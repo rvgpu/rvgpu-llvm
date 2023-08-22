@@ -201,3 +201,12 @@ def SYNTACORE_SCR1_MAX : RISCVProcessorModel<"syntacore-scr1-max",
                                               FeatureStdExtM,
                                               FeatureStdExtC],
                                              [TuneNoDefaultUnroll]>;
+
+def RVGPU : RISCVProcessorModel<"rvgpu",
+                                NoSchedModel,
+                                [Feature64Bit,
+                                 FeatureStdExtM,
+                                 FeatureStdExtA,
+                                 FeatureStdExtF,
+                                 FeatureStdExtD]>;
+
