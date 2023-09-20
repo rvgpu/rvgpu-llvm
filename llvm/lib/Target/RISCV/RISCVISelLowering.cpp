@@ -10434,6 +10434,13 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
     default:
       llvm_unreachable(
           "Don't know how to custom type legalize this intrinsic!");
+    case Intrinsic::riscv_rvgpu_read_tid_x: {
+      unsigned Opc = RISCVISD::RVG_LDTREG;
+      SDValue NewOp = DAG.getConstant(0, DL, MVT::i64);
+      SDValue Res = DAG.getNode(Opc, DL, MVT::i64, NewOp);
+      Results.push_back(DAG.getNode(ISD::TRUNCATE, DL, MVT::i32, Res));
+      return;
+    }
     case Intrinsic::experimental_get_vector_length: {
       SDValue Res = lowerGetVectorLength(N, DAG, Subtarget);
       Results.push_back(DAG.getNode(ISD::TRUNCATE, DL, MVT::i32, Res));
@@ -16634,6 +16641,7 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
   NODE_NAME_CASE(SWAP_CSR)
   NODE_NAME_CASE(CZERO_EQZ)
   NODE_NAME_CASE(CZERO_NEZ)
+  NODE_NAME_CASE(RVG_LDTREG)
   }
   // clang-format on
   return nullptr;

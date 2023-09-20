@@ -426,6 +426,7 @@ enum NodeType : unsigned {
   TH_LDD,
   TH_SWD,
   TH_SDD,
+  RVG_LDTREG,
 };
 } // namespace RISCVISD
 

@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 // custom-0 instruction
-// rvg.ldtinfo rd, threg
+// rvg.ldtreg rd, threg
 // threg is:
 // 0: tid.x
 // 1: tid.y
@@ -31,9 +31,9 @@
 // decoder to :  imm12_threg_000_rd_0001011
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-class RVGInstLoad_threg<bits<3> funct3, string opcodestr>
+class RVGInstLoad_treg<bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_CUSTOM_0, (outs GPR:$rd), (ins GPRMem:$rs1, simm12:$imm12),
               opcodestr, "$rd, ${rs1}">,
       Sched<[WriteIALU]>;
 
-def RVG_LDTID : RVGInstLoad_threg<0b000, "rvg.ldtid">;
+def RVG_LDTREG : RVGInstLoad_treg<0b000, "rvg.ldtreg">;
