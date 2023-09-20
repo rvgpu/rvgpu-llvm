@@ -12,6 +12,7 @@
 
 #include "RISCVTargetMachine.h"
 #include "MCTargetDesc/RISCVBaseInfo.h"
+#include "RVGPU.h"
 #include "RISCV.h"
 #include "RISCVMachineFunctionInfo.h"
 #include "RISCVMacroFusion.h"
@@ -283,6 +284,7 @@ TargetPassConfig *RISCVTargetMachine::createPassConfig(PassManagerBase &PM) {
 
 void RISCVPassConfig::addIRPasses() {
   addPass(createAtomicExpandPass());
+  addPass(createRVGPULowerIntrinsicsPass());
 
   if (getOptLevel() != CodeGenOpt::None) {
     addPass(createRISCVGatherScatterLoweringPass());
