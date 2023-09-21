@@ -10,6 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+//===----------------------------------------------------------------------===//
+// Operand and SDNode transformation definitions.
+//===----------------------------------------------------------------------===//
+
+def riscv_rvg_ldtreg   : SDNode<"RISCVISD::RVG_LDTREG",   SDTIntUnaryOp>;
+
 // custom-0 instruction
 // rvg.ldtreg rd, threg
 // threg is:
