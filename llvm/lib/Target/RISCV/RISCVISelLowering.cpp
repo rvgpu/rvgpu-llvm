@@ -10436,8 +10436,8 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
           "Don't know how to custom type legalize this intrinsic!");
     case Intrinsic::riscv_rvgpu_read_tid_x: {
       unsigned Opc = RISCVISD::RVG_LDTREG;
-      SDValue NewOp = DAG.getConstant(0, DL, MVT::i64);
-      SDValue Res = DAG.getNode(Opc, DL, MVT::i64, NewOp);
+      SDValue id = DAG.getConstant(0, DL, MVT::i64);
+      SDValue Res = DAG.getNode(Opc, DL, MVT::i64, id);
       Results.push_back(DAG.getNode(ISD::TRUNCATE, DL, MVT::i32, Res));
       return;
     }
