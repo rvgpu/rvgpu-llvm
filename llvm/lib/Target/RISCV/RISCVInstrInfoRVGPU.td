@@ -34,17 +34,17 @@ def riscv_rvg_ldtreg   : SDNode<"RISCVISD::RVG_LDTREG",   SDTIntUnaryOp>;
 // 12: simd
 // 13: nsimd
 //
-// decoder to :  imm12_threg_000_rd_0001011
+// decoder to :  tregid_00000_000_rd_0001011
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
-class RVGInstLoad_treg<bits<7> funct7, string opcodestr>
-    : RVInstR<funct7, 0b000, OPC_CUSTOM_0, (outs GPR:$rd), (ins GPR:$rs1),
-              opcodestr, "$rd, ${rs1}">,
+class RVGInstLoad_treg<bits<3> funct3, string opcodestr>
+    : RVInstI<funct3, OPC_CUSTOM_0, (outs GPR:$rd), (ins simm12:$imm12),
+              opcodestr, "$rd, ${imm12}">,
       Sched<[WriteIALU]> {
-  let rs2 = 0b00000;     
+  let rs1 = 0b00000;     
 }
 
-def RVG_LDTREG : RVGInstLoad_treg<0b0000000, "rvg.ldtreg">;
+def RVG_LDTREG : RVGInstLoad_treg<0b000, "rvg.ldtreg">;
 
 let Predicates = [IsRV64] in
-def : Pat<(riscv_rvg_ldtreg i64:$in), (RVG_LDTREG GPR:$in)>;
+def : Pat<(riscv_rvg_ldtreg i64:$imm), (RVG_LDTREG simm12:$imm)>;
