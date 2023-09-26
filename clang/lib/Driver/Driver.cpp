@@ -128,10 +128,23 @@ static std::optional<llvm::Triple> getOffloadTargetTriple(const Driver &D,
   return llvm::Triple(OffloadTargets[0]);
 }
 
+static bool offloadArchIsRVGPU(const ArgList &Args) {
+  if (Args.hasArg(options::OPT_offload_arch_EQ)) {
+    if (Args.getLastArgValue(options::OPT_offload_arch_EQ) == "rvg_10") {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 static std::optional<llvm::Triple>
 getNVIDIAOffloadTargetTriple(const Driver &D, const ArgList &Args,
                              const llvm::Triple &HostTriple) {
   if (!Args.hasArg(options::OPT_offload_EQ)) {
+    if (offloadArchIsRVGPU(Args)) {
+      return llvm::Triple("riscv64-unknown-linux-gnu");
+    }
     return llvm::Triple(HostTriple.isArch64Bit() ? "nvptx64-nvidia-cuda"
                                                  : "nvptx-nvidia-cuda");
   }

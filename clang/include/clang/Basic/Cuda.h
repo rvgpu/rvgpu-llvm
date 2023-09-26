@@ -71,6 +71,7 @@ enum class CudaArch {
   SM_87,
   SM_89,
   SM_90,
+  RVG_10,
   GFX600,
   GFX601,
   GFX602,

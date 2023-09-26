@@ -80,6 +80,8 @@ struct CudaArchToStringMap {
 #define SM(sm) SM2(sm, "compute_" #sm)
 #define GFX(gpu)                                                               \
   { CudaArch::GFX##gpu, "gfx" #gpu, "compute_amdgcn" }
+#define RVG(gpu)                                                               \
+  { CudaArch::RVG_##gpu, "rvg_" #gpu, "compute_rvgpu" }
 static const CudaArchToStringMap arch_names[] = {
     // clang-format off
     {CudaArch::UNUSED, "", ""},
@@ -93,6 +95,7 @@ static const CudaArchToStringMap arch_names[] = {
     SM(87),                          // Jetson/Drive AGX Orin
     SM(89),                          // Ada Lovelace
     SM(90),                          // Hopper
+    RVG(10),                         // RVGPU v1.0
     GFX(600),  // gfx600
     GFX(601),  // gfx601
     GFX(602),  // gfx602
@@ -206,6 +209,8 @@ CudaVersion MinVersionForCudaArch(CudaArch A) {
     return CudaVersion::CUDA_114;
   case CudaArch::SM_89:
   case CudaArch::SM_90:
+    return CudaVersion::CUDA_118;
+  case CudaArch::RVG_10:
     return CudaVersion::CUDA_118;
   default:
     llvm_unreachable("invalid enum");
