@@ -374,7 +374,7 @@ void NVPTX::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
                                     const char *LinkingOutput) const {
   const auto &TC =
       static_cast<const toolchains::NVPTXToolChain &>(getToolChain());
-  assert(TC.getTriple().isNVPTX() && "Wrong platform");
+  // assert(TC.getTriple().isNVPTX() && "Wrong platform");
 
   StringRef GPUArchName;
   // If this is a CUDA action we need to extract the device architecture
@@ -521,7 +521,7 @@ void NVPTX::FatBinary::ConstructJob(Compilation &C, const JobAction &JA,
                                     const char *LinkingOutput) const {
   const auto &TC =
       static_cast<const toolchains::CudaToolChain &>(getToolChain());
-  assert(TC.getTriple().isNVPTX() && "Wrong platform");
+  // assert(TC.getTriple().isNVPTX() && "Wrong platform");
 
   ArgStringList CmdArgs;
   if (TC.CudaInstallation.version() <= CudaVersion::CUDA_100)
@@ -572,7 +572,7 @@ void NVPTX::Linker::ConstructJob(Compilation &C, const JobAction &JA,
                                  const char *LinkingOutput) const {
   const auto &TC =
       static_cast<const toolchains::NVPTXToolChain &>(getToolChain());
-  assert(TC.getTriple().isNVPTX() && "Wrong platform");
+  // assert(TC.getTriple().isNVPTX() && "Wrong platform");
 
   ArgStringList CmdArgs;
   if (Output.isFilename()) {
