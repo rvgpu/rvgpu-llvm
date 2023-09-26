@@ -130,7 +130,7 @@ static std::optional<llvm::Triple> getOffloadTargetTriple(const Driver &D,
 
 static bool offloadArchIsRVGPU(const ArgList &Args) {
   if (Args.hasArg(options::OPT_offload_arch_EQ)) {
-    if (Args.getLastArgValue(options::OPT_offload_arch_EQ) == "rvg_10") {
+    if (Args.getLastArgValue(options::OPT_offload_arch_EQ) == "rv64g") {
       return true;
     }
   }

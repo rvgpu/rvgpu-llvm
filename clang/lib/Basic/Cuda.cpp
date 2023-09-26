@@ -81,7 +81,7 @@ struct CudaArchToStringMap {
 #define GFX(gpu)                                                               \
   { CudaArch::GFX##gpu, "gfx" #gpu, "compute_amdgcn" }
 #define RVG(gpu)                                                               \
-  { CudaArch::RVG_##gpu, "rvg_" #gpu, "compute_rvgpu" }
+  { CudaArch::RVG_##gpu, "rv64g", "compute_rvgpu" }
 static const CudaArchToStringMap arch_names[] = {
     // clang-format off
     {CudaArch::UNUSED, "", ""},
