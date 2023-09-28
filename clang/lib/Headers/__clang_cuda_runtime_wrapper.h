@@ -362,7 +362,7 @@ __DEVICE__ unsigned int __isLocal(const void *p) {
 // The implementation requires c++11 and only works with CUDA-9 or newer.
 #if __cplusplus >= 201103L && CUDA_VERSION >= 9000
 // clang-format off
-#include <__clang_cuda_texture_intrinsics.h>
+// #include <__clang_cuda_texture_intrinsics.h>
 // clang-format on
 #else
 #if CUDA_VERSION >= 9000

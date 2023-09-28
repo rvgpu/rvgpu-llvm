@@ -28,6 +28,7 @@ static constexpr Builtin::Info BuiltinInfo[] = {
 #define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE)                               \
   {#ID, TYPE, ATTRS, FEATURE, HeaderDesc::NO_HEADER, ALL_LANGUAGES},
 #include "clang/Basic/BuiltinsNVPTX.def"
+
 };
 
 const char *const NVPTXTargetInfo::GCCRegNames[] = {"r0"};
