@@ -20400,6 +20400,10 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
 
     return Store;
   }
+  case RISCV::BI__nvvm_read_ptx_sreg_tid_x: {
+    ID = Intrinsic::riscv_rvgpu_read_tid_x;
+    break;
+  }
 
   // Vector builtins are handled from here.
 #include "clang/Basic/riscv_vector_builtin_cg.inc"
