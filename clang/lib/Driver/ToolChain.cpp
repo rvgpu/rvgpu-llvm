@@ -458,9 +458,15 @@ Tool *ToolChain::buildStaticLibTool() const {
 }
 
 Tool *ToolChain::getAssemble() const {
+ if (getArchName() == "riscv64") {
+  return new tools::ClangAs(*this);
+
+ }else {
   if (!Assemble)
     Assemble.reset(buildAssembler());
   return Assemble.get();
+ }
+
 }
 
 Tool *ToolChain::getClangAs() const {
