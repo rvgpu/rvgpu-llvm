@@ -524,45 +524,74 @@ void NVPTX::FatBinary::ConstructJob(Compilation &C, const JobAction &JA,
   // assert(TC.getTriple().isNVPTX() && "Wrong platform");
 
   ArgStringList CmdArgs;
-  if (TC.CudaInstallation.version() <= CudaVersion::CUDA_100)
+  auto &TT = getToolChain().getTriple();
+  if (TT.getArchName() == "riscv64") {
+     CmdArgs.push_back(Args.MakeArgString("-type=o"));
+      std::string BundlerTargetArg = "-targets=host-x86_64-unknown-linux";
+   
+     BundlerTargetArg += ",hip-riscv64-unknown-linux-gnu-rv64g";
+     CmdArgs.push_back(Args.MakeArgString(BundlerTargetArg));
+  
+     std::string BundlerInputArg = "-input=""/dev/null";
+     CmdArgs.push_back(Args.MakeArgString(BundlerInputArg));
+     for (const auto &II : Inputs) {
+         BundlerInputArg = std::string("-input=") + II.getFilename();
+          CmdArgs.push_back(Args.MakeArgString(BundlerInputArg));
+           break;
+     }
+    std::string Output_filename = std::string(Output.getFilename());
+    auto *BundlerOutputArg =
+                          Args.MakeArgString(std::string("-output=").append(Output_filename));
+    CmdArgs.push_back(BundlerOutputArg);
+   
+  
+    const char *Bundler = Args.MakeArgString(TC.GetProgramPath("clang-offload-bundler"));
+    C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(), Bundler, CmdArgs, Inputs,
+    InputInfo(&JA, Args.MakeArgString(Output_filename))));
+
+  }else {
+    if (TC.CudaInstallation.version() <= CudaVersion::CUDA_100)
     CmdArgs.push_back("--cuda");
-  CmdArgs.push_back(TC.getTriple().isArch64Bit() ? "-64" : "-32");
-  CmdArgs.push_back(Args.MakeArgString("--create"));
-  CmdArgs.push_back(Args.MakeArgString(Output.getFilename()));
-  if (mustEmitDebugInfo(Args) == EmitSameDebugInfoAsHost)
-    CmdArgs.push_back("-g");
+    CmdArgs.push_back(TC.getTriple().isArch64Bit() ? "-64" : "-32");
+    CmdArgs.push_back(Args.MakeArgString("--create"));
+    CmdArgs.push_back(Args.MakeArgString(Output.getFilename()));
+    if (mustEmitDebugInfo(Args) == EmitSameDebugInfoAsHost)
+      CmdArgs.push_back("-g");
 
-  for (const auto &II : Inputs) {
-    auto *A = II.getAction();
-    assert(A->getInputs().size() == 1 &&
-           "Device offload action is expected to have a single input");
-    const char *gpu_arch_str = A->getOffloadingArch();
-    assert(gpu_arch_str &&
-           "Device action expected to have associated a GPU architecture!");
-    CudaArch gpu_arch = StringToCudaArch(gpu_arch_str);
+    for (const auto &II : Inputs) {
+      auto *A = II.getAction();
+      assert(A->getInputs().size() == 1 &&
+             "Device offload action is expected to have a single input");
+      const char *gpu_arch_str = A->getOffloadingArch();
+      assert(gpu_arch_str &&
+             "Device action expected to have associated a GPU architecture!");
+      CudaArch gpu_arch = StringToCudaArch(gpu_arch_str);
 
-    if (II.getType() == types::TY_PP_Asm &&
-        !shouldIncludePTX(Args, gpu_arch_str))
-      continue;
-    // We need to pass an Arch of the form "sm_XX" for cubin files and
-    // "compute_XX" for ptx.
-    const char *Arch = (II.getType() == types::TY_PP_Asm)
-                           ? CudaArchToVirtualArchString(gpu_arch)
-                           : gpu_arch_str;
-    CmdArgs.push_back(
-        Args.MakeArgString(llvm::Twine("--image=profile=") + Arch +
-                           ",file=" + getToolChain().getInputFilename(II)));
-  }
+      if (II.getType() == types::TY_PP_Asm &&
+          !shouldIncludePTX(Args, gpu_arch_str))
+        continue;
+      // We need to pass an Arch of the form "sm_XX" for cubin files and
+      // "compute_XX" for ptx.
+      const char *Arch = (II.getType() == types::TY_PP_Asm)
+                             ? CudaArchToVirtualArchString(gpu_arch)
+                             : gpu_arch_str;
+      CmdArgs.push_back(
+          Args.MakeArgString(llvm::Twine("--image=profile=") + Arch +
+                             ",file=" + getToolChain().getInputFilename(II)));
+    }
 
-  for (const auto &A : Args.getAllArgValues(options::OPT_Xcuda_fatbinary))
-    CmdArgs.push_back(Args.MakeArgString(A));
+    for (const auto &A : Args.getAllArgValues(options::OPT_Xcuda_fatbinary))
+      CmdArgs.push_back(Args.MakeArgString(A));
 
-  const char *Exec = Args.MakeArgString(TC.GetProgramPath("fatbinary"));
-  C.addCommand(std::make_unique<Command>(
-      JA, *this,
-      ResponseFileSupport{ResponseFileSupport::RF_Full, llvm::sys::WEM_UTF8,
-                          "--options-file"},
-      Exec, CmdArgs, Inputs, Output));
+    const char *Exec = Args.MakeArgString(TC.GetProgramPath("fatbinary"));
+    C.addCommand(std::make_unique<Command>(
+        JA, *this,
+        ResponseFileSupport{ResponseFileSupport::RF_Full, llvm::sys::WEM_UTF8,
+                            "--options-file"},
+        Exec, CmdArgs, Inputs, Output));
+ 
+    }
+
 }
 
 void NVPTX::Linker::ConstructJob(Compilation &C, const JobAction &JA,
