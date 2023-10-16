@@ -333,10 +333,15 @@ void CGNVCUDARuntime::emitDeviceStubBodyNew(CodeGenFunction &CGF,
   // argument array that we can pass to runtime, even if it will be unused.
   Address KernelArgs = CGF.CreateTempAlloca(
       VoidPtrTy, CharUnits::fromQuantity(16), "kernel_args",
-      llvm::ConstantInt::get(SizeTy, std::max<size_t>(1, Args.size())));
+      llvm::ConstantInt::get(SizeTy, std::max<size_t>(1, Args.size())+1));
+
+
+  llvm::Value* arg_size = llvm::ConstantInt::get(SizeTy, std::max<size_t>(1, Args.size())); 
+  CGF.Builder.CreateDefaultAlignedStore(arg_size, CGF.Builder.CreateConstGEP1_32(VoidPtrTy, KernelArgs.getPointer(), 0));      
+  
   // Store pointers to the arguments in a locally allocated launch_args.
-  for (unsigned i = 0; i < Args.size(); ++i) {
-    llvm::Value* VarPtr = CGF.GetAddrOfLocalVar(Args[i]).getPointer();
+  for (unsigned i = 1; i <= Args.size(); ++i) {
+    llvm::Value* VarPtr = CGF.GetAddrOfLocalVar(Args[i-1]).getPointer();
     llvm::Value *VoidVarPtr = CGF.Builder.CreatePointerCast(VarPtr, VoidPtrTy);
     CGF.Builder.CreateDefaultAlignedStore(
         VoidVarPtr,
