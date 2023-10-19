@@ -222,6 +222,9 @@ StringRef riscv::getRISCVABI(const ArgList &Args, const llvm::Triple &Triple) {
   // rv64* -> lp64
   StringRef Arch = getRISCVArch(Args, Triple);
 
+  if (Arch == "rv64g") {
+    return "lp64";
+  }
   auto ParseResult = llvm::RISCVISAInfo::parseArchString(
       Arch, /* EnableExperimentalExtension */ true);
   if (!ParseResult)
