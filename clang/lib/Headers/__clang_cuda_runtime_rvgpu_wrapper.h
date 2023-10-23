@@ -146,18 +146,6 @@ inline __host__ double __signbitd(double x) {
 }
 #endif
 
-// CUDA 9.1 no longer provides declarations for libdevice functions, so we need
-// to provide our own.
-#include <__clang_cuda_libdevice_declares.h>
-
-// Wrappers for many device-side standard library functions, incl. math
-// functions, became compiler builtins in CUDA-9 and have been removed from the
-// CUDA headers. Clang now provides its own implementation of the wrappers.
-#if CUDA_VERSION >= 9000
-#include <__clang_cuda_device_functions.h>
-#include <__clang_cuda_math.h>
-#endif
-
 // __THROW is redefined to be empty by device_functions_decls.h in CUDA. Clang's
 // counterpart does not do it, so we need to make it empty here to keep
 // following CUDA includes happy.
@@ -184,68 +172,6 @@ inline __host__ double __signbitd(double x) {
 #pragma push_macro("__host__")
 #define __host__ UNEXPECTED_HOST_ATTRIBUTE
 
-// device_functions.hpp and math_functions*.hpp use 'static
-// __forceinline__' (with no __device__) for definitions of device
-// functions. Temporarily redefine __forceinline__ to include
-// __device__.
-#pragma push_macro("__forceinline__")
-#define __forceinline__ __device__ __inline__ __attribute__((always_inline))
-#if CUDA_VERSION < 9000
-#include "device_functions.hpp"
-#endif
-
-// math_function.hpp uses the __USE_FAST_MATH__ macro to determine whether we
-// get the slow-but-accurate or fast-but-inaccurate versions of functions like
-// sin and exp.  This is controlled in clang by -fgpu-approx-transcendentals.
-//
-// device_functions.hpp uses __USE_FAST_MATH__ for a different purpose (fast vs.
-// slow divides), so we need to scope our define carefully here.
-#pragma push_macro("__USE_FAST_MATH__")
-#if defined(__CLANG_GPU_APPROX_TRANSCENDENTALS__)
-#define __USE_FAST_MATH__ 1
-#endif
-
-#if CUDA_VERSION >= 9000
-#include "crt/math_functions.hpp"
-#else
-#include "math_functions.hpp"
-#endif
-
-#pragma pop_macro("__USE_FAST_MATH__")
-
-#if CUDA_VERSION < 9000
-#include "math_functions_dbl_ptx3.hpp"
-#endif
-#pragma pop_macro("__forceinline__")
-
-// Pull in host-only functions that are only available when neither
-// __CUDACC__ nor __CUDABE__ are defined.
-#undef __MATH_FUNCTIONS_HPP__
-#undef __CUDABE__
-#if CUDA_VERSION < 9000
-#include "math_functions.hpp"
-#endif
-// Alas, additional overloads for these functions are hard to get to.
-// Considering that we only need these overloads for a few functions,
-// we can provide them here.
-static inline float rsqrt(float __a) { return rsqrtf(__a); }
-static inline float rcbrt(float __a) { return rcbrtf(__a); }
-static inline float sinpi(float __a) { return sinpif(__a); }
-static inline float cospi(float __a) { return cospif(__a); }
-static inline void sincospi(float __a, float *__b, float *__c) {
-  return sincospif(__a, __b, __c);
-}
-static inline float erfcinv(float __a) { return erfcinvf(__a); }
-static inline float normcdfinv(float __a) { return normcdfinvf(__a); }
-static inline float normcdf(float __a) { return normcdff(__a); }
-static inline float erfcx(float __a) { return erfcxf(__a); }
-
-#if CUDA_VERSION < 9000
-// For some reason single-argument variant is not always declared by
-// CUDA headers. Alas, device_functions.hpp included below needs it.
-static inline __device__ void __brkpt(int __c) { __brkpt(); }
-#endif
-
 // Now include *.hpp with definitions of various GPU functions.  Alas,
 // a lot of thins get declared/defined with __host__ attribute which
 // we don't want and we have to define it out. We also have to include
@@ -259,18 +185,10 @@ static inline __device__ void __brkpt(int __c) { __brkpt(); }
 // declarations.
 #include "device_atomic_functions.h"
 #endif
+
 #undef __DEVICE_FUNCTIONS_HPP__
 #include "device_atomic_functions.hpp"
-#if CUDA_VERSION >= 9000
-#include "crt/device_functions.hpp"
-#include "crt/device_double_functions.hpp"
-#else
-#include "device_functions.hpp"
-#define __CUDABE__
-#include "device_double_functions.h"
-#undef __CUDABE__
-#endif
-#include "sm_20_atomic_functions.hpp"
+
 // Predicate functions used in `__builtin_assume` need to have no side effect.
 // However, sm_20_intrinsics.hpp doesn't define them with neither pure nor
 // const attribute. Rename definitions from sm_20_intrinsics.hpp and re-define
@@ -283,7 +201,7 @@ static inline __device__ void __brkpt(int __c) { __brkpt(); }
 #define __isShared __ignored_cuda___isShared
 #define __isConstant __ignored_cuda___isConstant
 #define __isLocal __ignored_cuda___isLocal
-#include "sm_20_intrinsics.hpp"
+
 #pragma pop_macro("__isGlobal")
 #pragma pop_macro("__isShared")
 #pragma pop_macro("__isConstant")
@@ -303,23 +221,6 @@ __DEVICE__ unsigned int __isLocal(const void *p) {
   return __nvvm_isspacep_local(p);
 }
 #pragma pop_macro("__DEVICE__")
-#include "sm_32_atomic_functions.hpp"
-
-// Don't include sm_30_intrinsics.h and sm_32_intrinsics.h.  These define the
-// __shfl and __ldg intrinsics using inline (volatile) asm, but we want to
-// define them using builtins so that the optimizer can reason about and across
-// these instructions.  In particular, using intrinsics for ldg gets us the
-// [addr+imm] addressing mode, which, although it doesn't actually exist in the
-// hardware, seems to generate faster machine code because ptxas can more easily
-// reason about our code.
-
-#if CUDA_VERSION >= 8000
-#pragma push_macro("__CUDA_ARCH__")
-#undef __CUDA_ARCH__
-#include "sm_60_atomic_functions.hpp"
-#include "sm_61_intrinsics.hpp"
-#pragma pop_macro("__CUDA_ARCH__")
-#endif
 
 #undef __MATH_FUNCTIONS_HPP__
 
@@ -345,11 +246,6 @@ __DEVICE__ unsigned int __isLocal(const void *p) {
 #endif
 #endif
 
-#if CUDA_VERSION >= 9000
-#include "crt/math_functions.hpp"
-#else
-#include "math_functions.hpp"
-#endif
 #pragma pop_macro("_GLIBCXX_MATH_H")
 #pragma pop_macro("_LIBCPP_VERSION")
 #pragma pop_macro("__GNUC__")
@@ -469,10 +365,6 @@ __device__ inline __cuda_builtin_gridDim_t::operator uint3() const {
   return {x, y, z};
 }
 
-#include <__clang_cuda_cmath.h>
-#include <__clang_cuda_intrinsics.h>
-#include <__clang_cuda_complex_builtins.h>
-
 // curand_mtgp32_kernel helpfully redeclares blockDim and threadIdx in host
 // mode, giving them their "proper" types of dim3 and uint3.  This is
 // incompatible with the types we give in __clang_cuda_builtin_vars.h.  As as
@@ -483,7 +375,7 @@ __device__ inline __cuda_builtin_gridDim_t::operator uint3() const {
 #pragma push_macro("uint3")
 #define dim3 __cuda_builtin_blockDim_t
 #define uint3 __cuda_builtin_threadIdx_t
-#include "curand_mtgp32_kernel.h"
+
 #pragma pop_macro("dim3")
 #pragma pop_macro("uint3")
 #pragma pop_macro("__USE_FAST_MATH__")
