@@ -300,7 +300,7 @@ void CudaInstallationDetector::AddCudaIncludeArgs(
   }
 
   CC1Args.push_back("-include");
-  CC1Args.push_back("__clang_cuda_runtime_wrapper.h");
+  CC1Args.push_back("__clang_cuda_runtime_rvgpu_wrapper.h");
 }
 
 void CudaInstallationDetector::CheckCudaVersionSupportsArch(
