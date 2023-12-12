@@ -1,0 +1,6 @@
+Package: rvgpu-llvm
+Version: 0.2.2
+Architecture: amd64
+Maintainer: qihangkong
+Priority: optional
+Description: llvm package for rvgpu
