@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Cuda.h"
+#include "SS.h"
 #include "CommonArgs.h"
 #include "clang/Basic/Cuda.h"
 #include "clang/Config/config.h"
@@ -378,7 +378,7 @@ void RVGPU::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
                                     const char *LinkingOutput) const {
   const auto &TC =
       static_cast<const toolchains::RVGPUToolChain &>(getToolChain());
-  assert(TC.getTriple().isRVGPU() && "Wrong platform");
+  assert(TC.getTriple().isRISCV64() && "Wrong platform");
 
   StringRef GPUArchName;
   // If this is a CUDA action we need to extract the device architecture
@@ -525,7 +525,7 @@ void RVGPU::FatBinary::ConstructJob(Compilation &C, const JobAction &JA,
                                     const char *LinkingOutput) const {
   const auto &TC =
       static_cast<const toolchains::SSToolChain &>(getToolChain());
-  assert(TC.getTriple().isRVGPU() && "Wrong platform");
+  assert(TC.getTriple().isRISCV64() && "Wrong platform");
 
   ArgStringList CmdArgs;
   if (TC.CudaInstallation.version() <= CudaVersion::CUDA_100)
@@ -578,7 +578,7 @@ void RVGPU::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       static_cast<const toolchains::RVGPUToolChain &>(getToolChain());
   ArgStringList CmdArgs;
 
-  assert(TC.getTriple().isRVGPU() && "Wrong platform");
+  assert(TC.getTriple().isRISCV64() && "Wrong platform");
 
   assert((Output.isFilename() || Output.isNothing()) && "Invalid output.");
   if (Output.isFilename()) {

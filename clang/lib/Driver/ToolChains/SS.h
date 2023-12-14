@@ -168,7 +168,7 @@ public:
   unsigned GetDefaultDwarfVersion() const override { return 2; }
   unsigned getMaxDwarfVersion() const override { return 2; }
 
-  CudaInstallationDetector CudaInstallation;
+  SSInstallationDetector CudaInstallation;
 
 protected:
   Tool *buildAssembler() const override; // ptxas.

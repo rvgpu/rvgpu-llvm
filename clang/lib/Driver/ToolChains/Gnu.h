@@ -12,6 +12,7 @@
 #include "Cuda.h"
 #include "LazyDetector.h"
 #include "ROCm.h"
+#include "SS.h"
 #include "clang/Driver/Tool.h"
 #include "clang/Driver/ToolChain.h"
 #include <set>
@@ -288,6 +289,7 @@ protected:
   GCCInstallationDetector GCCInstallation;
   LazyDetector<CudaInstallationDetector> CudaInstallation;
   LazyDetector<RocmInstallationDetector> RocmInstallation;
+  LazyDetector<SSInstallationDetector> SSInstallation;
 
 public:
   Generic_GCC(const Driver &D, const llvm::Triple &Triple,
