@@ -163,6 +163,7 @@ SSInstallationDetector::SSInstallationDetector(
       // because '/usr/include' exists as well. To avoid this case, we always
       // check for the directory potentially containing files for libdevice,
       // even if the user passes -nocudalib.
+      #if 0  // Don't find ptxas
       if (llvm::ErrorOr<std::string> ptxas =
               llvm::sys::findProgramByName("ptxas")) {
         SmallString<256> ptxasAbsolutePath;
@@ -174,17 +175,14 @@ SSInstallationDetector::SSInstallationDetector(
               std::string(llvm::sys::path::parent_path(ptxasDir)),
               /*StrictChecking=*/true);
       }
+      #endif
     }
 
-    Candidates.emplace_back(D.SysRoot + "/usr/local/cuda");
+    Candidates.emplace_back(D.SysRoot + "/usr/local/rvgpu");
     for (const char *Ver : Versions)
-      Candidates.emplace_back(D.SysRoot + "/usr/local/cuda-" + Ver);
+      Candidates.emplace_back(D.SysRoot + "/usr/local/rvgpu-" + Ver);
 
     Distro Dist(FS, llvm::Triple(llvm::sys::getProcessTriple()));
-    if (Dist.IsDebian() || Dist.IsUbuntu())
-      // Special case for Debian to have nvidia-cuda-toolkit work
-      // out of the box. More info on http://bugs.debian.org/882505
-      Candidates.emplace_back(D.SysRoot + "/usr/lib/cuda");
   }
 
   bool NoCudaLib = Args.hasArg(options::OPT_nogpulib);
@@ -326,7 +324,7 @@ void SSInstallationDetector::CheckCudaVersionSupportsArch(
 
 void SSInstallationDetector::print(raw_ostream &OS) const {
   if (isValid())
-    OS << "Found CUDA installation: " << InstallPath << ", version "
+    OS << "Found SS installation: " << InstallPath << ", version "
        << CudaVersionToString(Version) << "\n";
 }
 

@@ -2927,6 +2927,7 @@ void Generic_GCC::printVerboseInfo(raw_ostream &OS) const {
   GCCInstallation.print(OS);
   CudaInstallation->print(OS);
   RocmInstallation->print(OS);
+  SSInstallation->print(OS);
 }
 
 ToolChain::UnwindTableLevel
