@@ -139,6 +139,9 @@ bool types::isAcceptedByClang(ID Id) {
   case TY_HIP:
   case TY_PP_HIP:
   case TY_HIP_DEVICE:
+  case TY_SS:
+  case TY_PP_SS:
+  case TY_SS_DEVICE:
   case TY_ObjC: case TY_PP_ObjC: case TY_PP_ObjC_Alias:
   case TY_CXX: case TY_PP_CXX:
   case TY_ObjCXX: case TY_PP_ObjCXX: case TY_PP_ObjCXX_Alias:
@@ -188,6 +191,9 @@ bool types::isDerivedFromC(ID Id) {
   case TY_PP_HIP:
   case TY_HIP:
   case TY_HIP_DEVICE:
+  case TY_SS:
+  case TY_PP_SS:
+  case TY_SS_DEVICE:
   case TY_PP_ObjC:
   case TY_PP_ObjC_Alias:
   case TY_ObjC:
@@ -245,6 +251,9 @@ bool types::isCXX(ID Id) {
   case TY_HIP:
   case TY_PP_HIP:
   case TY_HIP_DEVICE:
+  case TY_SS:
+  case TY_PP_SS:
+  case TY_SS_DEVICE:
     return true;
   }
 }
@@ -286,6 +295,17 @@ bool types::isHIP(ID Id) {
   }
 }
 
+
+bool types::isSS(ID Id) {
+  switch (Id) {
+  default:
+    return false;
+    case TY_SS:
+    case TY_PP_SS:
+      return true;
+    }
+}
+
 bool types::isHLSL(ID Id) { return Id == TY_HLSL; }
 
 bool types::isSrcFile(ID Id) {
@@ -313,6 +333,7 @@ types::ID types::lookupTypeForExtension(llvm::StringRef Ext) {
       .Case("clcpp", TY_CLCXX)
       .Case("cp", TY_CXX)
       .Case("cu", TY_CUDA)
+      .Case("ss", TY_SS)
       .Case("hh", TY_CXXHeader)
       .Case("ii", TY_PP_CXX)
       .Case("ll", TY_LLVM_IR)
