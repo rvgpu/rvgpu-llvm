@@ -10,6 +10,7 @@
 #define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_GNU_H
 
 #include "Cuda.h"
+#include "SS.h"
 #include "LazyDetector.h"
 #include "ROCm.h"
 #include "clang/Driver/Tool.h"
@@ -290,6 +291,7 @@ protected:
   GCCInstallationDetector GCCInstallation;
   LazyDetector<CudaInstallationDetector> CudaInstallation;
   LazyDetector<RocmInstallationDetector> RocmInstallation;
+  LazyDetector<SSInstallationDetector> SSInstallation;
 
 public:
   Generic_GCC(const Driver &D, const llvm::Triple &Triple,
