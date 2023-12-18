@@ -787,11 +787,16 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
                      return types::isHIP(I.first);
                    }) ||
       C.getInputArgs().hasArg(options::OPT_hip_link);
+  bool IsSomersault =
+      llvm::any_of(Inputs, [](std::pair<types::ID, const llvm::opt::Arg *> &I) {
+        return types::isSS(I.first);
+      });
+
   if (IsCuda && IsHIP) {
     Diag(clang::diag::err_drv_mix_cuda_hip);
     return;
   }
-  if (IsCuda) {
+  if (IsCuda || IsSomersault) {
     const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
     const llvm::Triple &HostTriple = HostTC->getTriple();
     auto OFK = Action::OFK_Cuda;
@@ -2966,7 +2971,8 @@ class OffloadingActionBuilder final {
         // this input.
         if (!(IA->getType() == types::TY_CUDA ||
               IA->getType() == types::TY_HIP ||
-              IA->getType() == types::TY_PP_HIP)) {
+              IA->getType() == types::TY_PP_HIP ||
+              IA->getType() == types::TY_SS)) {
           // The builder will ignore this input.
           IsActive = false;
           return ABRT_Inactive;
