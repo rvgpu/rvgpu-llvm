@@ -43,8 +43,8 @@ public:
   SSInstallationDetector(const Driver &D, const llvm::Triple &HostTriple,
                          const llvm::opt::ArgList &Args);
 
-  void AddCudaIncludeArgs(const llvm::opt::ArgList &DriverArgs,
-                          llvm::opt::ArgStringList &CC1Args) const;
+  void AddSSIncludeArgs(const llvm::opt::ArgList &DriverArgs,
+                        llvm::opt::ArgStringList &CC1Args) const;
 
   /// Emit an error if Version does not support the given Arch.
   ///
@@ -201,8 +201,8 @@ public:
       const llvm::opt::ArgList &DriverArgs, const JobAction &JA,
       const llvm::fltSemantics *FPType = nullptr) const override;
 
-  void AddCudaIncludeArgs(const llvm::opt::ArgList &DriverArgs,
-                          llvm::opt::ArgStringList &CC1Args) const override;
+  void AddSSIncludeArgs(const llvm::opt::ArgList &DriverArgs,
+                        llvm::opt::ArgStringList &CC1Args) const override;
 
   void addClangWarningOptions(llvm::opt::ArgStringList &CC1Args) const override;
   CXXStdlibType GetCXXStdlibType(const llvm::opt::ArgList &Args) const override;

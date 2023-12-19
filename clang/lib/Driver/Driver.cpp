@@ -854,7 +854,7 @@ void Driver::CreateOffloadingDeviceToolChains(Compilation &C,
   } else if (IsSS) {
     const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
     const llvm::Triple &HostTriple = HostTC->getTriple();
-    auto OFK = Action::OFK_Cuda;
+    auto OFK = Action::OFK_SS;
     auto CudaTriple =
         getRVGPUOffloadTargetTriple(*this, C.getInputArgs(), HostTriple);
     if (!CudaTriple)
@@ -3135,6 +3135,7 @@ class OffloadingActionBuilder final {
 
     bool initialize() override {
       assert(AssociatedOffloadKind == Action::OFK_Cuda ||
+             AssociatedOffloadKind == Action::OFK_SS ||
              AssociatedOffloadKind == Action::OFK_HIP);
 
       // We don't need to support CUDA.
@@ -3145,6 +3146,11 @@ class OffloadingActionBuilder final {
       // We don't need to support HIP.
       if (AssociatedOffloadKind == Action::OFK_HIP &&
           !C.hasOffloadToolChain<Action::OFK_HIP>())
+        return false;
+
+      // We don't need to support SS.
+      if (AssociatedOffloadKind == Action::OFK_SS &&
+          !C.hasOffloadToolChain<Action::OFK_SS>())
         return false;
 
       const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
@@ -3162,7 +3168,8 @@ class OffloadingActionBuilder final {
       ToolChains.push_back(
           AssociatedOffloadKind == Action::OFK_Cuda
               ? C.getSingleOffloadToolChain<Action::OFK_Cuda>()
-              : C.getSingleOffloadToolChain<Action::OFK_HIP>());
+              : AssociatedOffloadKind == Action::OFK_SS ? C.getSingleOffloadToolChain<Action::OFK_SS>()
+                                                        : C.getSingleOffloadToolChain<Action::OFK_HIP>());
 
       CompileHostOnly = C.getDriver().offloadHostOnly();
       EmitLLVM = Args.getLastArg(options::OPT_emit_llvm);
@@ -3658,6 +3665,134 @@ class OffloadingActionBuilder final {
 
     void appendLinkDependences(OffloadAction::DeviceDependences &DA) override {}
   };
+  /// \brief SS action builder. It injects device code in the host backend
+  /// action.
+  class SSActionBuilder final : public CudaActionBuilderBase {
+  public:
+    SSActionBuilder(Compilation &C, DerivedArgList &Args,
+                      const Driver::InputList &Inputs)
+        : CudaActionBuilderBase(C, Args, Inputs, Action::OFK_SS) {
+      DefaultCudaArch = CudaArch::RVG_10;
+    }
+
+    StringRef getCanonicalOffloadArch(StringRef ArchStr) override {
+      CudaArch Arch = StringToCudaArch(ArchStr);
+      if (Arch == CudaArch::UNKNOWN || !IsNVIDIAGpuArch(Arch)) {
+        C.getDriver().Diag(clang::diag::err_drv_cuda_bad_gpu_arch) << ArchStr;
+        return StringRef();
+      }
+      return CudaArchToString(Arch);
+    }
+
+    std::optional<std::pair<llvm::StringRef, llvm::StringRef>>
+    getConflictOffloadArchCombination(
+        const std::set<StringRef> &GpuArchs) override {
+      return std::nullopt;
+    }
+
+    ActionBuilderReturnCode
+    getDeviceDependences(OffloadAction::DeviceDependences &DA,
+                         phases::ID CurPhase, phases::ID FinalPhase,
+                         PhasesTy &Phases) override {
+      if (!IsActive)
+        return ABRT_Inactive;
+
+      // If we don't have more CUDA actions, we don't have any dependences to
+      // create for the host.
+      if (CudaDeviceActions.empty())
+        return ABRT_Success;
+
+      assert(CudaDeviceActions.size() == GpuArchList.size() &&
+             "Expecting one action per GPU architecture.");
+      assert(!CompileHostOnly &&
+             "Not expecting CUDA actions in host-only compilation.");
+
+      // If we are generating code for the device or we are in a backend phase,
+      // we attempt to generate the fat binary. We compile each arch to ptx and
+      // assemble to cubin, then feed the cubin *and* the ptx into a device
+      // "link" action, which uses fatbinary to combine these cubins into one
+      // fatbin.  The fatbin is then an input to the host action if not in
+      // device-only mode.
+      if (CompileDeviceOnly || CurPhase == phases::Backend) {
+        ActionList DeviceActions;
+        for (unsigned I = 0, E = GpuArchList.size(); I != E; ++I) {
+          // Produce the device action from the current phase up to the assemble
+          // phase.
+          for (auto Ph : Phases) {
+            // Skip the phases that were already dealt with.
+            if (Ph < CurPhase)
+              continue;
+            // We have to be consistent with the host final phase.
+            if (Ph > FinalPhase)
+              break;
+
+            CudaDeviceActions[I] = C.getDriver().ConstructPhaseAction(
+                C, Args, Ph, CudaDeviceActions[I], Action::OFK_SS);
+
+            if (Ph == phases::Assemble)
+              break;
+          }
+
+          // If we didn't reach the assemble phase, we can't generate the fat
+          // binary. We don't need to generate the fat binary if we are not in
+          // device-only mode.
+          if (!isa<AssembleJobAction>(CudaDeviceActions[I]) ||
+              CompileDeviceOnly)
+            continue;
+
+          Action *AssembleAction = CudaDeviceActions[I];
+          assert(AssembleAction->getType() == types::TY_Object);
+          assert(AssembleAction->getInputs().size() == 1);
+
+          Action *BackendAction = AssembleAction->getInputs()[0];
+          assert(BackendAction->getType() == types::TY_PP_Asm);
+
+          for (auto &A : {AssembleAction, BackendAction}) {
+            OffloadAction::DeviceDependences DDep;
+            DDep.add(*A, *ToolChains.front(), GpuArchList[I], Action::OFK_SS);
+            DeviceActions.push_back(
+                C.MakeAction<OffloadAction>(DDep, A->getType()));
+          }
+        }
+
+        // We generate the fat binary if we have device input actions.
+        if (!DeviceActions.empty()) {
+          CudaFatBinary =
+              C.MakeAction<LinkJobAction>(DeviceActions, types::TY_CUDA_FATBIN);
+
+          if (!CompileDeviceOnly) {
+            DA.add(*CudaFatBinary, *ToolChains.front(), /*BoundArch=*/nullptr,
+                   Action::OFK_SS);
+            // Clear the fat binary, it is already a dependence to an host
+            // action.
+            CudaFatBinary = nullptr;
+          }
+
+          // Remove the CUDA actions as they are already connected to an host
+          // action or fat binary.
+          CudaDeviceActions.clear();
+        }
+
+        // We avoid creating host action in device-only mode.
+        return CompileDeviceOnly ? ABRT_Ignore_Host : ABRT_Success;
+      } else if (CurPhase > phases::Backend) {
+        // If we are past the backend phase and still have a device action, we
+        // don't have to do anything as this action is already a device
+        // top-level action.
+        return ABRT_Success;
+      }
+
+      assert(CurPhase < phases::Backend && "Generating single CUDA "
+                                           "instructions should only occur "
+                                           "before the backend phase!");
+
+      // By default, we produce an action for each device arch.
+      for (Action *&A : CudaDeviceActions)
+        A = C.getDriver().ConstructPhaseAction(C, Args, CurPhase, A);
+
+      return ABRT_Success;
+    }
+  };
 
   ///
   /// TODO: Add the implementation for other specialized builders here.
@@ -3682,6 +3817,9 @@ public:
 
     // Create a specialized builder for HIP.
     SpecializedBuilders.push_back(new HIPActionBuilder(C, Args, Inputs));
+
+    // Create a specialized builder for HIP.
+    SpecializedBuilders.push_back(new SSActionBuilder(C, Args, Inputs));
 
     //
     // TODO: Build other specialized builders here.
@@ -4524,6 +4662,8 @@ Driver::getOffloadArchs(Compilation &C, const llvm::opt::DerivedArgList &Args,
       Archs.insert(CudaArchToString(CudaArch::HIPDefault));
     else if (Kind == Action::OFK_OpenMP)
       Archs.insert(StringRef());
+    else if (Kind == Action::OFK_SS)
+      Archs.insert(StringRef());
   } else {
     Args.ClaimAllArgs(options::OPT_offload_arch_EQ);
     Args.ClaimAllArgs(options::OPT_no_offload_arch_EQ);
@@ -4548,7 +4688,7 @@ Action *Driver::BuildOffloadingActions(Compilation &C,
   OffloadAction::DeviceDependences DDeps;
 
   const Action::OffloadKind OffloadKinds[] = {
-      Action::OFK_OpenMP, Action::OFK_Cuda, Action::OFK_HIP};
+      Action::OFK_OpenMP, Action::OFK_Cuda, Action::OFK_HIP, Action::OFK_SS};
 
   for (Action::OffloadKind Kind : OffloadKinds) {
     SmallVector<const ToolChain *, 2> ToolChains;
@@ -4566,6 +4706,7 @@ Action *Driver::BuildOffloadingActions(Compilation &C,
 
     // The toolchain can be active for unsupported file types.
     if ((Kind == Action::OFK_Cuda && !types::isCuda(InputType)) ||
+        (Kind == Action::OFK_SS && !types::isSS(InputType)) ||
         (Kind == Action::OFK_HIP && !types::isHIP(InputType)))
       continue;
 
@@ -4663,6 +4804,14 @@ Action *Driver::BuildOffloadingActions(Compilation &C,
         C.MakeAction<LinkJobAction>(OffloadActions, types::TY_HIP_FATBIN);
     DDep.add(*FatbinAction, *C.getSingleOffloadToolChain<Action::OFK_HIP>(),
              nullptr, Action::OFK_HIP);
+  } else if (C.isOffloadingHostKind(Action::OFK_SS) &&
+      !Args.hasFlag(options::OPT_fgpu_rdc, options::OPT_fno_gpu_rdc, false)) {
+    // If we are not in RDC-mode we just emit the final CUDA fatbinary for
+    // each translation unit without requiring any linking.
+    Action *FatbinAction =
+        C.MakeAction<LinkJobAction>(OffloadActions, types::TY_CUDA_FATBIN);
+    DDep.add(*FatbinAction, *C.getSingleOffloadToolChain<Action::OFK_SS>(),
+             nullptr, Action::OFK_SS);
   } else {
     // Package all the offloading actions into a single output that can be
     // embedded in the host and linked.

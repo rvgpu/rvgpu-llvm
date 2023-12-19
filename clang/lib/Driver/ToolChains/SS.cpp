@@ -277,7 +277,7 @@ SSInstallationDetector::SSInstallationDetector(
   }
 }
 
-void SSInstallationDetector::AddCudaIncludeArgs(
+void SSInstallationDetector::AddSSIncludeArgs(
     const ArgList &DriverArgs, ArgStringList &CC1Args) const {
   if (!DriverArgs.hasArg(options::OPT_nobuiltininc)) {
     // Add cuda_wrappers/* to our system include path.  This lets us wrap
@@ -379,7 +379,7 @@ void RVGPU::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
   // from the Job's associated architecture, otherwise use the -march=arch
   // option. This option may come from -Xopenmp-target flag or the default
   // value.
-  if (JA.isDeviceOffloading(Action::OFK_Cuda)) {
+  if (JA.isDeviceOffloading(Action::OFK_SS)) {
     GPUArchName = JA.getOffloadingArch();
   } else {
     GPUArchName = Args.getLastArgValue(options::OPT_march_EQ);
@@ -470,7 +470,7 @@ void RVGPU::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
     Relocatable = Args.hasFlag(options::OPT_fopenmp_relocatable_target,
                                options::OPT_fnoopenmp_relocatable_target,
                                /*Default=*/true);
-  else if (JA.isOffloading(Action::OFK_Cuda))
+  else if (JA.isOffloading(Action::OFK_SS))
     // In CUDA we generate relocatable code by default.
     Relocatable = Args.hasFlag(options::OPT_fgpu_rdc, options::OPT_fno_gpu_rdc,
                                /*Default=*/false);
@@ -518,49 +518,33 @@ void RVGPU::FatBinary::ConstructJob(Compilation &C, const JobAction &JA,
                                     const ArgList &Args,
                                     const char *LinkingOutput) const {
   const auto &TC =
-      static_cast<const toolchains::SSToolChain &>(getToolChain());
+      static_cast<const toolchains::SSToolChain &>(getToolChain()); 
   assert(TC.getTriple().isRISCV64() && "Wrong platform");
 
-  ArgStringList CmdArgs;
-  if (TC.CudaInstallation.version() <= CudaVersion::CUDA_100)
-    CmdArgs.push_back("--cuda");
-  CmdArgs.push_back(TC.getTriple().isArch64Bit() ? "-64" : "-32");
-  CmdArgs.push_back(Args.MakeArgString("--create"));
-  CmdArgs.push_back(Args.MakeArgString(Output.getFilename()));
-  if (mustEmitDebugInfo(Args) == EmitSameDebugInfoAsHost)
-    CmdArgs.push_back("-g");
-
+  ArgStringList CmdArgs;                                    
+  auto &TT = getToolChain().getTriple();
+  
+  CmdArgs.push_back(Args.MakeArgString("-type=o"));
+  std::string BundlerTargetArg = "-targets=host-x86_64-unknown-linux";
+  
+  BundlerTargetArg += ",hip-riscv64-unknown-linux-gnu-rv64g";
+  CmdArgs.push_back(Args.MakeArgString(BundlerTargetArg));
+ 
+  std::string BundlerInputArg = "-input=""/dev/null";
+  CmdArgs.push_back(Args.MakeArgString(BundlerInputArg));
   for (const auto &II : Inputs) {
-    auto *A = II.getAction();
-    assert(A->getInputs().size() == 1 &&
-           "Device offload action is expected to have a single input");
-    const char *gpu_arch_str = A->getOffloadingArch();
-    assert(gpu_arch_str &&
-           "Device action expected to have associated a GPU architecture!");
-    CudaArch gpu_arch = StringToCudaArch(gpu_arch_str);
-
-    if (II.getType() == types::TY_PP_Asm &&
-        !shouldIncludePTX(Args, gpu_arch_str))
-      continue;
-    // We need to pass an Arch of the form "sm_XX" for cubin files and
-    // "compute_XX" for ptx.
-    const char *Arch = (II.getType() == types::TY_PP_Asm)
-                           ? CudaArchToVirtualArchString(gpu_arch)
-                           : gpu_arch_str;
-    CmdArgs.push_back(
-        Args.MakeArgString(llvm::Twine("--image=profile=") + Arch +
-                           ",file=" + getToolChain().getInputFilename(II)));
+    BundlerInputArg = std::string("-input=") + II.getFilename();
+    CmdArgs.push_back(Args.MakeArgString(BundlerInputArg));
+    break;
   }
-
-  for (const auto &A : Args.getAllArgValues(options::OPT_Xcuda_fatbinary))
-    CmdArgs.push_back(Args.MakeArgString(A));
-
-  const char *Exec = Args.MakeArgString(TC.GetProgramPath("fatbinary"));
-  C.addCommand(std::make_unique<Command>(
-      JA, *this,
-      ResponseFileSupport{ResponseFileSupport::RF_Full, llvm::sys::WEM_UTF8,
-                          "--options-file"},
-      Exec, CmdArgs, Inputs, Output));
+  std::string Output_filename = std::string(Output.getFilename());
+  auto *BundlerOutputArg =
+        Args.MakeArgString(std::string("-output=").append(Output_filename));
+  CmdArgs.push_back(BundlerOutputArg);
+ 
+  const char *Bundler = Args.MakeArgString(TC.GetProgramPath("clang-offload-bundler"));
+  C.addCommand(std::make_unique<Command>(JA, *this, ResponseFileSupport::None(), Bundler, CmdArgs, Inputs,
+  InputInfo(&JA, Args.MakeArgString(Output_filename))));
 }
 
 void RVGPU::Linker::ConstructJob(Compilation &C, const JobAction &JA,
@@ -791,10 +775,10 @@ void SSToolChain::addClangTargetOptions(
   StringRef GpuArch = DriverArgs.getLastArgValue(options::OPT_march_EQ);
   assert(!GpuArch.empty() && "Must have an explicit GPU arch.");
   assert((DeviceOffloadingKind == Action::OFK_OpenMP ||
-          DeviceOffloadingKind == Action::OFK_Cuda) &&
+          DeviceOffloadingKind == Action::OFK_SS) &&
          "Only OpenMP or CUDA offloading kinds are supported for NVIDIA GPUs.");
 
-  if (DeviceOffloadingKind == Action::OFK_Cuda) {
+  if (DeviceOffloadingKind == Action::OFK_SS) {
     CC1Args.append(
         {"-fcuda-is-device", "-mllvm", "-enable-memcpyopt-without-libcalls"});
 
@@ -853,7 +837,7 @@ void SSToolChain::addClangTargetOptions(
 llvm::DenormalMode SSToolChain::getDefaultDenormalModeForType(
     const llvm::opt::ArgList &DriverArgs, const JobAction &JA,
     const llvm::fltSemantics *FPType) const {
-  if (JA.getOffloadingDeviceKind() == Action::OFK_Cuda) {
+  if (JA.getOffloadingDeviceKind() == Action::OFK_SS) {
     if (FPType && FPType == &llvm::APFloat::IEEEsingle() &&
         DriverArgs.hasFlag(options::OPT_fgpu_flush_denormals_to_zero,
                            options::OPT_fno_gpu_flush_denormals_to_zero, false))
@@ -864,8 +848,8 @@ llvm::DenormalMode SSToolChain::getDefaultDenormalModeForType(
   return llvm::DenormalMode::getIEEE();
 }
 
-void SSToolChain::AddCudaIncludeArgs(const ArgList &DriverArgs,
-                                       ArgStringList &CC1Args) const {
+void SSToolChain::AddSSIncludeArgs(const ArgList &DriverArgs,
+                                   ArgStringList &CC1Args) const {
   // Check our CUDA version if we're going to include the CUDA headers.
   if (!DriverArgs.hasArg(options::OPT_nogpuinc) &&
       !DriverArgs.hasArg(options::OPT_no_cuda_version_check)) {
@@ -873,7 +857,7 @@ void SSToolChain::AddCudaIncludeArgs(const ArgList &DriverArgs,
     assert(!Arch.empty() && "Must have an explicit GPU arch.");
     CudaInstallation.CheckCudaVersionSupportsArch(StringToCudaArch(Arch));
   }
-  CudaInstallation.AddCudaIncludeArgs(DriverArgs, CC1Args);
+  CudaInstallation.AddSSIncludeArgs(DriverArgs, CC1Args);
 }
 
 std::string SSToolChain::getInputFilename(const InputInfo &Input) const {

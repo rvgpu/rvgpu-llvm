@@ -34,6 +34,7 @@ enum OffloadKind : uint16_t {
   OFK_OpenMP,
   OFK_Cuda,
   OFK_HIP,
+  OFK_SS,
   OFK_LAST,
 };
 
