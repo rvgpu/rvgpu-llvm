@@ -74,6 +74,7 @@ enum class CudaArch {
   SM_89,
   SM_90,
   SM_90a,
+  R1000,
   GFX600,
   GFX601,
   GFX602,
@@ -124,6 +125,7 @@ enum class CudaArch {
 
   CudaDefault = CudaArch::SM_52,
   HIPDefault = CudaArch::GFX803,
+  SSDefault = CudaArch::R1000,
 };
 
 static inline bool IsNVIDIAGpuArch(CudaArch A) {

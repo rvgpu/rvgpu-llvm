@@ -3655,7 +3655,7 @@ class OffloadingActionBuilder final {
     SSActionBuilder(Compilation &C, DerivedArgList &Args,
                       const Driver::InputList &Inputs)
         : CudaActionBuilderBase(C, Args, Inputs, Action::OFK_SS) {
-      DefaultCudaArch = CudaArch::RVG_10;
+      DefaultCudaArch = CudaArch::R1000;
     }
 
     StringRef getCanonicalOffloadArch(StringRef ArchStr) override {
