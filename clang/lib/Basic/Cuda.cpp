@@ -82,6 +82,8 @@ struct CudaArchToStringMap {
 #define SM(sm) SM2(sm, "compute_" #sm)
 #define GFX(gpu)                                                               \
   { CudaArch::GFX##gpu, "gfx" #gpu, "compute_amdgcn" }
+#define RVG(gpu)                                                               \
+  { CudaArch::R##gpu,  "r" #gpu, "rvgpu" }
 static const CudaArchToStringMap arch_names[] = {
     // clang-format off
     {CudaArch::UNUSED, "", ""},
@@ -96,6 +98,7 @@ static const CudaArchToStringMap arch_names[] = {
     SM(89),                          // Ada Lovelace
     SM(90),                          // Hopper
     SM(90a),                         // Hopper
+    RVG(1000), // R1000
     GFX(600),  // gfx600
     GFX(601),  // gfx601
     GFX(602),  // gfx602
