@@ -2941,6 +2941,7 @@ static bool ParseFrontendArgs(FrontendOptions &Opts, ArgList &Args,
                 .Case("cl", Language::OpenCL)
                 .Case("clcpp", Language::OpenCLCXX)
                 .Case("cuda", Language::CUDA)
+                .Case("ss", Language::CUDA)
                 .Case("hip", Language::HIP)
                 .Case("c++", Language::CXX)
                 .Case("objective-c", Language::ObjC)
