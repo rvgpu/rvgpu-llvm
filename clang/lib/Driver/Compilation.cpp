@@ -220,7 +220,7 @@ static bool ActionFailed(const Action *A,
   // CUDA/HIP can have the same input source code compiled multiple times so do
   // not compiled again if there are already failures. It is OK to abort the
   // CUDA pipeline on errors.
-  if (A->isOffloading(Action::OFK_Cuda) || A->isOffloading(Action::OFK_HIP))
+  if (A->isOffloading(Action::OFK_Cuda) || A->isOffloading(Action::OFK_HIP) || A->isOffloading(Action::OFK_SS))
     return true;
 
   for (const auto &CI : FailingCommands)

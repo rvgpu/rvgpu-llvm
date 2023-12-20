@@ -721,6 +721,11 @@ void Linux::AddHIPIncludeArgs(const ArgList &DriverArgs,
   RocmInstallation->AddHIPIncludeArgs(DriverArgs, CC1Args);
 }
 
+void Linux::AddSSIncludeArgs(const ArgList &DriverArgs,
+                             ArgStringList &CC1Args) const {
+  SSInstallation->AddSSIncludeArgs(DriverArgs, CC1Args);
+}
+
 void Linux::AddHIPRuntimeLibArgs(const ArgList &Args,
                                  ArgStringList &CmdArgs) const {
   CmdArgs.push_back(
