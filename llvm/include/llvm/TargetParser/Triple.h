@@ -107,6 +107,7 @@ public:
     renderscript32, // 32-bit RenderScript
     renderscript64, // 64-bit RenderScript
     ve,             // NEC SX-Aurora Vector Engine
+    rvgpu,          // RVGPU: rvgpu
     LastArchType = ve
   };
   enum SubArchType {
@@ -181,6 +182,7 @@ public:
     Mesa,
     SUSE,
     OpenEmbedded,
+    Sietium,
     LastVendorType = OpenEmbedded
   };
   enum OSType {
@@ -223,6 +225,7 @@ public:
     ShaderModel, // DirectX ShaderModel
     LiteOS,
     Serenity,
+    SS,          // Sietium Somersault
     LastOSType = Serenity
   };
   enum EnvironmentType {
@@ -947,6 +950,9 @@ public:
 
   /// Tests whether the target is RISC-V (32- and 64-bit).
   bool isRISCV() const { return isRISCV32() || isRISCV64(); }
+
+  /// Tests whether the target is RVGPU.
+  bool isRVGPU() const { return getArch() == Triple::rvgpu; }
 
   /// Tests whether the target is 32-bit SPARC (little and big endian).
   bool isSPARC32() const {

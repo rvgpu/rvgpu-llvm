@@ -78,6 +78,10 @@ CudaVersion getCudaVersion(uint32_t raw_version) {
     return CudaVersion::CUDA_120;
   if (raw_version < 12020)
     return CudaVersion::CUDA_121;
+  if (raw_version < 12030)
+    return CudaVersion::CUDA_122;
+  if (raw_version < 12040)
+    return CudaVersion::CUDA_123;
   return CudaVersion::NEW;
 }
 
@@ -307,8 +311,8 @@ void SSInstallationDetector::CheckCudaVersionSupportsArch(
       ArchsWithBadVersion[(int)Arch])
     return;
 
-  auto MinVersion = MinVersionForCudaArch(Arch);
-  auto MaxVersion = MaxVersionForCudaArch(Arch);
+  auto MinVersion = CudaVersion::CUDA_120;
+  auto MaxVersion = CudaVersion::NEW;
   if (Version < MinVersion || Version > MaxVersion) {
     ArchsWithBadVersion[(int)Arch] = true;
     D.Diag(diag::err_drv_cuda_version_unsupported)
@@ -372,7 +376,7 @@ void RVGPU::Assembler::ConstructJob(Compilation &C, const JobAction &JA,
                                     const char *LinkingOutput) const {
   const auto &TC =
       static_cast<const toolchains::RVGPUToolChain &>(getToolChain());
-  assert(TC.getTriple().isRISCV64() && "Wrong platform");
+  assert(TC.getTriple().isRVGPU() && "Wrong platform");
 
   StringRef GPUArchName;
   // If this is a CUDA action we need to extract the device architecture
@@ -519,7 +523,7 @@ void RVGPU::FatBinary::ConstructJob(Compilation &C, const JobAction &JA,
                                     const char *LinkingOutput) const {
   const auto &TC =
       static_cast<const toolchains::SSToolChain &>(getToolChain()); 
-  assert(TC.getTriple().isRISCV64() && "Wrong platform");
+  assert(TC.getTriple().isRVGPU() && "Wrong platform");
 
   ArgStringList CmdArgs;                                    
   auto &TT = getToolChain().getTriple();
@@ -556,7 +560,7 @@ void RVGPU::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       static_cast<const toolchains::RVGPUToolChain &>(getToolChain());
   ArgStringList CmdArgs;
 
-  assert(TC.getTriple().isRISCV64() && "Wrong platform");
+  assert(TC.getTriple().isRVGPU() && "Wrong platform");
 
   assert((Output.isFilename() || Output.isNothing()) && "Invalid output.");
   if (Output.isFilename()) {
@@ -653,6 +657,8 @@ void RVGPU::getRVGPUTargetFeatures(const Driver &D, const llvm::Triple &Triple,
   case CudaVersion::CUDA_##CUDA_VER:                                           \
     PtxFeature = "+ptx" #PTX_VER;                                              \
     break;
+    CASE_CUDA_VERSION(123, 83);
+    CASE_CUDA_VERSION(122, 82);
     CASE_CUDA_VERSION(121, 81);
     CASE_CUDA_VERSION(120, 80);
     CASE_CUDA_VERSION(118, 78);
