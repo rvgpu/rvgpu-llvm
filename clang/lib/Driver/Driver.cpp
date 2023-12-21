@@ -162,7 +162,7 @@ static std::optional<llvm::Triple>
 getRVGPUOffloadTargetTriple(const Driver &D, const ArgList &Args,
                              const llvm::Triple &HostTriple) {
   if (!Args.hasArg(options::OPT_offload_EQ)) {
-    return llvm::Triple("riscv64-unknown-linux-gnu");
+    return llvm::Triple("rvgpu-sietium-ss");
   }
   auto TT = getOffloadTargetTriple(D, Args);
   if (TT && (TT->getArch() == llvm::Triple::spirv32 ||
