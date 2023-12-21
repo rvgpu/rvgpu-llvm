@@ -1827,6 +1827,8 @@ void computeKnownBits(const Value *V, const APInt &DemandedElts,
       Known.Zero &= ~Elt;
       Known.One &= Elt;
     }
+    if (Known.hasConflict())
+      Known.resetAll();
     return;
   }
 
@@ -1850,6 +1852,8 @@ void computeKnownBits(const Value *V, const APInt &DemandedElts,
       Known.Zero &= ~Elt;
       Known.One &= Elt;
     }
+    if (Known.hasConflict())
+      Known.resetAll();
     return;
   }
 
