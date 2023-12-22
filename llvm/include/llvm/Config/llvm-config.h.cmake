@@ -60,6 +60,9 @@
 /* Define if the AMDGPU target is built in */
 #cmakedefine01 LLVM_HAS_AMDGPU_TARGET
 
+/* Define if the RVGPU target is built in */
+#cmakedefine01 LLVM_HAS_RVGPU_TARGET
+
 /* Define if the ARC target is built in */
 #cmakedefine01 LLVM_HAS_ARC_TARGET
 
