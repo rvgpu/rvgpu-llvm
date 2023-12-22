@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "llvm/ADT/PostOrderIterator.h"
@@ -191,7 +191,7 @@ SIPreAllocateWWMRegs::printWWMInfo(const MachineInstr &MI) {
 bool SIPreAllocateWWMRegs::runOnMachineFunction(MachineFunction &MF) {
   LLVM_DEBUG(dbgs() << "SIPreAllocateWWMRegs: function " << MF.getName() << "\n");
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
 
   TII = ST.getInstrInfo();
   TRI = &TII->getRegisterInfo();

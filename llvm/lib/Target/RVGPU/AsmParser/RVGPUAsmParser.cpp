@@ -5101,7 +5101,7 @@ bool RVGPUAsmParser::calculateGPRBlocks(
     unsigned NextFreeVGPR, SMRange VGPRRange, unsigned NextFreeSGPR,
     SMRange SGPRRange, unsigned &VGPRBlocks, unsigned &SGPRBlocks) {
   // TODO(scott.linder): These calculations are duplicated from
-  // RVGPUAsmPrinter::getSIProgramInfo and could be unified.
+  // RVGPUAsmPrinter::getRVProgramInfo and could be unified.
   IsaVersion Version = getIsaVersion(getSTI().getCPU());
 
   unsigned NumVGPRs = NextFreeVGPR;

@@ -459,7 +459,7 @@ static void allocateHSAUserSGPRs(CCState &CCInfo,
                                  const RVRegisterInfo &TRI,
                                  RVMachineFunctionInfo &Info) {
   // FIXME: How should these inputs interact with inreg / custom SGPR inputs?
-  const GCNUserSGPRUsageInfo &UserSGPRInfo = Info.getUserSGPRInfo();
+  const RVUserSGPRUsageInfo &UserSGPRInfo = Info.getUserSGPRInfo();
   if (UserSGPRInfo.hasPrivateSegmentBuffer()) {
     Register PrivateSegmentBufferReg = Info.addPrivateSegmentBuffer(TRI);
     MF.addLiveIn(PrivateSegmentBufferReg, &RVGPU::SGPR_128RegClass);
@@ -602,7 +602,7 @@ bool RVGPUCallLowering::lowerFormalArguments(
 
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CC, F.isVarArg(), MF, ArgLocs, F.getContext());
-  const GCNUserSGPRUsageInfo &UserSGPRInfo = Info->getUserSGPRInfo();
+  const RVUserSGPRUsageInfo &UserSGPRInfo = Info->getUserSGPRInfo();
 
   if (UserSGPRInfo.hasImplicitBufferPtr()) {
     Register ImplicitBufferPtrReg = Info->addImplicitBufferPtr(*TRI);
@@ -803,7 +803,7 @@ bool RVGPUCallLowering::passSpecialInputs(MachineIRBuilder &MIRBuilder,
 
   unsigned I = 0;
   for (auto InputID : InputRegs) {
-    const ArgDescriptor *OutgoingArg;
+    const RvArgDescriptor *OutgoingArg;
     const TargetRegisterClass *ArgRC;
     LLT ArgTy;
 
@@ -816,7 +816,7 @@ bool RVGPUCallLowering::passSpecialInputs(MachineIRBuilder &MIRBuilder,
     if (!OutgoingArg)
       continue;
 
-    const ArgDescriptor *IncomingArg;
+    const RvArgDescriptor *IncomingArg;
     const TargetRegisterClass *IncomingArgRC;
     std::tie(IncomingArg, IncomingArgRC, ArgTy) =
         CallerArgInfo.getPreloadedValue(InputID);
@@ -854,7 +854,7 @@ bool RVGPUCallLowering::passSpecialInputs(MachineIRBuilder &MIRBuilder,
 
   // Pack workitem IDs into a single register or pass it as is if already
   // packed.
-  const ArgDescriptor *OutgoingArg;
+  const RvArgDescriptor *OutgoingArg;
   const TargetRegisterClass *ArgRC;
   LLT ArgTy;
 
@@ -876,9 +876,9 @@ bool RVGPUCallLowering::passSpecialInputs(MachineIRBuilder &MIRBuilder,
   auto WorkitemIDZ =
       CallerArgInfo.getPreloadedValue(RVGPUFunctionArgInfo::WORKITEM_ID_Z);
 
-  const ArgDescriptor *IncomingArgX = std::get<0>(WorkitemIDX);
-  const ArgDescriptor *IncomingArgY = std::get<0>(WorkitemIDY);
-  const ArgDescriptor *IncomingArgZ = std::get<0>(WorkitemIDZ);
+  const RvArgDescriptor *IncomingArgX = std::get<0>(WorkitemIDX);
+  const RvArgDescriptor *IncomingArgY = std::get<0>(WorkitemIDY);
+  const RvArgDescriptor *IncomingArgZ = std::get<0>(WorkitemIDZ);
   const LLT S32 = LLT::scalar(32);
 
   const bool NeedWorkItemIDX = !Info.CB->hasFnAttr("rvgpu-no-workitem-id-x");
@@ -931,7 +931,7 @@ bool RVGPUCallLowering::passSpecialInputs(MachineIRBuilder &MIRBuilder,
     } else {
       // Workitem ids are already packed, any of present incoming arguments will
       // carry all required fields.
-      ArgDescriptor IncomingArg = ArgDescriptor::createArg(
+      RvArgDescriptor IncomingArg = RvArgDescriptor::createArg(
         IncomingArgX ? *IncomingArgX :
         IncomingArgY ? *IncomingArgY : *IncomingArgZ, ~0u);
       LI->loadInputValue(InputReg, MIRBuilder, &IncomingArg,

@@ -97,7 +97,7 @@ static bool dependsOnLocalPhi(const Loop *L, const Value *Cond,
 RVGPUTTIImpl::RVGPUTTIImpl(const RVGPUTargetMachine *TM, const Function &F)
     : BaseT(TM, F.getParent()->getDataLayout()),
       TargetTriple(TM->getTargetTriple()),
-      ST(static_cast<const GCNSubtarget *>(TM->getSubtargetImpl(F))),
+      ST(static_cast<const RVSubtarget *>(TM->getSubtargetImpl(F))),
       TLI(ST->getTargetLowering()) {}
 
 void RVGPUTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
@@ -271,7 +271,7 @@ int64_t RVGPUTTIImpl::getMaxMemIntrinsicInlineSizeThreshold() const {
   return 1024;
 }
 
-const FeatureBitset GCNTTIImpl::InlineFeatureIgnoreList = {
+const FeatureBitset RVTTIImpl::InlineFeatureIgnoreList = {
     // Codegen control options which don't matter.
     RVGPU::FeatureEnableLoadStoreOpt, RVGPU::FeatureEnableSIScheduler,
     RVGPU::FeatureEnableUnsafeDSOffsetFolding, RVGPU::FeatureFlatForGlobal,
@@ -291,9 +291,9 @@ const FeatureBitset GCNTTIImpl::InlineFeatureIgnoreList = {
     // Perf-tuning features
     RVGPU::FeatureFastFMAF32, RVGPU::HalfRate64Ops};
 
-GCNTTIImpl::GCNTTIImpl(const RVGPUTargetMachine *TM, const Function &F)
+RVTTIImpl::RVTTIImpl(const RVGPUTargetMachine *TM, const Function &F)
     : BaseT(TM, F.getParent()->getDataLayout()),
-      ST(static_cast<const GCNSubtarget *>(TM->getSubtargetImpl(F))),
+      ST(static_cast<const RVSubtarget *>(TM->getSubtargetImpl(F))),
       TLI(ST->getTargetLowering()), CommonTTI(TM, F),
       IsGraphics(RVGPU::isGraphics(F.getCallingConv())) {
   SIModeRegisterDefaults Mode(F, *ST);
@@ -302,11 +302,11 @@ GCNTTIImpl::GCNTTIImpl(const RVGPUTargetMachine *TM, const Function &F)
       Mode.FP64FP16Denormals != DenormalMode::getPreserveSign();
 }
 
-bool GCNTTIImpl::hasBranchDivergence(const Function *F) const {
+bool RVTTIImpl::hasBranchDivergence(const Function *F) const {
   return !F || !ST->isSingleLaneExecution(*F);
 }
 
-unsigned GCNTTIImpl::getNumberOfRegisters(unsigned RCID) const {
+unsigned RVTTIImpl::getNumberOfRegisters(unsigned RCID) const {
   // NB: RCID is not an RCID. In fact it is 0 or 1 for scalar or vector
   // registers. See getRegisterClassForType for the implementation.
   // In this case vector registers are not vector in terms of
@@ -318,7 +318,7 @@ unsigned GCNTTIImpl::getNumberOfRegisters(unsigned RCID) const {
 }
 
 TypeSize
-GCNTTIImpl::getRegisterBitWidth(TargetTransformInfo::RegisterKind K) const {
+RVTTIImpl::getRegisterBitWidth(TargetTransformInfo::RegisterKind K) const {
   switch (K) {
   case TargetTransformInfo::RGK_Scalar:
     return TypeSize::getFixed(32);
@@ -330,11 +330,11 @@ GCNTTIImpl::getRegisterBitWidth(TargetTransformInfo::RegisterKind K) const {
   llvm_unreachable("Unsupported register kind");
 }
 
-unsigned GCNTTIImpl::getMinVectorRegisterBitWidth() const {
+unsigned RVTTIImpl::getMinVectorRegisterBitWidth() const {
   return 32;
 }
 
-unsigned GCNTTIImpl::getMaximumVF(unsigned ElemWidth, unsigned Opcode) const {
+unsigned RVTTIImpl::getMaximumVF(unsigned ElemWidth, unsigned Opcode) const {
   if (Opcode == Instruction::Load || Opcode == Instruction::Store)
     return 32 * 4 / ElemWidth;
   return (ElemWidth == 16 && ST->has16BitInsts()) ? 2
@@ -342,7 +342,7 @@ unsigned GCNTTIImpl::getMaximumVF(unsigned ElemWidth, unsigned Opcode) const {
        : 1;
 }
 
-unsigned GCNTTIImpl::getLoadVectorFactor(unsigned VF, unsigned LoadSize,
+unsigned RVTTIImpl::getLoadVectorFactor(unsigned VF, unsigned LoadSize,
                                          unsigned ChainSizeInBytes,
                                          VectorType *VecTy) const {
   unsigned VecRegBitWidth = VF * LoadSize;
@@ -353,7 +353,7 @@ unsigned GCNTTIImpl::getLoadVectorFactor(unsigned VF, unsigned LoadSize,
   return VF;
 }
 
-unsigned GCNTTIImpl::getStoreVectorFactor(unsigned VF, unsigned StoreSize,
+unsigned RVTTIImpl::getStoreVectorFactor(unsigned VF, unsigned StoreSize,
                                              unsigned ChainSizeInBytes,
                                              VectorType *VecTy) const {
   unsigned VecRegBitWidth = VF * StoreSize;
@@ -363,7 +363,7 @@ unsigned GCNTTIImpl::getStoreVectorFactor(unsigned VF, unsigned StoreSize,
   return VF;
 }
 
-unsigned GCNTTIImpl::getLoadStoreVecRegBitWidth(unsigned AddrSpace) const {
+unsigned RVTTIImpl::getLoadStoreVecRegBitWidth(unsigned AddrSpace) const {
   if (AddrSpace == RVGPUAS::GLOBAL_ADDRESS ||
       AddrSpace == RVGPUAS::CONSTANT_ADDRESS ||
       AddrSpace == RVGPUAS::CONSTANT_ADDRESS_32BIT ||
@@ -380,7 +380,7 @@ unsigned GCNTTIImpl::getLoadStoreVecRegBitWidth(unsigned AddrSpace) const {
   return 128;
 }
 
-bool GCNTTIImpl::isLegalToVectorizeMemChain(unsigned ChainSizeInBytes,
+bool RVTTIImpl::isLegalToVectorizeMemChain(unsigned ChainSizeInBytes,
                                             Align Alignment,
                                             unsigned AddrSpace) const {
   // We allow vectorization of flat stores, even though we may need to decompose
@@ -393,19 +393,19 @@ bool GCNTTIImpl::isLegalToVectorizeMemChain(unsigned ChainSizeInBytes,
   return true;
 }
 
-bool GCNTTIImpl::isLegalToVectorizeLoadChain(unsigned ChainSizeInBytes,
+bool RVTTIImpl::isLegalToVectorizeLoadChain(unsigned ChainSizeInBytes,
                                              Align Alignment,
                                              unsigned AddrSpace) const {
   return isLegalToVectorizeMemChain(ChainSizeInBytes, Alignment, AddrSpace);
 }
 
-bool GCNTTIImpl::isLegalToVectorizeStoreChain(unsigned ChainSizeInBytes,
+bool RVTTIImpl::isLegalToVectorizeStoreChain(unsigned ChainSizeInBytes,
                                               Align Alignment,
                                               unsigned AddrSpace) const {
   return isLegalToVectorizeMemChain(ChainSizeInBytes, Alignment, AddrSpace);
 }
 
-int64_t GCNTTIImpl::getMaxMemIntrinsicInlineSizeThreshold() const {
+int64_t RVTTIImpl::getMaxMemIntrinsicInlineSizeThreshold() const {
   return 1024;
 }
 
@@ -416,7 +416,7 @@ int64_t GCNTTIImpl::getMaxMemIntrinsicInlineSizeThreshold() const {
 // unaligned access is legal?
 //
 // FIXME: This could use fine tuning and microbenchmarks.
-Type *GCNTTIImpl::getMemcpyLoopLoweringType(
+Type *RVTTIImpl::getMemcpyLoopLoweringType(
     LLVMContext &Context, Value *Length, unsigned SrcAddrSpace,
     unsigned DestAddrSpace, unsigned SrcAlign, unsigned DestAlign,
     std::optional<uint32_t> AtomicElementSize) const {
@@ -447,7 +447,7 @@ Type *GCNTTIImpl::getMemcpyLoopLoweringType(
   return FixedVectorType::get(Type::getInt32Ty(Context), 4);
 }
 
-void GCNTTIImpl::getMemcpyLoopResidualLoweringType(
+void RVTTIImpl::getMemcpyLoopResidualLoweringType(
     SmallVectorImpl<Type *> &OpsOut, LLVMContext &Context,
     unsigned RemainingBytes, unsigned SrcAddrSpace, unsigned DestAddrSpace,
     unsigned SrcAlign, unsigned DestAlign,
@@ -488,7 +488,7 @@ void GCNTTIImpl::getMemcpyLoopResidualLoweringType(
   }
 }
 
-unsigned GCNTTIImpl::getMaxInterleaveFactor(ElementCount VF) {
+unsigned RVTTIImpl::getMaxInterleaveFactor(ElementCount VF) {
   // Disable unrolling if the loop is not vectorized.
   // TODO: Enable this again.
   if (VF.isScalar())
@@ -497,7 +497,7 @@ unsigned GCNTTIImpl::getMaxInterleaveFactor(ElementCount VF) {
   return 8;
 }
 
-bool GCNTTIImpl::getTgtMemIntrinsic(IntrinsicInst *Inst,
+bool RVTTIImpl::getTgtMemIntrinsic(IntrinsicInst *Inst,
                                        MemIntrinsicInfo &Info) const {
   switch (Inst->getIntrinsicID()) {
   case Intrinsic::rvgpu_ds_ordered_add:
@@ -526,7 +526,7 @@ bool GCNTTIImpl::getTgtMemIntrinsic(IntrinsicInst *Inst,
   }
 }
 
-InstructionCost GCNTTIImpl::getArithmeticInstrCost(
+InstructionCost RVTTIImpl::getArithmeticInstrCost(
     unsigned Opcode, Type *Ty, TTI::TargetCostKind CostKind,
     TTI::OperandValueInfo Op1Info, TTI::OperandValueInfo Op2Info,
     ArrayRef<const Value *> Args,
@@ -703,7 +703,7 @@ static bool intrinsicHasPackedVectorBenefit(Intrinsic::ID ID) {
 }
 
 InstructionCost
-GCNTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
+RVTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
                                   TTI::TargetCostKind CostKind) {
   if (ICA.getID() == Intrinsic::fabs)
     return 0;
@@ -749,7 +749,7 @@ GCNTTIImpl::getIntrinsicInstrCost(const IntrinsicCostAttributes &ICA,
   return LT.first * NElts * InstRate;
 }
 
-InstructionCost GCNTTIImpl::getCFInstrCost(unsigned Opcode,
+InstructionCost RVTTIImpl::getCFInstrCost(unsigned Opcode,
                                            TTI::TargetCostKind CostKind,
                                            const Instruction *I) {
   assert((I == nullptr || I->getOpcode() == Opcode) &&
@@ -780,7 +780,7 @@ InstructionCost GCNTTIImpl::getCFInstrCost(unsigned Opcode,
 }
 
 InstructionCost
-GCNTTIImpl::getArithmeticReductionCost(unsigned Opcode, VectorType *Ty,
+RVTTIImpl::getArithmeticReductionCost(unsigned Opcode, VectorType *Ty,
                                        std::optional<FastMathFlags> FMF,
                                        TTI::TargetCostKind CostKind) {
   if (TTI::requiresOrderedReduction(FMF))
@@ -798,7 +798,7 @@ GCNTTIImpl::getArithmeticReductionCost(unsigned Opcode, VectorType *Ty,
 }
 
 InstructionCost
-GCNTTIImpl::getMinMaxReductionCost(Intrinsic::ID IID, VectorType *Ty,
+RVTTIImpl::getMinMaxReductionCost(Intrinsic::ID IID, VectorType *Ty,
                                    FastMathFlags FMF,
                                    TTI::TargetCostKind CostKind) {
   EVT OrigTy = TLI->getValueType(DL, Ty);
@@ -812,7 +812,7 @@ GCNTTIImpl::getMinMaxReductionCost(Intrinsic::ID IID, VectorType *Ty,
   return LT.first * getHalfRateInstrCost(CostKind);
 }
 
-InstructionCost GCNTTIImpl::getVectorInstrCost(unsigned Opcode, Type *ValTy,
+InstructionCost RVTTIImpl::getVectorInstrCost(unsigned Opcode, Type *ValTy,
                                                TTI::TargetCostKind CostKind,
                                                unsigned Index, Value *Op0,
                                                Value *Op1) {
@@ -844,7 +844,7 @@ InstructionCost GCNTTIImpl::getVectorInstrCost(unsigned Opcode, Type *ValTy,
 /// this is analyzing the collective result of all output registers. Otherwise,
 /// this is only querying a specific result index if this returns multiple
 /// registers in a struct.
-bool GCNTTIImpl::isInlineAsmSourceOfDivergence(
+bool RVTTIImpl::isInlineAsmSourceOfDivergence(
   const CallInst *CI, ArrayRef<unsigned> Indices) const {
   // TODO: Handle complex extract indices
   if (Indices.size() > 1)
@@ -880,7 +880,7 @@ bool GCNTTIImpl::isInlineAsmSourceOfDivergence(
   return false;
 }
 
-bool GCNTTIImpl::isReadRegisterSourceOfDivergence(
+bool RVTTIImpl::isReadRegisterSourceOfDivergence(
     const IntrinsicInst *ReadReg) const {
   Metadata *MD =
       cast<MetadataAsValue>(ReadReg->getArgOperand(0))->getMetadata();
@@ -903,7 +903,7 @@ bool GCNTTIImpl::isReadRegisterSourceOfDivergence(
 
 /// \returns true if the result of the value could potentially be
 /// different across workitems in a wavefront.
-bool GCNTTIImpl::isSourceOfDivergence(const Value *V) const {
+bool RVTTIImpl::isSourceOfDivergence(const Value *V) const {
   if (const Argument *A = dyn_cast<Argument>(V))
     return !RVGPU::isArgPassedInSGPR(A);
 
@@ -945,7 +945,7 @@ bool GCNTTIImpl::isSourceOfDivergence(const Value *V) const {
   return false;
 }
 
-bool GCNTTIImpl::isAlwaysUniform(const Value *V) const {
+bool RVTTIImpl::isAlwaysUniform(const Value *V) const {
   if (const IntrinsicInst *Intrinsic = dyn_cast<IntrinsicInst>(V))
     return RVGPU::isIntrinsicAlwaysUniform(Intrinsic->getIntrinsicID());
 
@@ -1016,7 +1016,7 @@ bool GCNTTIImpl::isAlwaysUniform(const Value *V) const {
   return false;
 }
 
-bool GCNTTIImpl::collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
+bool RVTTIImpl::collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
                                             Intrinsic::ID IID) const {
   switch (IID) {
   case Intrinsic::rvgpu_ds_fadd:
@@ -1036,7 +1036,7 @@ bool GCNTTIImpl::collectFlatAddressOperands(SmallVectorImpl<int> &OpIndexes,
   }
 }
 
-Value *GCNTTIImpl::rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
+Value *RVTTIImpl::rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
                                                     Value *OldV,
                                                     Value *NewV) const {
   auto IntrID = II->getIntrinsicID();
@@ -1074,8 +1074,8 @@ Value *GCNTTIImpl::rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
 
     bool DoTruncate = false;
 
-    const GCNTargetMachine &TM =
-        static_cast<const GCNTargetMachine &>(getTLI()->getTargetMachine());
+    const RVTargetMachine &TM =
+        static_cast<const RVTargetMachine &>(getTLI()->getTargetMachine());
     if (!TM.isNoopAddrSpaceCast(OldAS, NewAS)) {
       // All valid 64-bit to 32-bit casts work by chopping off the high
       // bits. Any masking only clearing the low bits will also apply in the new
@@ -1123,7 +1123,7 @@ Value *GCNTTIImpl::rewriteIntrinsicWithAddressSpace(IntrinsicInst *II,
   }
 }
 
-InstructionCost GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
+InstructionCost RVTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
                                            VectorType *VT, ArrayRef<int> Mask,
                                            TTI::TargetCostKind CostKind,
                                            int Index, VectorType *SubTp,
@@ -1150,13 +1150,13 @@ InstructionCost GCNTTIImpl::getShuffleCost(TTI::ShuffleKind Kind,
   return BaseT::getShuffleCost(Kind, VT, Mask, CostKind, Index, SubTp);
 }
 
-bool GCNTTIImpl::areInlineCompatible(const Function *Caller,
+bool RVTTIImpl::areInlineCompatible(const Function *Caller,
                                      const Function *Callee) const {
   const TargetMachine &TM = getTLI()->getTargetMachine();
-  const GCNSubtarget *CallerST
-    = static_cast<const GCNSubtarget *>(TM.getSubtargetImpl(*Caller));
-  const GCNSubtarget *CalleeST
-    = static_cast<const GCNSubtarget *>(TM.getSubtargetImpl(*Callee));
+  const RVSubtarget *CallerST
+    = static_cast<const RVSubtarget *>(TM.getSubtargetImpl(*Caller));
+  const RVSubtarget *CalleeST
+    = static_cast<const RVSubtarget *>(TM.getSubtargetImpl(*Callee));
 
   const FeatureBitset &CallerBits = CallerST->getFeatureBits();
   const FeatureBitset &CalleeBits = CalleeST->getFeatureBits();
@@ -1191,7 +1191,7 @@ bool GCNTTIImpl::areInlineCompatible(const Function *Caller,
 
 static unsigned adjustInliningThresholdUsingCallee(const CallBase *CB,
                                                    const RVTargetLowering *TLI,
-                                                   const GCNTTIImpl *TTIImpl) {
+                                                   const RVTTIImpl *TTIImpl) {
   const int NrOfSGPRUntilSpill = 26;
   const int NrOfVGPRUntilSpill = 32;
 
@@ -1219,10 +1219,10 @@ static unsigned adjustInliningThresholdUsingCallee(const CallBase *CB,
   //  1 instruction is explicitly take care of data dependencies in callee
   //  function.
   InstructionCost ArgStackCost(1);
-  ArgStackCost += const_cast<GCNTTIImpl *>(TTIImpl)->getMemoryOpCost(
+  ArgStackCost += const_cast<RVTTIImpl *>(TTIImpl)->getMemoryOpCost(
       Instruction::Store, Type::getInt32Ty(CB->getContext()), Align(4),
       RVGPUAS::PRIVATE_ADDRESS, TTI::TCK_SizeAndLatency);
-  ArgStackCost += const_cast<GCNTTIImpl *>(TTIImpl)->getMemoryOpCost(
+  ArgStackCost += const_cast<RVTTIImpl *>(TTIImpl)->getMemoryOpCost(
       Instruction::Load, Type::getInt32Ty(CB->getContext()), Align(4),
       RVGPUAS::PRIVATE_ADDRESS, TTI::TCK_SizeAndLatency);
 
@@ -1262,7 +1262,7 @@ static unsigned getCallArgsTotalAllocaSize(const CallBase *CB,
   return AllocaSize;
 }
 
-unsigned GCNTTIImpl::adjustInliningThreshold(const CallBase *CB) const {
+unsigned RVTTIImpl::adjustInliningThreshold(const CallBase *CB) const {
   unsigned Threshold = adjustInliningThresholdUsingCallee(CB, TLI, this);
 
   // Private object passed as arguments may end up in scratch usage if the call
@@ -1273,7 +1273,7 @@ unsigned GCNTTIImpl::adjustInliningThreshold(const CallBase *CB) const {
   return Threshold;
 }
 
-unsigned GCNTTIImpl::getCallerAllocaCost(const CallBase *CB,
+unsigned RVTTIImpl::getCallerAllocaCost(const CallBase *CB,
                                          const AllocaInst *AI) const {
 
   // Below the cutoff, assume that the private memory objects would be
@@ -1314,18 +1314,18 @@ unsigned GCNTTIImpl::getCallerAllocaCost(const CallBase *CB,
   return AllocaThresholdBonus;
 }
 
-void GCNTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
+void RVTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
                                          TTI::UnrollingPreferences &UP,
                                          OptimizationRemarkEmitter *ORE) {
   CommonTTI.getUnrollingPreferences(L, SE, UP, ORE);
 }
 
-void GCNTTIImpl::getPeelingPreferences(Loop *L, ScalarEvolution &SE,
+void RVTTIImpl::getPeelingPreferences(Loop *L, ScalarEvolution &SE,
                                        TTI::PeelingPreferences &PP) {
   CommonTTI.getPeelingPreferences(L, SE, PP);
 }
 
-int GCNTTIImpl::get64BitInstrCost(TTI::TargetCostKind CostKind) const {
+int RVTTIImpl::get64BitInstrCost(TTI::TargetCostKind CostKind) const {
   return ST->hasFullRate64Ops()
              ? getFullRateInstrCost()
              : ST->hasHalfRate64Ops() ? getHalfRateInstrCost(CostKind)
@@ -1333,7 +1333,7 @@ int GCNTTIImpl::get64BitInstrCost(TTI::TargetCostKind CostKind) const {
 }
 
 std::pair<InstructionCost, MVT>
-GCNTTIImpl::getTypeLegalizationCost(Type *Ty) const {
+RVTTIImpl::getTypeLegalizationCost(Type *Ty) const {
   std::pair<InstructionCost, MVT> Cost = BaseT::getTypeLegalizationCost(Ty);
   auto Size = DL.getTypeSizeInBits(Ty);
   // Maximum load or store can handle 8 dwords for scalar and 4 for
@@ -1346,10 +1346,10 @@ GCNTTIImpl::getTypeLegalizationCost(Type *Ty) const {
   return Cost;
 }
 
-unsigned GCNTTIImpl::getPrefetchDistance() const {
+unsigned RVTTIImpl::getPrefetchDistance() const {
   return ST->hasPrefetch() ? 128 : 0;
 }
 
-bool GCNTTIImpl::shouldPrefetchAddressSpace(unsigned AS) const {
+bool RVTTIImpl::shouldPrefetchAddressSpace(unsigned AS) const {
   return RVGPU::isFlatGlobalAddrSpace(AS);
 }

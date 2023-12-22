@@ -5228,7 +5228,7 @@ SDValue RVGPUTargetLowering::storeStackInputValue(SelectionDAG &DAG,
 SDValue RVGPUTargetLowering::loadInputValue(SelectionDAG &DAG,
                                              const TargetRegisterClass *RC,
                                              EVT VT, const SDLoc &SL,
-                                             const ArgDescriptor &Arg) const {
+                                             const RvArgDescriptor &Arg) const {
   assert(Arg && "Attempting to load missing argument");
 
   SDValue V = Arg.isRegister() ?

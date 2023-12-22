@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 
@@ -125,7 +125,7 @@ bool SIPostRABundler::runOnMachineFunction(MachineFunction &MF) {
   if (skipFunction(MF.getFunction()))
     return false;
 
-  TRI = MF.getSubtarget<GCNSubtarget>().getRegisterInfo();
+  TRI = MF.getSubtarget<RVSubtarget>().getRegisterInfo();
   BitVector BundleUsedRegUnits(TRI->getNumRegUnits());
   BitVector KillUsedRegUnits(TRI->getNumRegUnits());
 

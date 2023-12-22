@@ -1,4 +1,4 @@
-//===--- SIProgramInfo.h ----------------------------------------*- C++ -*-===//
+//===--- RVProgramInfo.h ----------------------------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -21,10 +21,10 @@
 
 namespace llvm {
 
-class GCNSubtarget;
+class RVSubtarget;
 
 /// Track resource usage for kernels / entry functions.
-struct SIProgramInfo {
+struct RVProgramInfo {
     // Fields set in PGM_RSRC1 pm4 packet.
     uint32_t VGPRBlocks = 0;
     uint32_t SGPRBlocks = 0;
@@ -85,11 +85,11 @@ struct SIProgramInfo {
     // Bonus information for debugging.
     bool VCCUsed = false;
 
-    SIProgramInfo() = default;
+    RVProgramInfo() = default;
 
     /// Compute the value of the ComputePGMRsrc1 register.
-    uint64_t getComputePGMRSrc1(const GCNSubtarget &ST) const;
-    uint64_t getPGMRSrc1(CallingConv::ID CC, const GCNSubtarget &ST) const;
+    uint64_t getComputePGMRSrc1(const RVSubtarget &ST) const;
+    uint64_t getPGMRSrc1(CallingConv::ID CC, const RVSubtarget &ST) const;
 
     /// Compute the value of the ComputePGMRsrc2 register.
     uint64_t getComputePGMRSrc2() const;

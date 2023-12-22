@@ -212,11 +212,11 @@ def RetCC_RVGPU_Func : CallingConv<[
 ]>;
 
 def CC_RVGPU : CallingConv<[
-   CCIf<"static_cast<const GCNSubtarget&>"
+   CCIf<"static_cast<const RVSubtarget&>"
          "(State.getMachineFunction().getSubtarget()).getGeneration() >= "
            "RVGPUSubtarget::SOUTHERN_ISLANDS",
         CCDelegateTo<CC_SI_SHADER>>,
-   CCIf<"static_cast<const GCNSubtarget&>"
+   CCIf<"static_cast<const RVSubtarget&>"
          "(State.getMachineFunction().getSubtarget()).getGeneration() >= "
            "RVGPUSubtarget::SOUTHERN_ISLANDS && State.getCallingConv() == CallingConv::C",
         CCDelegateTo<CC_RVGPU_Func>>

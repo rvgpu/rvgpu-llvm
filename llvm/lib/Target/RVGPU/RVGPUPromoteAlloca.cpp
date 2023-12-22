@@ -26,7 +26,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "Utils/RVGPUBaseInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/CaptureTracking.h"
@@ -49,12 +49,12 @@ using namespace llvm;
 namespace {
 
 static cl::opt<bool>
-    DisablePromoteAllocaToVector("disable-promote-alloca-to-vector",
+    DisablePromoteAllocaToVector("rv-disable-promote-alloca-to-vector",
                                  cl::desc("Disable promote alloca to vector"),
                                  cl::init(false));
 
 static cl::opt<bool>
-    DisablePromoteAllocaToLDS("disable-promote-alloca-to-lds",
+    DisablePromoteAllocaToLDS("rv-disable-promote-alloca-to-lds",
                               cl::desc("Disable promote alloca to LDS"),
                               cl::init(false));
 
@@ -163,7 +163,7 @@ unsigned getMaxVGPRs(const TargetMachine &TM, const Function &F) {
   if (!TM.getTargetTriple().isRVGPU())
     return 128;
 
-  const GCNSubtarget &ST = TM.getSubtarget<GCNSubtarget>(F);
+  const RVSubtarget &ST = TM.getSubtarget<RVSubtarget>(F);
   unsigned MaxVGPRs = ST.getMaxNumVGPRs(ST.getWavesPerEU(F).first);
 
   // A non-entry function has only 32 caller preserved registers.

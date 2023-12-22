@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/CodeGen/LiveIntervals.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -344,7 +344,7 @@ bool SIOptimizeExecMaskingPreRA::runOnMachineFunction(MachineFunction &MF) {
   if (skipFunction(MF.getFunction()))
     return false;
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   TRI = ST.getRegisterInfo();
   TII = ST.getInstrInfo();
   MRI = &MF.getRegInfo();

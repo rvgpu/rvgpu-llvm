@@ -15,7 +15,7 @@
 
 #include "RVGPU.h"
 #include "RVGPUMachineModuleInfo.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/ADT/BitmaskEnum.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
@@ -261,7 +261,7 @@ class SICacheControl {
 protected:
 
   /// RVGPU subtarget info.
-  const GCNSubtarget &ST;
+  const RVSubtarget &ST;
 
   /// Instruction info.
   const RVInstrInfo *TII = nullptr;
@@ -271,7 +271,7 @@ protected:
   /// Whether to insert cache invalidating instructions.
   bool InsertCacheInv;
 
-  SICacheControl(const GCNSubtarget &ST);
+  SICacheControl(const RVSubtarget &ST);
 
   /// Sets named bit \p BitName to "true" if present in instruction \p MI.
   /// \returns Returns true if \p MI is modified, false otherwise.
@@ -281,7 +281,7 @@ protected:
 public:
 
   /// Create a cache control for the subtarget \p ST.
-  static std::unique_ptr<SICacheControl> create(const GCNSubtarget &ST);
+  static std::unique_ptr<SICacheControl> create(const RVSubtarget &ST);
 
   /// Update \p MI memory load instruction to bypass any caches up to
   /// the \p Scope memory scope for address spaces \p
@@ -374,7 +374,7 @@ protected:
 
 public:
 
-  SIGfx6CacheControl(const GCNSubtarget &ST) : SICacheControl(ST) {}
+  SIGfx6CacheControl(const RVSubtarget &ST) : SICacheControl(ST) {}
 
   bool enableLoadCacheBypass(const MachineBasicBlock::iterator &MI,
                              SIAtomicScope Scope,
@@ -415,7 +415,7 @@ public:
 class SIGfx7CacheControl : public SIGfx6CacheControl {
 public:
 
-  SIGfx7CacheControl(const GCNSubtarget &ST) : SIGfx6CacheControl(ST) {}
+  SIGfx7CacheControl(const RVSubtarget &ST) : SIGfx6CacheControl(ST) {}
 
   bool insertAcquire(MachineBasicBlock::iterator &MI,
                      SIAtomicScope Scope,
@@ -427,7 +427,7 @@ public:
 class SIGfx90ACacheControl : public SIGfx7CacheControl {
 public:
 
-  SIGfx90ACacheControl(const GCNSubtarget &ST) : SIGfx7CacheControl(ST) {}
+  SIGfx90ACacheControl(const RVSubtarget &ST) : SIGfx7CacheControl(ST) {}
 
   bool enableLoadCacheBypass(const MachineBasicBlock::iterator &MI,
                              SIAtomicScope Scope,
@@ -488,7 +488,7 @@ protected:
 
 public:
 
-  SIGfx940CacheControl(const GCNSubtarget &ST) : SIGfx90ACacheControl(ST) {};
+  SIGfx940CacheControl(const RVSubtarget &ST) : SIGfx90ACacheControl(ST) {};
 
   bool enableLoadCacheBypass(const MachineBasicBlock::iterator &MI,
                              SIAtomicScope Scope,
@@ -540,7 +540,7 @@ protected:
 
 public:
 
-  SIGfx10CacheControl(const GCNSubtarget &ST) : SIGfx7CacheControl(ST) {}
+  SIGfx10CacheControl(const RVSubtarget &ST) : SIGfx7CacheControl(ST) {}
 
   bool enableLoadCacheBypass(const MachineBasicBlock::iterator &MI,
                              SIAtomicScope Scope,
@@ -566,7 +566,7 @@ public:
 
 class SIGfx11CacheControl : public SIGfx10CacheControl {
 public:
-  SIGfx11CacheControl(const GCNSubtarget &ST) : SIGfx10CacheControl(ST) {}
+  SIGfx11CacheControl(const RVSubtarget &ST) : SIGfx10CacheControl(ST) {}
 
   bool enableLoadCacheBypass(const MachineBasicBlock::iterator &MI,
                              SIAtomicScope Scope,
@@ -828,7 +828,7 @@ std::optional<SIMemOpInfo> SIMemOpAccess::getAtomicCmpxchgOrRmwInfo(
   return constructFromMIWithMMO(MI);
 }
 
-SICacheControl::SICacheControl(const GCNSubtarget &ST) : ST(ST) {
+SICacheControl::SICacheControl(const RVSubtarget &ST) : ST(ST) {
   TII = ST.getInstrInfo();
   IV = getIsaVersion(ST.getCPU());
   InsertCacheInv = !RvgpuSkipCacheInvalidations;
@@ -845,8 +845,8 @@ bool SICacheControl::enableNamedBit(const MachineBasicBlock::iterator MI,
 }
 
 /* static */
-std::unique_ptr<SICacheControl> SICacheControl::create(const GCNSubtarget &ST) {
-  GCNSubtarget::Generation Generation = ST.getGeneration();
+std::unique_ptr<SICacheControl> SICacheControl::create(const RVSubtarget &ST) {
+  RVSubtarget::Generation Generation = ST.getGeneration();
   if (ST.hasGFX940Insts())
     return std::make_unique<SIGfx940CacheControl>(ST);
   if (ST.hasGFX90AInsts())
@@ -1132,7 +1132,7 @@ bool SIGfx7CacheControl::insertAcquire(MachineBasicBlock::iterator &MI,
   MachineBasicBlock &MBB = *MI->getParent();
   DebugLoc DL = MI->getDebugLoc();
 
-  const GCNSubtarget &STM = MBB.getParent()->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &STM = MBB.getParent()->getSubtarget<RVSubtarget>();
 
   const unsigned InvalidateL1 = STM.isRvPalOS() || STM.isMesa3DOS()
                                     ? RVGPU::BUFFER_WBINVL1
@@ -2319,7 +2319,7 @@ bool SIMemoryLegalizer::runOnMachineFunction(MachineFunction &MF) {
   bool Changed = false;
 
   SIMemOpAccess MOA(MF);
-  CC = SICacheControl::create(MF.getSubtarget<GCNSubtarget>());
+  CC = SICacheControl::create(MF.getSubtarget<RVSubtarget>());
 
   for (auto &MBB : MF) {
     for (auto MI = MBB.begin(); MI != MBB.end(); ++MI) {

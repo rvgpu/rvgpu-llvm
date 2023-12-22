@@ -13,7 +13,7 @@
 
 #include "RVGPU.h"
 #include "RVGPURegisterBankInfo.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUInstPrinter.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
@@ -317,7 +317,7 @@ struct SGPRSpillBuilder {
 
 } // namespace llvm
 
-RVRegisterInfo::RVRegisterInfo(const GCNSubtarget &ST)
+RVRegisterInfo::RVRegisterInfo(const RVSubtarget &ST)
     : RVGPUGenRegisterInfo(RVGPU::PC_REG, ST.getRVGPUDwarfFlavour()), ST(ST),
       SpillSGPRToVGPR(EnableSpillSGPRToVGPR), isWave32(ST.isWave32()) {
 
@@ -1198,7 +1198,7 @@ static int getOffenMUBUFLoad(unsigned Opc) {
   }
 }
 
-static MachineInstrBuilder spillVGPRtoAGPR(const GCNSubtarget &ST,
+static MachineInstrBuilder spillVGPRtoAGPR(const RVSubtarget &ST,
                                            MachineBasicBlock &MBB,
                                            MachineBasicBlock::iterator MI,
                                            int Index, unsigned Lane,
@@ -1241,7 +1241,7 @@ static MachineInstrBuilder spillVGPRtoAGPR(const GCNSubtarget &ST,
 
 // This differs from buildSpillLoadStore by only scavenging a VGPR. It does not
 // need to handle the case where an SGPR may need to be spilled while spilling.
-static bool buildMUBUFOffsetLoadStore(const GCNSubtarget &ST,
+static bool buildMUBUFOffsetLoadStore(const RVSubtarget &ST,
                                       MachineFrameInfo &MFI,
                                       MachineBasicBlock::iterator MI,
                                       int Index,

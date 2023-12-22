@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 //
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -436,7 +436,7 @@ void SIModeRegister::processBlockPhase3(MachineBasicBlock &MBB,
 
 bool SIModeRegister::runOnMachineFunction(MachineFunction &MF) {
   BlockInfo.resize(MF.getNumBlockIDs());
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVInstrInfo *TII = ST.getInstrInfo();
 
   // Processing is performed in a number of phases

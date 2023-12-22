@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SetVector.h"
@@ -2812,7 +2812,7 @@ static void checkRegOnlyPHIInputs(MachineFunction &MF) {
 }
 
 bool RVGPUMachineCFGStructurizer::runOnMachineFunction(MachineFunction &MF) {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVInstrInfo *TII = ST.getInstrInfo();
   TRI = ST.getRegisterInfo();
   MRI = &(MF.getRegInfo());

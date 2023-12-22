@@ -16,7 +16,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "llvm/CodeGen/LiveIntervals.h"
@@ -98,7 +98,7 @@ void SILowerWWMCopies::addToWWMSpills(MachineFunction &MF, Register Reg) {
 }
 
 bool SILowerWWMCopies::runOnMachineFunction(MachineFunction &MF) {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVInstrInfo *TII = ST.getInstrInfo();
 
   MFI = MF.getInfo<RVMachineFunctionInfo>();

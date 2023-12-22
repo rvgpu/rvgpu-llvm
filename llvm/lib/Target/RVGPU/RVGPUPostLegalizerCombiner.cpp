@@ -14,7 +14,7 @@
 #include "RVGPU.h"
 #include "RVGPUCombinerHelper.h"
 #include "RVGPULegalizerInfo.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/CodeGen/GlobalISel/Combiner.h"
 #include "llvm/CodeGen/GlobalISel/CombinerHelper.h"
@@ -45,7 +45,7 @@ namespace {
 class RVGPUPostLegalizerCombinerImpl : public Combiner {
 protected:
   const RVGPUPostLegalizerCombinerImplRuleConfig &RuleConfig;
-  const GCNSubtarget &STI;
+  const RVSubtarget &STI;
   const RVInstrInfo &TII;
   // TODO: Make CombinerHelper methods const.
   mutable RVGPUCombinerHelper Helper;
@@ -55,7 +55,7 @@ public:
       MachineFunction &MF, CombinerInfo &CInfo, const TargetPassConfig *TPC,
       GISelKnownBits &KB, GISelCSEInfo *CSEInfo,
       const RVGPUPostLegalizerCombinerImplRuleConfig &RuleConfig,
-      const GCNSubtarget &STI, MachineDominatorTree *MDT,
+      const RVSubtarget &STI, MachineDominatorTree *MDT,
       const LegalizerInfo *LI);
 
   static const char *getName() { return "RVGPUPostLegalizerCombinerImpl"; }
@@ -106,14 +106,14 @@ public:
 
 private:
 #define GET_GICOMBINER_CLASS_MEMBERS
-#define RVGPUSubtarget GCNSubtarget
+#define RVGPUSubtarget RVSubtarget
 #include "RVGPUGenPostLegalizeGICombiner.inc"
 #undef GET_GICOMBINER_CLASS_MEMBERS
 #undef RVGPUSubtarget
 };
 
 #define GET_GICOMBINER_IMPL
-#define RVGPUSubtarget GCNSubtarget
+#define RVGPUSubtarget RVSubtarget
 #include "RVGPUGenPostLegalizeGICombiner.inc"
 #undef RVGPUSubtarget
 #undef GET_GICOMBINER_IMPL
@@ -122,7 +122,7 @@ RVGPUPostLegalizerCombinerImpl::RVGPUPostLegalizerCombinerImpl(
     MachineFunction &MF, CombinerInfo &CInfo, const TargetPassConfig *TPC,
     GISelKnownBits &KB, GISelCSEInfo *CSEInfo,
     const RVGPUPostLegalizerCombinerImplRuleConfig &RuleConfig,
-    const GCNSubtarget &STI, MachineDominatorTree *MDT, const LegalizerInfo *LI)
+    const RVSubtarget &STI, MachineDominatorTree *MDT, const LegalizerInfo *LI)
     : Combiner(MF, CInfo, TPC, &KB, CSEInfo), RuleConfig(RuleConfig), STI(STI),
       TII(*STI.getInstrInfo()),
       Helper(Observer, B, /*IsPreLegalize*/ false, &KB, MDT, LI),
@@ -472,7 +472,7 @@ bool RVGPUPostLegalizerCombiner::runOnMachineFunction(MachineFunction &MF) {
   bool EnableOpt =
       MF.getTarget().getOptLevel() != CodeGenOptLevel::None && !skipFunction(F);
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVGPULegalizerInfo *LI =
       static_cast<const RVGPULegalizerInfo *>(ST.getLegalizerInfo());
 

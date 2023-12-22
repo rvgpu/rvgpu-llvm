@@ -14,7 +14,7 @@
 
 namespace llvm {
 
-class GCNSubtarget;
+class RVSubtarget;
 
 // Track defaults for fields in the MODE register.
 struct SIModeRegisterDefaults {
@@ -42,7 +42,7 @@ struct SIModeRegisterDefaults {
     FP32Denormals(DenormalMode::getIEEE()),
     FP64FP16Denormals(DenormalMode::getIEEE()) {}
 
-  SIModeRegisterDefaults(const Function &F, const GCNSubtarget &ST);
+  SIModeRegisterDefaults(const Function &F, const RVSubtarget &ST);
 
   static SIModeRegisterDefaults getDefaultForCallingConv(CallingConv::ID CC) {
     SIModeRegisterDefaults Mode;

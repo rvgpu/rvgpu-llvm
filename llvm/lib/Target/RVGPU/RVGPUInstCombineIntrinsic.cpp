@@ -329,7 +329,7 @@ simplifyRVGPUImageIntrinsic(const RVSubtarget *ST,
       });
 }
 
-bool GCNTTIImpl::canSimplifyLegacyMulToMul(const Instruction &I,
+bool RVTTIImpl::canSimplifyLegacyMulToMul(const Instruction &I,
                                            const Value *Op0, const Value *Op1,
                                            InstCombiner &IC) const {
   // The legacy behaviour is that multiplying +/-0.0 by anything, even NaN or
@@ -416,7 +416,7 @@ static bool canContractSqrtToRsq(const FPMathOperator *SqrtOp) {
 }
 
 std::optional<Instruction *>
-GCNTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
+RVTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
   Intrinsic::ID IID = II.getIntrinsicID();
   switch (IID) {
   case Intrinsic::rvgpu_rcp: {
@@ -1320,7 +1320,7 @@ static Value *simplifyRVGPUMemoryIntrinsicDemanded(InstCombiner &IC,
   return NewCall;
 }
 
-std::optional<Value *> GCNTTIImpl::simplifyDemandedVectorEltsIntrinsic(
+std::optional<Value *> RVTTIImpl::simplifyDemandedVectorEltsIntrinsic(
     InstCombiner &IC, IntrinsicInst &II, APInt DemandedElts, APInt &UndefElts,
     APInt &UndefElts2, APInt &UndefElts3,
     std::function<void(Instruction *, unsigned, APInt, APInt &)>

@@ -68,7 +68,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/PostOrderIterator.h"
@@ -151,7 +151,7 @@ class SIWholeQuadMode : public MachineFunctionPass {
 private:
   const RVInstrInfo *TII;
   const RVRegisterInfo *TRI;
-  const GCNSubtarget *ST;
+  const RVSubtarget *ST;
   MachineRegisterInfo *MRI;
   LiveIntervals *LIS;
   MachineDominatorTree *MDT;
@@ -1587,7 +1587,7 @@ bool SIWholeQuadMode::runOnMachineFunction(MachineFunction &MF) {
   KillInstrs.clear();
   StateTransition.clear();
 
-  ST = &MF.getSubtarget<GCNSubtarget>();
+  ST = &MF.getSubtarget<RVSubtarget>();
 
   TII = ST->getInstrInfo();
   TRI = &TII->getRegisterInfo();

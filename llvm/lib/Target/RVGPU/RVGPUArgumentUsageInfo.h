@@ -21,7 +21,7 @@ class raw_ostream;
 class TargetRegisterClass;
 class TargetRegisterInfo;
 
-struct ArgDescriptor {
+struct RvArgDescriptor {
 private:
   friend struct RVGPUFunctionArgInfo;
   friend class RVGPUArgumentUsageInfo;
@@ -38,20 +38,20 @@ private:
   bool IsSet : 1;
 
 public:
-  ArgDescriptor(unsigned Val = 0, unsigned Mask = ~0u, bool IsStack = false,
+  RvArgDescriptor(unsigned Val = 0, unsigned Mask = ~0u, bool IsStack = false,
                 bool IsSet = false)
       : Reg(Val), Mask(Mask), IsStack(IsStack), IsSet(IsSet) {}
 
-  static ArgDescriptor createRegister(Register Reg, unsigned Mask = ~0u) {
-    return ArgDescriptor(Reg, Mask, false, true);
+  static RvArgDescriptor createRegister(Register Reg, unsigned Mask = ~0u) {
+    return RvArgDescriptor(Reg, Mask, false, true);
   }
 
-  static ArgDescriptor createStack(unsigned Offset, unsigned Mask = ~0u) {
-    return ArgDescriptor(Offset, Mask, true, true);
+  static RvArgDescriptor createStack(unsigned Offset, unsigned Mask = ~0u) {
+    return RvArgDescriptor(Offset, Mask, true, true);
   }
 
-  static ArgDescriptor createArg(const ArgDescriptor &Arg, unsigned Mask) {
-    return ArgDescriptor(Arg.Reg, Mask, Arg.IsStack, Arg.IsSet);
+  static RvArgDescriptor createArg(const RvArgDescriptor &Arg, unsigned Mask) {
+    return RvArgDescriptor(Arg.Reg, Mask, Arg.IsStack, Arg.IsSet);
   }
 
   bool isSet() const {
@@ -87,12 +87,12 @@ public:
   void print(raw_ostream &OS, const TargetRegisterInfo *TRI = nullptr) const;
 };
 
-inline raw_ostream &operator<<(raw_ostream &OS, const ArgDescriptor &Arg) {
+inline raw_ostream &operator<<(raw_ostream &OS, const RvArgDescriptor &Arg) {
   Arg.print(OS);
   return OS;
 }
 
-struct KernArgPreloadDescriptor : public ArgDescriptor {
+struct KernArgPreloadDescriptor : public RvArgDescriptor {
   KernArgPreloadDescriptor() {}
   SmallVector<MCRegister> Regs;
 };
@@ -127,39 +127,39 @@ struct RVGPUFunctionArgInfo {
 
   // User SGPRs in kernels
   // XXX - Can these require argument spills?
-  ArgDescriptor PrivateSegmentBuffer;
-  ArgDescriptor DispatchPtr;
-  ArgDescriptor QueuePtr;
-  ArgDescriptor KernargSegmentPtr;
-  ArgDescriptor DispatchID;
-  ArgDescriptor FlatScratchInit;
-  ArgDescriptor PrivateSegmentSize;
-  ArgDescriptor LDSKernelId;
+  RvArgDescriptor PrivateSegmentBuffer;
+  RvArgDescriptor DispatchPtr;
+  RvArgDescriptor QueuePtr;
+  RvArgDescriptor KernargSegmentPtr;
+  RvArgDescriptor DispatchID;
+  RvArgDescriptor FlatScratchInit;
+  RvArgDescriptor PrivateSegmentSize;
+  RvArgDescriptor LDSKernelId;
 
   // System SGPRs in kernels.
-  ArgDescriptor WorkGroupIDX;
-  ArgDescriptor WorkGroupIDY;
-  ArgDescriptor WorkGroupIDZ;
-  ArgDescriptor WorkGroupInfo;
-  ArgDescriptor PrivateSegmentWaveByteOffset;
+  RvArgDescriptor WorkGroupIDX;
+  RvArgDescriptor WorkGroupIDY;
+  RvArgDescriptor WorkGroupIDZ;
+  RvArgDescriptor WorkGroupInfo;
+  RvArgDescriptor PrivateSegmentWaveByteOffset;
 
   // Pointer with offset from kernargsegmentptr to where special ABI arguments
   // are passed to callable functions.
-  ArgDescriptor ImplicitArgPtr;
+  RvArgDescriptor ImplicitArgPtr;
 
   // Input registers for non-HSA ABI
-  ArgDescriptor ImplicitBufferPtr;
+  RvArgDescriptor ImplicitBufferPtr;
 
   // VGPRs inputs. For entry functions these are either v0, v1 and v2 or packed
   // into v0, 10 bits per dimension if packed-tid is set.
-  ArgDescriptor WorkItemIDX;
-  ArgDescriptor WorkItemIDY;
-  ArgDescriptor WorkItemIDZ;
+  RvArgDescriptor WorkItemIDX;
+  RvArgDescriptor WorkItemIDY;
+  RvArgDescriptor WorkItemIDZ;
 
   // Map the index of preloaded kernel arguments to its descriptor.
   SmallDenseMap<int, KernArgPreloadDescriptor> PreloadKernArgs{};
 
-  std::tuple<const ArgDescriptor *, const TargetRegisterClass *, LLT>
+  std::tuple<const RvArgDescriptor *, const TargetRegisterClass *, LLT>
   getPreloadedValue(PreloadedValue Value) const;
 
   static RVGPUFunctionArgInfo fixedABILayout();

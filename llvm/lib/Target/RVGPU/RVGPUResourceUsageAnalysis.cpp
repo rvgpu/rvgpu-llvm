@@ -25,7 +25,7 @@
 
 #include "RVGPUResourceUsageAnalysis.h"
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "RVMachineFunctionInfo.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/Analysis/CallGraph.h"
@@ -81,19 +81,19 @@ static bool hasAnyNonFlatUseOfReg(const MachineRegisterInfo &MRI,
 }
 
 int32_t RVGPUResourceUsageAnalysis::SIFunctionResourceInfo::getTotalNumSGPRs(
-    const GCNSubtarget &ST) const {
+    const RVSubtarget &ST) const {
   return NumExplicitSGPR +
          IsaInfo::getNumExtraSGPRs(&ST, UsesVCC, UsesFlatScratch,
                                    ST.getTargetID().isXnackOnOrAny());
 }
 
 int32_t RVGPUResourceUsageAnalysis::SIFunctionResourceInfo::getTotalNumVGPRs(
-    const GCNSubtarget &ST, int32_t ArgNumAGPR, int32_t ArgNumVGPR) const {
+    const RVSubtarget &ST, int32_t ArgNumAGPR, int32_t ArgNumVGPR) const {
   return RVGPU::getTotalNumVGPRs(ST.hasGFX90AInsts(), ArgNumAGPR, ArgNumVGPR);
 }
 
 int32_t RVGPUResourceUsageAnalysis::SIFunctionResourceInfo::getTotalNumVGPRs(
-    const GCNSubtarget &ST) const {
+    const RVSubtarget &ST) const {
   return getTotalNumVGPRs(ST, NumAGPR, NumVGPR);
 }
 
@@ -168,7 +168,7 @@ RVGPUResourceUsageAnalysis::analyzeResourceUsage(
   SIFunctionResourceInfo Info;
 
   const RVMachineFunctionInfo *MFI = MF.getInfo<RVMachineFunctionInfo>();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const MachineFrameInfo &FrameInfo = MF.getFrameInfo();
   const MachineRegisterInfo &MRI = MF.getRegInfo();
   const RVInstrInfo *TII = ST.getInstrInfo();

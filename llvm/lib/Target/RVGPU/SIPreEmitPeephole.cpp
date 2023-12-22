@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 
@@ -85,7 +85,7 @@ bool SIPreEmitPeephole::optimizeVccBranch(MachineInstr &MI) const {
 
   bool Changed = false;
   MachineBasicBlock &MBB = *MI.getParent();
-  const GCNSubtarget &ST = MBB.getParent()->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MBB.getParent()->getSubtarget<RVSubtarget>();
   const bool IsWave32 = ST.isWave32();
   const unsigned CondReg = TRI->getVCC();
   const unsigned ExecReg = IsWave32 ? RVGPU::EXEC_LO : RVGPU::EXEC;
@@ -363,7 +363,7 @@ bool SIPreEmitPeephole::removeExeczBranch(MachineInstr &MI,
 }
 
 bool SIPreEmitPeephole::runOnMachineFunction(MachineFunction &MF) {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   TII = ST.getInstrInfo();
   TRI = &TII->getRegisterInfo();
   bool Changed = false;

@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachinePostDominators.h"
 #include "llvm/CodeGen/MachineSSAUpdater.h"
@@ -45,7 +45,7 @@ protected:
   MachineDominatorTree *DT = nullptr;
   MachinePostDominatorTree *PDT = nullptr;
   MachineRegisterInfo *MRI = nullptr;
-  const GCNSubtarget *ST = nullptr;
+  const RVSubtarget *ST = nullptr;
   const RVInstrInfo *TII = nullptr;
   Register LaneMaskRegAttrs;
 

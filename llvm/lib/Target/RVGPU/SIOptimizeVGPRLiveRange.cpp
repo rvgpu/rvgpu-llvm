@@ -72,7 +72,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "llvm/CodeGen/LiveVariables.h"
@@ -632,7 +632,7 @@ FunctionPass *llvm::createSIOptimizeVGPRLiveRangePass() {
 
 bool SIOptimizeVGPRLiveRange::runOnMachineFunction(MachineFunction &MF) {
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   TII = ST.getInstrInfo();
   TRI = &TII->getRegisterInfo();
   MDT = &getAnalysis<MachineDominatorTree>();

@@ -9,7 +9,7 @@
 #include "RVMachineFunctionInfo.h"
 #include "RVGPUSubtarget.h"
 #include "RVGPUTargetMachine.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVRegisterInfo.h"
 #include "Utils/RVGPUBaseInfo.h"
@@ -30,20 +30,20 @@
 
 using namespace llvm;
 
-const GCNTargetMachine &getTM(const GCNSubtarget *STI) {
+const RVTargetMachine &getTM(const RVSubtarget *STI) {
   const RVTargetLowering *TLI = STI->getTargetLowering();
-  return static_cast<const GCNTargetMachine &>(TLI->getTargetMachine());
+  return static_cast<const RVTargetMachine &>(TLI->getTargetMachine());
 }
 
 RVMachineFunctionInfo::RVMachineFunctionInfo(const Function &F,
-                                             const GCNSubtarget *STI)
+                                             const RVSubtarget *STI)
     : RVGPUMachineFunction(F, *STI), Mode(F, *STI), GWSResourcePSV(getTM(STI)),
       UserSGPRInfo(F, *STI), WorkGroupIDX(false), WorkGroupIDY(false),
       WorkGroupIDZ(false), WorkGroupInfo(false), LDSKernelId(false),
       PrivateSegmentWaveByteOffset(false), WorkItemIDX(false),
       WorkItemIDY(false), WorkItemIDZ(false), ImplicitArgPtr(false),
       GITPtrHigh(0xffffffff), HighBitsOf32BitAddress(0) {
-  const GCNSubtarget &ST = *static_cast<const GCNSubtarget *>(STI);
+  const RVSubtarget &ST = *static_cast<const RVSubtarget *>(STI);
   FlatWorkGroupSizes = ST.getFlatWorkGroupSizes(F);
   WavesPerEU = ST.getWavesPerEU(F);
 
@@ -74,7 +74,7 @@ RVMachineFunctionInfo::RVMachineFunctionInfo(const Function &F,
     ScratchRSrcReg = RVGPU::SGPR48_SGPR49_SGPR50_SGPR51;
 
     ArgInfo.PrivateSegmentBuffer =
-        ArgDescriptor::createRegister(ScratchRSrcReg);
+        RvArgDescriptor::createRegister(ScratchRSrcReg);
 
     ImplicitArgPtr = false;
   } else if (!isEntryFunction()) {
@@ -91,7 +91,7 @@ RVMachineFunctionInfo::RVMachineFunctionInfo(const Function &F,
       ScratchRSrcReg = RVGPU::SGPR0_SGPR1_SGPR2_SGPR3;
 
       ArgInfo.PrivateSegmentBuffer =
-        ArgDescriptor::createRegister(ScratchRSrcReg);
+        RvArgDescriptor::createRegister(ScratchRSrcReg);
     }
 
     if (!F.hasFnAttribute("rvgpu-no-implicitarg-ptr"))
@@ -148,7 +148,7 @@ RVMachineFunctionInfo::RVMachineFunctionInfo(const Function &F,
       if (ST.getGeneration() >= RVGPUSubtarget::GFX9 &&
           (CC == CallingConv::RVGPU_HS || CC == CallingConv::RVGPU_GS))
         ArgInfo.PrivateSegmentWaveByteOffset =
-            ArgDescriptor::createRegister(RVGPU::SGPR5);
+            RvArgDescriptor::createRegister(RVGPU::SGPR5);
     }
   }
 
@@ -180,7 +180,7 @@ MachineFunctionInfo *RVMachineFunctionInfo::clone(
 
 void RVMachineFunctionInfo::limitOccupancy(const MachineFunction &MF) {
   limitOccupancy(getMaxWavesPerEU());
-  const GCNSubtarget& ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget& ST = MF.getSubtarget<RVSubtarget>();
   limitOccupancy(ST.getOccupancyWithLocalMemSize(getLDSSize(),
                  MF.getFunction()));
 }
@@ -188,21 +188,21 @@ void RVMachineFunctionInfo::limitOccupancy(const MachineFunction &MF) {
 Register RVMachineFunctionInfo::addPrivateSegmentBuffer(
   const RVRegisterInfo &TRI) {
   ArgInfo.PrivateSegmentBuffer =
-    ArgDescriptor::createRegister(TRI.getMatchingSuperReg(
+    RvArgDescriptor::createRegister(TRI.getMatchingSuperReg(
     getNextUserSGPR(), RVGPU::sub0, &RVGPU::SGPR_128RegClass));
   NumUserSGPRs += 4;
   return ArgInfo.PrivateSegmentBuffer.getRegister();
 }
 
 Register RVMachineFunctionInfo::addDispatchPtr(const RVRegisterInfo &TRI) {
-  ArgInfo.DispatchPtr = ArgDescriptor::createRegister(TRI.getMatchingSuperReg(
+  ArgInfo.DispatchPtr = RvArgDescriptor::createRegister(TRI.getMatchingSuperReg(
     getNextUserSGPR(), RVGPU::sub0, &RVGPU::SReg_64RegClass));
   NumUserSGPRs += 2;
   return ArgInfo.DispatchPtr.getRegister();
 }
 
 Register RVMachineFunctionInfo::addQueuePtr(const RVRegisterInfo &TRI) {
-  ArgInfo.QueuePtr = ArgDescriptor::createRegister(TRI.getMatchingSuperReg(
+  ArgInfo.QueuePtr = RvArgDescriptor::createRegister(TRI.getMatchingSuperReg(
     getNextUserSGPR(), RVGPU::sub0, &RVGPU::SReg_64RegClass));
   NumUserSGPRs += 2;
   return ArgInfo.QueuePtr.getRegister();
@@ -210,35 +210,35 @@ Register RVMachineFunctionInfo::addQueuePtr(const RVRegisterInfo &TRI) {
 
 Register RVMachineFunctionInfo::addKernargSegmentPtr(const RVRegisterInfo &TRI) {
   ArgInfo.KernargSegmentPtr
-    = ArgDescriptor::createRegister(TRI.getMatchingSuperReg(
+    = RvArgDescriptor::createRegister(TRI.getMatchingSuperReg(
     getNextUserSGPR(), RVGPU::sub0, &RVGPU::SReg_64RegClass));
   NumUserSGPRs += 2;
   return ArgInfo.KernargSegmentPtr.getRegister();
 }
 
 Register RVMachineFunctionInfo::addDispatchID(const RVRegisterInfo &TRI) {
-  ArgInfo.DispatchID = ArgDescriptor::createRegister(TRI.getMatchingSuperReg(
+  ArgInfo.DispatchID = RvArgDescriptor::createRegister(TRI.getMatchingSuperReg(
     getNextUserSGPR(), RVGPU::sub0, &RVGPU::SReg_64RegClass));
   NumUserSGPRs += 2;
   return ArgInfo.DispatchID.getRegister();
 }
 
 Register RVMachineFunctionInfo::addFlatScratchInit(const RVRegisterInfo &TRI) {
-  ArgInfo.FlatScratchInit = ArgDescriptor::createRegister(TRI.getMatchingSuperReg(
+  ArgInfo.FlatScratchInit = RvArgDescriptor::createRegister(TRI.getMatchingSuperReg(
     getNextUserSGPR(), RVGPU::sub0, &RVGPU::SReg_64RegClass));
   NumUserSGPRs += 2;
   return ArgInfo.FlatScratchInit.getRegister();
 }
 
 Register RVMachineFunctionInfo::addImplicitBufferPtr(const RVRegisterInfo &TRI) {
-  ArgInfo.ImplicitBufferPtr = ArgDescriptor::createRegister(TRI.getMatchingSuperReg(
+  ArgInfo.ImplicitBufferPtr = RvArgDescriptor::createRegister(TRI.getMatchingSuperReg(
     getNextUserSGPR(), RVGPU::sub0, &RVGPU::SReg_64RegClass));
   NumUserSGPRs += 2;
   return ArgInfo.ImplicitBufferPtr.getRegister();
 }
 
 Register RVMachineFunctionInfo::addLDSKernelId() {
-  ArgInfo.LDSKernelId = ArgDescriptor::createRegister(getNextUserSGPR());
+  ArgInfo.LDSKernelId = RvArgDescriptor::createRegister(getNextUserSGPR());
   NumUserSGPRs += 1;
   return ArgInfo.LDSKernelId.getRegister();
 }
@@ -330,7 +330,7 @@ bool RVMachineFunctionInfo::allocateVirtualVGPRForSGPRSpills(
 
 bool RVMachineFunctionInfo::allocatePhysicalVGPRForSGPRSpills(
     MachineFunction &MF, int FI, unsigned LaneIndex) {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVRegisterInfo *TRI = ST.getRegisterInfo();
   MachineRegisterInfo &MRI = MF.getRegInfo();
   Register LaneVGPR;
@@ -370,7 +370,7 @@ bool RVMachineFunctionInfo::allocateSGPRSpillToVGPRLane(MachineFunction &MF,
   if (!SpillLanes.empty())
     return true;
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   MachineFrameInfo &FrameInfo = MF.getFrameInfo();
   unsigned WaveSize = ST.getWavefrontSize();
 
@@ -410,7 +410,7 @@ bool RVMachineFunctionInfo::allocateVGPRSpillToAGPR(MachineFunction &MF,
                                                     bool isAGPRtoVGPR) {
   MachineRegisterInfo &MRI = MF.getRegInfo();
   MachineFrameInfo &FrameInfo = MF.getFrameInfo();
-  const GCNSubtarget &ST =  MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST =  MF.getSubtarget<RVSubtarget>();
 
   assert(ST.hasMAIInsts() && FrameInfo.isSpillSlotObjectIndex(FI));
 
@@ -552,7 +552,7 @@ void RVMachineFunctionInfo::MRI_NoteCloneVirtualRegister(Register NewReg,
 
 Register
 RVMachineFunctionInfo::getGITPtrLoReg(const MachineFunction &MF) const {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   if (!ST.isRvPalOS())
     return Register();
   Register GitPtrLo = RVGPU::SGPR0; // Low GIT address passed in
@@ -587,7 +587,7 @@ convertArgumentInfo(const RVGPUFunctionArgInfo &ArgInfo,
   yaml::SIArgumentInfo AI;
 
   auto convertArg = [&](std::optional<yaml::SIArgument> &A,
-                        const ArgDescriptor &Arg) {
+                        const RvArgDescriptor &Arg) {
     if (!Arg)
       return false;
 

@@ -5315,7 +5315,7 @@ bool RVGPUInstructionSelector::selectSBarrierSignalIsfirst(
                                       *MRI);
 }
 
-unsigned getNamedBarrierOp(bool HasInlineConst, Intrinsic::ID IntrID) {
+unsigned rvGetNamedBarrierOp(bool HasInlineConst, Intrinsic::ID IntrID) {
   if (HasInlineConst) {
     switch (IntrID) {
     default:
@@ -5393,7 +5393,7 @@ bool RVGPUInstructionSelector::selectNamedBarrierInst(
   }
 
   MachineInstrBuilder MIB;
-  unsigned Opc = getNamedBarrierOp(BarValImm.has_value(), IntrID);
+  unsigned Opc = rvGetNamedBarrierOp(BarValImm.has_value(), IntrID);
   MIB = BuildMI(*MBB, &I, DL, TII.get(Opc));
 
   if (IntrID == Intrinsic::rvgpu_s_get_barrier_state)

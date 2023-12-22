@@ -23,7 +23,7 @@ using namespace llvm;
 INITIALIZE_PASS(RVGPUArgumentUsageInfo, DEBUG_TYPE,
                 "Argument Register Usage Information Storage", false, true)
 
-void ArgDescriptor::print(raw_ostream &OS,
+void RvArgDescriptor::print(raw_ostream &OS,
                           const TargetRegisterInfo *TRI) const {
   if (!isSet()) {
     OS << "<not set>\n";
@@ -87,7 +87,7 @@ void RVGPUArgumentUsageInfo::print(raw_ostream &OS, const Module *M) const {
   }
 }
 
-std::tuple<const ArgDescriptor *, const TargetRegisterClass *, LLT>
+std::tuple<const RvArgDescriptor *, const TargetRegisterClass *, LLT>
 RVGPUFunctionArgInfo::getPreloadedValue(
     RVGPUFunctionArgInfo::PreloadedValue Value) const {
   switch (Value) {
@@ -152,25 +152,25 @@ RVGPUFunctionArgInfo::getPreloadedValue(
 RVGPUFunctionArgInfo RVGPUFunctionArgInfo::fixedABILayout() {
   RVGPUFunctionArgInfo AI;
   AI.PrivateSegmentBuffer
-    = ArgDescriptor::createRegister(RVGPU::SGPR0_SGPR1_SGPR2_SGPR3);
-  AI.DispatchPtr = ArgDescriptor::createRegister(RVGPU::SGPR4_SGPR5);
-  AI.QueuePtr = ArgDescriptor::createRegister(RVGPU::SGPR6_SGPR7);
+    = RvArgDescriptor::createRegister(RVGPU::SGPR0_SGPR1_SGPR2_SGPR3);
+  AI.DispatchPtr = RvArgDescriptor::createRegister(RVGPU::SGPR4_SGPR5);
+  AI.QueuePtr = RvArgDescriptor::createRegister(RVGPU::SGPR6_SGPR7);
 
   // Do not pass kernarg segment pointer, only pass increment version in its
   // place.
-  AI.ImplicitArgPtr = ArgDescriptor::createRegister(RVGPU::SGPR8_SGPR9);
-  AI.DispatchID = ArgDescriptor::createRegister(RVGPU::SGPR10_SGPR11);
+  AI.ImplicitArgPtr = RvArgDescriptor::createRegister(RVGPU::SGPR8_SGPR9);
+  AI.DispatchID = RvArgDescriptor::createRegister(RVGPU::SGPR10_SGPR11);
 
   // Skip FlatScratchInit/PrivateSegmentSize
-  AI.WorkGroupIDX = ArgDescriptor::createRegister(RVGPU::SGPR12);
-  AI.WorkGroupIDY = ArgDescriptor::createRegister(RVGPU::SGPR13);
-  AI.WorkGroupIDZ = ArgDescriptor::createRegister(RVGPU::SGPR14);
-  AI.LDSKernelId = ArgDescriptor::createRegister(RVGPU::SGPR15);
+  AI.WorkGroupIDX = RvArgDescriptor::createRegister(RVGPU::SGPR12);
+  AI.WorkGroupIDY = RvArgDescriptor::createRegister(RVGPU::SGPR13);
+  AI.WorkGroupIDZ = RvArgDescriptor::createRegister(RVGPU::SGPR14);
+  AI.LDSKernelId = RvArgDescriptor::createRegister(RVGPU::SGPR15);
 
   const unsigned Mask = 0x3ff;
-  AI.WorkItemIDX = ArgDescriptor::createRegister(RVGPU::VGPR31, Mask);
-  AI.WorkItemIDY = ArgDescriptor::createRegister(RVGPU::VGPR31, Mask << 10);
-  AI.WorkItemIDZ = ArgDescriptor::createRegister(RVGPU::VGPR31, Mask << 20);
+  AI.WorkItemIDX = RvArgDescriptor::createRegister(RVGPU::VGPR31, Mask);
+  AI.WorkItemIDY = RvArgDescriptor::createRegister(RVGPU::VGPR31, Mask << 10);
+  AI.WorkItemIDZ = RvArgDescriptor::createRegister(RVGPU::VGPR31, Mask << 20);
   return AI;
 }
 

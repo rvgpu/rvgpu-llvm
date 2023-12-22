@@ -374,7 +374,7 @@ uint16_t RVGPUAsmPrinter::getRvhsaKernelCodeProperties(
     const MachineFunction &MF) const {
   const RVMachineFunctionInfo &MFI = *MF.getInfo<RVMachineFunctionInfo>();
   uint16_t KernelCodeProperties = 0;
-  const GCNUserSGPRUsageInfo &UserSGPRInfo = MFI.getUserSGPRInfo();
+  const RVUserSGPRUsageInfo &UserSGPRInfo = MFI.getUserSGPRInfo();
 
   if (UserSGPRInfo.hasPrivateSegmentBuffer()) {
     KernelCodeProperties |=
@@ -414,7 +414,7 @@ uint16_t RVGPUAsmPrinter::getRvhsaKernelCodeProperties(
 
 rvhsa::kernel_descriptor_t RVGPUAsmPrinter::getRvhsaKernelDescriptor(
     const MachineFunction &MF,
-    const SIProgramInfo &PI) const {
+    const RVProgramInfo &PI) const {
   const RVSubtarget &STM = MF.getSubtarget<RVSubtarget>();
   const Function &F = MF.getFunction();
   const RVMachineFunctionInfo *Info = MF.getInfo<RVMachineFunctionInfo>();
@@ -455,7 +455,7 @@ bool RVGPUAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
     initTargetStreamer(*MF.getFunction().getParent());
 
   ResourceUsage = &getAnalysis<RVGPUResourceUsageAnalysis>();
-  CurrentProgramInfo = SIProgramInfo();
+  CurrentProgramInfo = RVProgramInfo();
 
   const RVGPUMachineFunction *MFI = MF.getInfo<RVGPUMachineFunction>();
 
@@ -475,7 +475,7 @@ bool RVGPUAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   }
 
   if (MFI->isModuleEntryFunction()) {
-    getSIProgramInfo(CurrentProgramInfo, MF);
+    getRVProgramInfo(CurrentProgramInfo, MF);
   }
 
   if (STM.isRvPalOS()) {
@@ -675,7 +675,7 @@ uint64_t RVGPUAsmPrinter::getFunctionCodeSize(const MachineFunction &MF) const {
   return CodeSize;
 }
 
-void RVGPUAsmPrinter::getSIProgramInfo(SIProgramInfo &ProgInfo,
+void RVGPUAsmPrinter::getRVProgramInfo(RVProgramInfo &ProgInfo,
                                         const MachineFunction &MF) {
   const RVGPUResourceUsageAnalysis::SIFunctionResourceInfo &Info =
       ResourceUsage->getResourceInfo(&MF.getFunction());
@@ -963,7 +963,7 @@ static unsigned getRsrcReg(CallingConv::ID CallConv) {
 }
 
 void RVGPUAsmPrinter::EmitProgramInfoSI(const MachineFunction &MF,
-                                         const SIProgramInfo &CurrentProgramInfo) {
+                                         const RVProgramInfo &CurrentProgramInfo) {
   const RVMachineFunctionInfo *MFI = MF.getInfo<RVMachineFunctionInfo>();
   const RVSubtarget &STM = MF.getSubtarget<RVSubtarget>();
   unsigned RsrcReg = getRsrcReg(MF.getFunction().getCallingConv());
@@ -1019,7 +1019,7 @@ void RVGPUAsmPrinter::EmitProgramInfoSI(const MachineFunction &MF,
 // frontend as LLVM metadata. Once all functions are written, the PAL metadata
 // is then written as a single block in the .note section.
 void RVGPUAsmPrinter::EmitPALMetadata(const MachineFunction &MF,
-       const SIProgramInfo &CurrentProgramInfo) {
+       const RVProgramInfo &CurrentProgramInfo) {
   const RVMachineFunctionInfo *MFI = MF.getInfo<RVMachineFunctionInfo>();
   auto CC = MF.getFunction().getCallingConv();
   auto MD = getTargetStreamer()->getPALMetadata();
@@ -1141,7 +1141,7 @@ static rv_element_byte_size_t getElementByteSizeValue(unsigned Size) {
 }
 
 void RVGPUAsmPrinter::getRvKernelCode(rv_kernel_code_t &Out,
-                                        const SIProgramInfo &CurrentProgramInfo,
+                                        const RVProgramInfo &CurrentProgramInfo,
                                         const MachineFunction &MF) const {
   const Function &F = MF.getFunction();
   assert(F.getCallingConv() == CallingConv::RVGPU_KERNEL ||
@@ -1164,7 +1164,7 @@ void RVGPUAsmPrinter::getRvKernelCode(rv_kernel_code_t &Out,
                    RV_CODE_PROPERTY_PRIVATE_ELEMENT_SIZE,
                    getElementByteSizeValue(STM.getMaxPrivateElementSize(true)));
 
-  const GCNUserSGPRUsageInfo &UserSGPRInfo = MFI->getUserSGPRInfo();
+  const RVUserSGPRUsageInfo &UserSGPRInfo = MFI->getUserSGPRInfo();
   if (UserSGPRInfo.hasPrivateSegmentBuffer()) {
     Out.code_properties |=
       RV_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER;
@@ -1251,7 +1251,7 @@ void RVGPUAsmPrinter::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 void RVGPUAsmPrinter::emitResourceUsageRemarks(
-    const MachineFunction &MF, const SIProgramInfo &CurrentProgramInfo,
+    const MachineFunction &MF, const RVProgramInfo &CurrentProgramInfo,
     bool isModuleEntryFunction, bool hasMAIInsts) {
   if (!ORE)
     return;

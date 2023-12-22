@@ -569,7 +569,7 @@ static void castBufferRsrcArgToV4I32(MachineInstr &MI, MachineIRBuilder &B,
 }
 
 RVGPULegalizerInfo::RVGPULegalizerInfo(const RVSubtarget &ST_,
-                                         const GCNTargetMachine &TM)
+                                         const RVTargetMachine &TM)
   :  ST(ST_) {
   using namespace TargetOpcode;
 
@@ -4130,7 +4130,7 @@ verifyCFIntrinsic(MachineInstr &MI, MachineRegisterInfo &MRI, MachineInstr *&Br,
 }
 
 bool RVGPULegalizerInfo::loadInputValue(Register DstReg, MachineIRBuilder &B,
-                                         const ArgDescriptor *Arg,
+                                         const RvArgDescriptor *Arg,
                                          const TargetRegisterClass *ArgRC,
                                          LLT ArgTy) const {
   MCRegister SrcReg = Arg->getRegister();
@@ -4166,7 +4166,7 @@ bool RVGPULegalizerInfo::loadInputValue(
     Register DstReg, MachineIRBuilder &B,
     RVGPUFunctionArgInfo::PreloadedValue ArgType) const {
   const RVMachineFunctionInfo *MFI = B.getMF().getInfo<RVMachineFunctionInfo>();
-  const ArgDescriptor *Arg;
+  const RvArgDescriptor *Arg;
   const TargetRegisterClass *ArgRC;
   LLT ArgTy;
   std::tie(Arg, ArgRC, ArgTy) = MFI->getPreloadedValue(ArgType);
@@ -4215,7 +4215,7 @@ bool RVGPULegalizerInfo::legalizeWorkitemIDIntrinsic(
     return replaceWithConstant(B, MI, 0);
 
   const RVMachineFunctionInfo *MFI = B.getMF().getInfo<RVMachineFunctionInfo>();
-  const ArgDescriptor *Arg;
+  const RvArgDescriptor *Arg;
   const TargetRegisterClass *ArgRC;
   LLT ArgTy;
   std::tie(Arg, ArgRC, ArgTy) = MFI->getPreloadedValue(ArgType);

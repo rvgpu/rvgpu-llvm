@@ -28,7 +28,7 @@ class Function;
 class MachineFunction;
 class MDNode;
 class Module;
-struct SIProgramInfo;
+struct RVProgramInfo;
 class Type;
 
 namespace RVGPU {
@@ -51,7 +51,7 @@ public:
   virtual void end() = 0;
 
   virtual void emitKernel(const MachineFunction &MF,
-                          const SIProgramInfo &ProgramInfo) = 0;
+                          const RVProgramInfo &ProgramInfo) = 0;
 
 protected:
   virtual void emitVersion() = 0;
@@ -83,7 +83,7 @@ protected:
   msgpack::ArrayDocNode getWorkGroupDimensions(MDNode *Node) const;
 
   msgpack::MapDocNode getHSAKernelProps(const MachineFunction &MF,
-                                        const SIProgramInfo &ProgramInfo,
+                                        const RVProgramInfo &ProgramInfo,
                                         unsigned CodeObjectVersion) const;
 
   void emitVersion() override;
@@ -132,7 +132,7 @@ public:
   void end() override;
 
   void emitKernel(const MachineFunction &MF,
-                  const SIProgramInfo &ProgramInfo) override;
+                  const RVProgramInfo &ProgramInfo) override;
 };
 
 class MetadataStreamerMsgPackV5 final : public MetadataStreamerMsgPackV4 {

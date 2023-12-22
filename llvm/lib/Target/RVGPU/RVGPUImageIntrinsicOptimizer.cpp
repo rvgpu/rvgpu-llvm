@@ -139,7 +139,7 @@ void addInstToMergeableList(
 
 // Collect list of all instructions we know how to merge in a subset of the
 // block. It returns an iterator to the instruction after the last one analyzed.
-BasicBlock::iterator collectMergeableInsts(
+BasicBlock::iterator rvCollectMergeableInsts(
     BasicBlock::iterator I, BasicBlock::iterator E,
     SmallVector<SmallVector<IntrinsicInst *, 4>> &MergeableInsts) {
   for (; I != E; ++I) {
@@ -173,7 +173,7 @@ BasicBlock::iterator collectMergeableInsts(
   return I;
 }
 
-bool optimizeSection(ArrayRef<SmallVector<IntrinsicInst *, 4>> MergeableInsts) {
+bool rvOptimizeSection(ArrayRef<SmallVector<IntrinsicInst *, 4>> MergeableInsts) {
   bool Modified = false;
 
   SmallVector<Instruction *, 4> InstrsToErase;
@@ -307,8 +307,8 @@ static bool imageIntrinsicOptimizerImpl(Function &F, const TargetMachine *TM) {
          I = SectionEnd) {
       SmallVector<SmallVector<IntrinsicInst *, 4>> MergeableInsts;
 
-      SectionEnd = collectMergeableInsts(I, E, MergeableInsts);
-      Modified |= optimizeSection(MergeableInsts);
+      SectionEnd = rvCollectMergeableInsts(I, E, MergeableInsts);
+      Modified |= rvOptimizeSection(MergeableInsts);
     }
   }
 

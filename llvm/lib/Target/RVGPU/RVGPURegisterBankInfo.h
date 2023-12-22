@@ -24,7 +24,7 @@
 namespace llvm {
 
 class LLT;
-class GCNSubtarget;
+class RVSubtarget;
 class MachineIRBuilder;
 class RVInstrInfo;
 class RVRegisterInfo;
@@ -41,7 +41,7 @@ protected:
 
 class RVGPURegisterBankInfo final : public RVGPUGenRegisterBankInfo {
 public:
-  const GCNSubtarget &Subtarget;
+  const RVSubtarget &Subtarget;
   const RVRegisterInfo *TRI;
   const RVInstrInfo *TII;
 
@@ -160,7 +160,7 @@ public:
                                             int RsrcIdx) const;
 
 public:
-  RVGPURegisterBankInfo(const GCNSubtarget &STI);
+  RVGPURegisterBankInfo(const RVSubtarget &STI);
 
   bool isDivergentRegBank(const RegisterBank *RB) const override;
 

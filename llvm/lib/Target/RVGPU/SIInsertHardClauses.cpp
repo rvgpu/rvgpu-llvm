@@ -32,7 +32,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -97,7 +97,7 @@ enum HardClauseType {
 class SIInsertHardClauses : public MachineFunctionPass {
 public:
   static char ID;
-  const GCNSubtarget *ST = nullptr;
+  const RVSubtarget *ST = nullptr;
 
   SIInsertHardClauses() : MachineFunctionPass(ID) {}
 
@@ -197,7 +197,7 @@ public:
     if (skipFunction(MF.getFunction()))
       return false;
 
-    ST = &MF.getSubtarget<GCNSubtarget>();
+    ST = &MF.getSubtarget<RVSubtarget>();
     if (!ST->hasHardClauses())
       return false;
 

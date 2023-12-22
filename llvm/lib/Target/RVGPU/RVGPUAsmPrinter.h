@@ -14,7 +14,7 @@
 #ifndef LLVM_LIB_TARGET_RVGPU_RVGPUASMPRINTER_H
 #define LLVM_LIB_TARGET_RVGPU_RVGPUASMPRINTER_H
 
-#include "SIProgramInfo.h"
+#include "RVProgramInfo.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 
 struct rv_kernel_code_t;
@@ -44,7 +44,7 @@ private:
 
   RVGPUResourceUsageAnalysis *ResourceUsage;
 
-  SIProgramInfo CurrentProgramInfo;
+  RVProgramInfo CurrentProgramInfo;
 
   std::unique_ptr<RVGPU::HSRV::MetadataStreamer> HSAMetadataStream;
 
@@ -52,16 +52,16 @@ private:
 
   uint64_t getFunctionCodeSize(const MachineFunction &MF) const;
 
-  void getSIProgramInfo(SIProgramInfo &Out, const MachineFunction &MF);
-  void getRvKernelCode(rv_kernel_code_t &Out, const SIProgramInfo &KernelInfo,
+  void getRVProgramInfo(RVProgramInfo &Out, const MachineFunction &MF);
+  void getRvKernelCode(rv_kernel_code_t &Out, const RVProgramInfo &KernelInfo,
                         const MachineFunction &MF) const;
 
   /// Emit register usage information so that the GPU driver
   /// can correctly setup the GPU state.
   void EmitProgramInfoSI(const MachineFunction &MF,
-                         const SIProgramInfo &KernelInfo);
+                         const RVProgramInfo &KernelInfo);
   void EmitPALMetadata(const MachineFunction &MF,
-                       const SIProgramInfo &KernelInfo);
+                       const RVProgramInfo &KernelInfo);
   void emitPALFunctionMetadata(const MachineFunction &MF);
   void emitCommonFunctionComments(uint32_t NumVGPR,
                                   std::optional<uint32_t> NumAGPR,
@@ -69,7 +69,7 @@ private:
                                   uint64_t ScratchSize, uint64_t CodeSize,
                                   const RVGPUMachineFunction *MFI);
   void emitResourceUsageRemarks(const MachineFunction &MF,
-                                const SIProgramInfo &CurrentProgramInfo,
+                                const RVProgramInfo &CurrentProgramInfo,
                                 bool isModuleEntryFunction, bool hasMAIInsts);
 
   uint16_t getRvhsaKernelCodeProperties(
@@ -77,7 +77,7 @@ private:
 
   rvhsa::kernel_descriptor_t getRvhsaKernelDescriptor(
       const MachineFunction &MF,
-      const SIProgramInfo &PI) const;
+      const RVProgramInfo &PI) const;
 
   void initTargetStreamer(Module &M);
 

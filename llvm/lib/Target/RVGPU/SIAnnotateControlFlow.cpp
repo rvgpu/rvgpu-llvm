@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/UniformityAnalysis.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
@@ -60,7 +60,7 @@ class SIAnnotateControlFlow : public FunctionPass {
 
   LoopInfo *LI;
 
-  void initialize(Module &M, const GCNSubtarget &ST);
+  void initialize(Module &M, const RVSubtarget &ST);
 
   bool isUniform(BranchInst *T);
 
@@ -121,7 +121,7 @@ INITIALIZE_PASS_END(SIAnnotateControlFlow, DEBUG_TYPE,
 char SIAnnotateControlFlow::ID = 0;
 
 /// Initialize all the types and constants used in the pass
-void SIAnnotateControlFlow::initialize(Module &M, const GCNSubtarget &ST) {
+void SIAnnotateControlFlow::initialize(Module &M, const RVSubtarget &ST) {
   LLVMContext &Context = M.getContext();
 
   Void = Type::getVoidTy(Context);
@@ -353,7 +353,7 @@ bool SIAnnotateControlFlow::runOnFunction(Function &F) {
   const TargetMachine &TM = TPC.getTM<TargetMachine>();
 
   bool Changed = false;
-  initialize(*F.getParent(), TM.getSubtarget<GCNSubtarget>(F));
+  initialize(*F.getParent(), TM.getSubtarget<RVSubtarget>(F));
   for (df_iterator<BasicBlock *> I = df_begin(&F.getEntryBlock()),
        E = df_end(&F.getEntryBlock()); I != E; ++I) {
     BasicBlock *BB = *I;

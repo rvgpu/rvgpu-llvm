@@ -58,7 +58,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -199,7 +199,7 @@ class SILoadStoreOptimizer : public MachineFunctionPass {
   using MemInfoMap = DenseMap<MachineInstr *, MemAddress>;
 
 private:
-  const GCNSubtarget *STM = nullptr;
+  const RVSubtarget *STM = nullptr;
   const RVInstrInfo *TII = nullptr;
   const RVRegisterInfo *TRI = nullptr;
   MachineRegisterInfo *MRI = nullptr;
@@ -212,9 +212,9 @@ private:
   static bool dmasksCanBeCombined(const CombineInfo &CI,
                                   const RVInstrInfo &TII,
                                   const CombineInfo &Paired);
-  static bool offsetsCanBeCombined(CombineInfo &CI, const GCNSubtarget &STI,
+  static bool offsetsCanBeCombined(CombineInfo &CI, const RVSubtarget &STI,
                                    CombineInfo &Paired, bool Modify = false);
-  static bool widthsFit(const GCNSubtarget &STI, const CombineInfo &CI,
+  static bool widthsFit(const RVSubtarget &STI, const CombineInfo &CI,
                         const CombineInfo &Paired);
   static unsigned getNewOpcode(const CombineInfo &CI, const CombineInfo &Paired);
   static std::pair<unsigned, unsigned> getSubRegIdxs(const CombineInfo &CI,
@@ -276,7 +276,7 @@ private:
   void addInstToMergeableList(const CombineInfo &CI,
                   std::list<std::list<CombineInfo> > &MergeableInsts) const;
 
-  std::pair<MachineBasicBlock::iterator, bool> collectMergeableInsts(
+  std::pair<MachineBasicBlock::iterator, bool> rvCollectMergeableInsts(
       MachineBasicBlock::iterator Begin, MachineBasicBlock::iterator End,
       MemInfoMap &Visited, SmallPtrSet<MachineInstr *, 4> &AnchorList,
       std::list<std::list<CombineInfo>> &MergeableInsts) const;
@@ -920,7 +920,7 @@ bool SILoadStoreOptimizer::dmasksCanBeCombined(const CombineInfo &CI,
 
 static unsigned getBufferFormatWithCompCount(unsigned OldFormat,
                                        unsigned ComponentCount,
-                                       const GCNSubtarget &STI) {
+                                       const RVSubtarget &STI) {
   if (ComponentCount > 4)
     return 0;
 
@@ -954,7 +954,7 @@ static uint32_t mostAlignedValueInRange(uint32_t Lo, uint32_t Hi) {
 }
 
 bool SILoadStoreOptimizer::offsetsCanBeCombined(CombineInfo &CI,
-                                                const GCNSubtarget &STI,
+                                                const RVSubtarget &STI,
                                                 CombineInfo &Paired,
                                                 bool Modify) {
   assert(CI.InstClass != MIMG);
@@ -1077,7 +1077,7 @@ bool SILoadStoreOptimizer::offsetsCanBeCombined(CombineInfo &CI,
   return false;
 }
 
-bool SILoadStoreOptimizer::widthsFit(const GCNSubtarget &STM,
+bool SILoadStoreOptimizer::widthsFit(const RVSubtarget &STM,
                                      const CombineInfo &CI,
                                      const CombineInfo &Paired) {
   const unsigned Width = (CI.Width + Paired.Width);
@@ -2271,7 +2271,7 @@ void SILoadStoreOptimizer::addInstToMergeableList(const CombineInfo &CI,
 }
 
 std::pair<MachineBasicBlock::iterator, bool>
-SILoadStoreOptimizer::collectMergeableInsts(
+SILoadStoreOptimizer::rvCollectMergeableInsts(
     MachineBasicBlock::iterator Begin, MachineBasicBlock::iterator End,
     MemInfoMap &Visited, SmallPtrSet<MachineInstr *, 4> &AnchorList,
     std::list<std::list<CombineInfo>> &MergeableInsts) const {
@@ -2490,7 +2490,7 @@ bool SILoadStoreOptimizer::runOnMachineFunction(MachineFunction &MF) {
   if (skipFunction(MF.getFunction()))
     return false;
 
-  STM = &MF.getSubtarget<GCNSubtarget>();
+  STM = &MF.getSubtarget<RVSubtarget>();
   if (!STM->loadStoreOptEnabled())
     return false;
 
@@ -2519,7 +2519,7 @@ bool SILoadStoreOptimizer::runOnMachineFunction(MachineFunction &MF) {
       // First pass: Collect list of all instructions we know how to merge in a
       // subset of the block.
       std::tie(SectionEnd, CollectModified) =
-          collectMergeableInsts(I, E, Visited, AnchorList, MergeableInsts);
+          rvCollectMergeableInsts(I, E, Visited, AnchorList, MergeableInsts);
 
       Modified |= CollectModified;
 

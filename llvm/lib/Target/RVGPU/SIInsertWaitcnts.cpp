@@ -24,7 +24,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "Utils/RVGPUBaseInfo.h"
@@ -185,7 +185,7 @@ void addWait(RVGPU::Waitcnt &Wait, InstCounterType T, unsigned Count) {
 // "s_waitcnt 0" before use.
 class WaitcntBrackets {
 public:
-  WaitcntBrackets(const GCNSubtarget *SubTarget, HardwareLimits Limits,
+  WaitcntBrackets(const RVSubtarget *SubTarget, HardwareLimits Limits,
                   RegisterEncoding Encoding)
       : ST(SubTarget), Limits(Limits), Encoding(Encoding) {}
 
@@ -341,7 +341,7 @@ private:
                    const RVRegisterInfo *TRI, const MachineRegisterInfo *MRI,
                    unsigned OpNo, unsigned Val);
 
-  const GCNSubtarget *ST = nullptr;
+  const RVSubtarget *ST = nullptr;
   HardwareLimits Limits = {};
   RegisterEncoding Encoding = {};
   unsigned ScoreLBs[NUM_INST_CNTS] = {0};
@@ -363,7 +363,7 @@ private:
 
 class SIInsertWaitcnts : public MachineFunctionPass {
 private:
-  const GCNSubtarget *ST = nullptr;
+  const RVSubtarget *ST = nullptr;
   const RVInstrInfo *TII = nullptr;
   const RVRegisterInfo *TRI = nullptr;
   const MachineRegisterInfo *MRI = nullptr;
@@ -1815,7 +1815,7 @@ bool SIInsertWaitcnts::shouldFlushVmCnt(MachineLoop *ML,
 }
 
 bool SIInsertWaitcnts::runOnMachineFunction(MachineFunction &MF) {
-  ST = &MF.getSubtarget<GCNSubtarget>();
+  ST = &MF.getSubtarget<RVSubtarget>();
   TII = ST->getInstrInfo();
   TRI = &TII->getRegisterInfo();
   MRI = &MF.getRegInfo();

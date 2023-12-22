@@ -986,12 +986,12 @@ def FeatureDisable : SubtargetFeature<"",
 
 //===----------------------------------------------------------------------===//
 
-class GCNSubtargetFeatureGeneration <string Value,
+class RVSubtargetFeatureGeneration <string Value,
                                      string FeatureName,
                                      list<SubtargetFeature> Implies> :
-        SubtargetFeatureGeneration <Value, FeatureName, "GCNSubtarget", Implies>;
+        SubtargetFeatureGeneration <Value, FeatureName, "RVSubtarget", Implies>;
 
-def FeatureSouthernIslands : GCNSubtargetFeatureGeneration<"SOUTHERN_ISLANDS",
+def FeatureSouthernIslands : RVSubtargetFeatureGeneration<"SOUTHERN_ISLANDS",
     "southern-islands",
   [FeatureFP64, FeatureLocalMemorySize32768, FeatureMIMG_R128,
   FeatureWavefrontSize64, FeatureSMemTimeInst, FeatureMadMacF32Insts,
@@ -1001,7 +1001,7 @@ def FeatureSouthernIslands : GCNSubtargetFeatureGeneration<"SOUTHERN_ISLANDS",
   ]
 >;
 
-def FeatureSeaIslands : GCNSubtargetFeatureGeneration<"SEA_ISLANDS",
+def FeatureSeaIslands : RVSubtargetFeatureGeneration<"SEA_ISLANDS",
     "sea-islands",
   [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
   FeatureWavefrontSize64, FeatureFlatAddressSpace,
@@ -1012,7 +1012,7 @@ def FeatureSeaIslands : GCNSubtargetFeatureGeneration<"SEA_ISLANDS",
   ]
 >;
 
-def FeatureVolcanicIslands : GCNSubtargetFeatureGeneration<"VOLCANIC_ISLANDS",
+def FeatureVolcanicIslands : RVSubtargetFeatureGeneration<"VOLCANIC_ISLANDS",
   "volcanic-islands",
   [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
    FeatureWavefrontSize64, FeatureFlatAddressSpace,
@@ -1027,7 +1027,7 @@ def FeatureVolcanicIslands : GCNSubtargetFeatureGeneration<"VOLCANIC_ISLANDS",
   ]
 >;
 
-def FeatureGFX9 : GCNSubtargetFeatureGeneration<"GFX9",
+def FeatureGFX9 : RVSubtargetFeatureGeneration<"GFX9",
   "gfx9",
   [FeatureFP64, FeatureLocalMemorySize65536,
    FeatureWavefrontSize64, FeatureFlatAddressSpace,
@@ -1045,7 +1045,7 @@ def FeatureGFX9 : GCNSubtargetFeatureGeneration<"GFX9",
   ]
 >;
 
-def FeatureGFX10 : GCNSubtargetFeatureGeneration<"GFX10",
+def FeatureGFX10 : RVSubtargetFeatureGeneration<"GFX10",
   "gfx10",
   [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
    FeatureFlatAddressSpace,
@@ -1065,7 +1065,7 @@ def FeatureGFX10 : GCNSubtargetFeatureGeneration<"GFX10",
   ]
 >;
 
-def FeatureGFX11 : GCNSubtargetFeatureGeneration<"GFX11",
+def FeatureGFX11 : RVSubtargetFeatureGeneration<"GFX11",
   "gfx11",
   [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
    FeatureFlatAddressSpace, Feature16BitInsts,
@@ -1085,7 +1085,7 @@ def FeatureGFX11 : GCNSubtargetFeatureGeneration<"GFX11",
   ]
 >;
 
-def FeatureGFX12 : GCNSubtargetFeatureGeneration<"GFX12",
+def FeatureGFX12 : RVSubtargetFeatureGeneration<"GFX12",
   "gfx12",
   [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
    FeatureFlatAddressSpace, Feature16BitInsts,

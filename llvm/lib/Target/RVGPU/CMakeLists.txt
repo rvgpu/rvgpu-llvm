@@ -132,7 +132,7 @@ add_llvm_target(RVGPUCodeGen
   SIPostRABundler.cpp
   SIPreAllocateWWMRegs.cpp
   SIPreEmitPeephole.cpp
-  SIProgramInfo.cpp
+  RVProgramInfo.cpp
   RVRegisterInfo.cpp
   SIShrinkInstructions.cpp
   SIWholeQuadMode.cpp

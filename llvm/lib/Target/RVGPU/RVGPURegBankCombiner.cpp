@@ -14,7 +14,7 @@
 #include "RVGPU.h"
 #include "RVGPULegalizerInfo.h"
 #include "RVGPURegisterBankInfo.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "llvm/CodeGen/GlobalISel/Combiner.h"
@@ -45,7 +45,7 @@ namespace {
 class RVGPURegBankCombinerImpl : public Combiner {
 protected:
   const RVGPURegBankCombinerImplRuleConfig &RuleConfig;
-  const GCNSubtarget &STI;
+  const RVSubtarget &STI;
   const RegisterBankInfo &RBI;
   const TargetRegisterInfo &TRI;
   const RVInstrInfo &TII;
@@ -57,7 +57,7 @@ public:
       MachineFunction &MF, CombinerInfo &CInfo, const TargetPassConfig *TPC,
       GISelKnownBits &KB, GISelCSEInfo *CSEInfo,
       const RVGPURegBankCombinerImplRuleConfig &RuleConfig,
-      const GCNSubtarget &STI, MachineDominatorTree *MDT,
+      const RVSubtarget &STI, MachineDominatorTree *MDT,
       const LegalizerInfo *LI);
 
   static const char *getName() { return "RVGPURegBankCombinerImpl"; }
@@ -98,14 +98,14 @@ private:
   bool isClampZeroToOne(MachineInstr *K0, MachineInstr *K1) const;
 
 #define GET_GICOMBINER_CLASS_MEMBERS
-#define RVGPUSubtarget GCNSubtarget
+#define RVGPUSubtarget RVSubtarget
 #include "RVGPUGenRegBankGICombiner.inc"
 #undef GET_GICOMBINER_CLASS_MEMBERS
 #undef RVGPUSubtarget
 };
 
 #define GET_GICOMBINER_IMPL
-#define RVGPUSubtarget GCNSubtarget
+#define RVGPUSubtarget RVSubtarget
 #include "RVGPUGenRegBankGICombiner.inc"
 #undef RVGPUSubtarget
 #undef GET_GICOMBINER_IMPL
@@ -114,7 +114,7 @@ RVGPURegBankCombinerImpl::RVGPURegBankCombinerImpl(
     MachineFunction &MF, CombinerInfo &CInfo, const TargetPassConfig *TPC,
     GISelKnownBits &KB, GISelCSEInfo *CSEInfo,
     const RVGPURegBankCombinerImplRuleConfig &RuleConfig,
-    const GCNSubtarget &STI, MachineDominatorTree *MDT, const LegalizerInfo *LI)
+    const RVSubtarget &STI, MachineDominatorTree *MDT, const LegalizerInfo *LI)
     : Combiner(MF, CInfo, TPC, &KB, CSEInfo), RuleConfig(RuleConfig), STI(STI),
       RBI(*STI.getRegBankInfo()), TRI(*STI.getRegisterInfo()),
       TII(*STI.getInstrInfo()),
@@ -446,7 +446,7 @@ bool RVGPURegBankCombiner::runOnMachineFunction(MachineFunction &MF) {
   bool EnableOpt =
       MF.getTarget().getOptLevel() != CodeGenOptLevel::None && !skipFunction(F);
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   GISelKnownBits *KB = &getAnalysis<GISelKnownBitsAnalysis>().get(MF);
 
   const auto *LI = ST.getLegalizerInfo();

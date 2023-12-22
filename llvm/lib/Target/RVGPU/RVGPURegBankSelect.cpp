@@ -14,7 +14,7 @@
 
 #include "RVGPURegBankSelect.h"
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "llvm/CodeGen/MachineUniformityAnalysis.h"
 #include "llvm/InitializePasses.h"
 
@@ -60,7 +60,7 @@ bool RVGPURegBankSelect::runOnMachineFunction(MachineFunction &MF) {
 
   assert(checkFunctionIsLegal(MF));
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   MachineCycleInfo &CycleInfo =
       getAnalysis<MachineCycleInfoWrapperPass>().getCycleInfo();
   MachineDominatorTree &DomTree = getAnalysis<MachineDominatorTree>();

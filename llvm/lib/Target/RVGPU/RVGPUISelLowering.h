@@ -22,7 +22,7 @@ namespace llvm {
 
 class RVGPUMachineFunction;
 class RVGPUSubtarget;
-struct ArgDescriptor;
+struct RvArgDescriptor;
 
 class RVGPUTargetLowering : public TargetLowering {
 private:
@@ -352,7 +352,7 @@ public:
   SDValue loadInputValue(SelectionDAG &DAG,
                          const TargetRegisterClass *RC,
                          EVT VT, const SDLoc &SL,
-                         const ArgDescriptor &Arg) const;
+                         const RvArgDescriptor &Arg) const;
 
   enum ImplicitParameter {
     FIRST_IMPLICIT,

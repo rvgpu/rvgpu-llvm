@@ -29,7 +29,7 @@
 
 namespace llvm {
 
-class GCNTargetMachine;
+class RVTargetMachine;
 
 class RVSubtarget final : public RVGPUGenSubtargetInfo,
                            public RVGPUSubtarget {
@@ -231,7 +231,7 @@ private:
 
 public:
   RVSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
-               const GCNTargetMachine &TM);
+               const RVTargetMachine &TM);
   ~RVSubtarget() override;
 
   RVSubtarget &initializeSubtargetDependencies(const Triple &TT,
@@ -1432,7 +1432,7 @@ public:
   }
 };
 
-class GCNUserSGPRUsageInfo {
+class RVUserSGPRUsageInfo {
 public:
   bool hasImplicitBufferPtr() const { return ImplicitBufferPtr; }
 
@@ -1490,7 +1490,7 @@ public:
     llvm_unreachable("Unknown UserSGPRID.");
   }
 
-  GCNUserSGPRUsageInfo(const Function &F, const RVSubtarget &ST);
+  RVUserSGPRUsageInfo(const Function &F, const RVSubtarget &ST);
 
 private:
   const RVSubtarget &ST;

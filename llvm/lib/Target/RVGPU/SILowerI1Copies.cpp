@@ -420,7 +420,7 @@ static Register insertUndefLaneMask(MachineBasicBlock *MBB,
                                     MachineRegisterInfo *MRI,
                                     Register LaneMaskRegAttrs) {
   MachineFunction &MF = *MBB->getParent();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVInstrInfo *TII = ST.getInstrInfo();
   Register UndefReg = createLaneMaskReg(MRI, LaneMaskRegAttrs);
   BuildMI(*MBB, MBB->getFirstTerminator(), {}, TII->get(RVGPU::IMPLICIT_DEF),
@@ -511,7 +511,7 @@ PhiLoweringHelper::PhiLoweringHelper(MachineFunction *MF,
     : MF(MF), DT(DT), PDT(PDT) {
   MRI = &MF->getRegInfo();
 
-  ST = &MF->getSubtarget<GCNSubtarget>();
+  ST = &MF->getSubtarget<RVSubtarget>();
   TII = ST->getInstrInfo();
   IsWave32 = ST->isWave32();
 

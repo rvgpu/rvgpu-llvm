@@ -17,7 +17,7 @@
 #include "RVGPULegalizerInfo.h"
 #include "RVGPURegisterBankInfo.h"
 #include "RVGPUTargetMachine.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "RVMachineFunctionInfo.h"
 #include "Utils/RVGPUBaseInfo.h"
 #include "llvm/ADT/SmallString.h"
@@ -35,7 +35,7 @@ using namespace llvm;
 
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
-#define RVGPUSubtarget GCNSubtarget
+#define RVGPUSubtarget RVSubtarget
 #include "RVGPUGenSubtargetInfo.inc"
 #undef RVGPUSubtarget
 
@@ -57,10 +57,10 @@ static cl::opt<unsigned> NSAThreshold("rvgpu-nsa-threshold",
                                       cl::desc("Number of addresses from which to enable MIMG NSA."),
                                       cl::init(3), cl::Hidden);
 
-GCNSubtarget::~GCNSubtarget() = default;
+RVSubtarget::~RVSubtarget() = default;
 
-GCNSubtarget &
-GCNSubtarget::initializeSubtargetDependencies(const Triple &TT,
+RVSubtarget &
+RVSubtarget::initializeSubtargetDependencies(const Triple &TT,
                                               StringRef GPU, StringRef FS) {
   // Determine default and user-specified characteristics
   //
@@ -169,8 +169,8 @@ bool RVGPUSubtarget::useRealTrue16Insts() const {
   return hasTrue16BitInsts() && EnableRealTrue16Insts;
 }
 
-GCNSubtarget::GCNSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
-                           const GCNTargetMachine &TM)
+RVSubtarget::RVSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
+                           const RVTargetMachine &TM)
     : // clang-format off
     RVGPUGenSubtargetInfo(TT, GPU, /*TuneCPU*/ GPU, FS),
     RVGPUSubtarget(TT),
@@ -191,7 +191,7 @@ GCNSubtarget::GCNSubtarget(const Triple &TT, StringRef GPU, StringRef FS,
   *this, *static_cast<RVGPURegisterBankInfo *>(RegBankInfo.get()), TM));
 }
 
-unsigned GCNSubtarget::getConstantBusLimit(unsigned Opcode) const {
+unsigned RVSubtarget::getConstantBusLimit(unsigned Opcode) const {
   if (getGeneration() < GFX10)
     return 1;
 
@@ -219,7 +219,7 @@ unsigned GCNSubtarget::getConstantBusLimit(unsigned Opcode) const {
 }
 
 /// This list was mostly derived from experimentation.
-bool GCNSubtarget::zeroesHigh16BitsOfDest(unsigned Opcode) const {
+bool RVSubtarget::zeroesHigh16BitsOfDest(unsigned Opcode) const {
   switch (Opcode) {
   case RVGPU::V_CVT_F16_F32_e32:
   case RVGPU::V_CVT_F16_F32_e64:
@@ -611,7 +611,7 @@ RVGPUDwarfFlavour RVGPUSubtarget::getRVGPUDwarfFlavour() const {
                                   : RVGPUDwarfFlavour::Wave64;
 }
 
-void GCNSubtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
+void RVSubtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
                                       unsigned NumRegionInstrs) const {
   // Track register pressure so the scheduler can try to decrease
   // pressure once register usage is above the threshold defined by
@@ -628,17 +628,17 @@ void GCNSubtarget::overrideSchedPolicy(MachineSchedPolicy &Policy,
     Policy.ShouldTrackLaneMasks = true;
 }
 
-bool GCNSubtarget::hasMadF16() const {
+bool RVSubtarget::hasMadF16() const {
   return InstrInfo.pseudoToMCOpcode(RVGPU::V_MAD_F16_e64) != -1;
 }
 
-bool GCNSubtarget::useVGPRIndexMode() const {
+bool RVSubtarget::useVGPRIndexMode() const {
   return !hasMovrel() || (EnableVGPRIndexMode && hasVGPRIndexMode());
 }
 
-bool GCNSubtarget::useAA() const { return UseAA; }
+bool RVSubtarget::useAA() const { return UseAA; }
 
-unsigned GCNSubtarget::getOccupancyWithNumSGPRs(unsigned SGPRs) const {
+unsigned RVSubtarget::getOccupancyWithNumSGPRs(unsigned SGPRs) const {
   if (getGeneration() >= RVGPUSubtarget::GFX10)
     return getMaxWavesPerEU();
 
@@ -664,12 +664,12 @@ unsigned GCNSubtarget::getOccupancyWithNumSGPRs(unsigned SGPRs) const {
   return 5;
 }
 
-unsigned GCNSubtarget::getOccupancyWithNumVGPRs(unsigned NumVGPRs) const {
+unsigned RVSubtarget::getOccupancyWithNumVGPRs(unsigned NumVGPRs) const {
   return RVGPU::IsaInfo::getNumWavesPerEUWithNumVGPRs(this, NumVGPRs);
 }
 
 unsigned
-GCNSubtarget::getBaseReservedNumSGPRs(const bool HasFlatScratch) const {
+RVSubtarget::getBaseReservedNumSGPRs(const bool HasFlatScratch) const {
   if (getGeneration() >= RVGPUSubtarget::GFX10)
     return 2; // VCC. FLAT_SCRATCH and XNACK are no longer in SGPRs.
 
@@ -685,12 +685,12 @@ GCNSubtarget::getBaseReservedNumSGPRs(const bool HasFlatScratch) const {
   return 2; // VCC.
 }
 
-unsigned GCNSubtarget::getReservedNumSGPRs(const MachineFunction &MF) const {
+unsigned RVSubtarget::getReservedNumSGPRs(const MachineFunction &MF) const {
   const RVMachineFunctionInfo &MFI = *MF.getInfo<RVMachineFunctionInfo>();
   return getBaseReservedNumSGPRs(MFI.getUserSGPRInfo().hasFlatScratchInit());
 }
 
-unsigned GCNSubtarget::getReservedNumSGPRs(const Function &F) const {
+unsigned RVSubtarget::getReservedNumSGPRs(const Function &F) const {
   // In principle we do not need to reserve SGPR pair used for flat_scratch if
   // we know flat instructions do not access the stack anywhere in the
   // program. For now assume it's needed if we have flat instructions.
@@ -698,7 +698,7 @@ unsigned GCNSubtarget::getReservedNumSGPRs(const Function &F) const {
   return getBaseReservedNumSGPRs(KernelUsesFlatScratch);
 }
 
-unsigned GCNSubtarget::computeOccupancy(const Function &F, unsigned LDSSize,
+unsigned RVSubtarget::computeOccupancy(const Function &F, unsigned LDSSize,
                                         unsigned NumSGPRs,
                                         unsigned NumVGPRs) const {
   unsigned Occupancy =
@@ -711,7 +711,7 @@ unsigned GCNSubtarget::computeOccupancy(const Function &F, unsigned LDSSize,
   return Occupancy;
 }
 
-unsigned GCNSubtarget::getBaseMaxNumSGPRs(
+unsigned RVSubtarget::getBaseMaxNumSGPRs(
     const Function &F, std::pair<unsigned, unsigned> WavesPerEU,
     unsigned PreloadedSGPRs, unsigned ReservedNumSGPRs) const {
   // Compute maximum number of SGPRs function can use using default/requested
@@ -758,7 +758,7 @@ unsigned GCNSubtarget::getBaseMaxNumSGPRs(
   return std::min(MaxNumSGPRs - ReservedNumSGPRs, MaxAddressableNumSGPRs);
 }
 
-unsigned GCNSubtarget::getMaxNumSGPRs(const MachineFunction &MF) const {
+unsigned RVSubtarget::getMaxNumSGPRs(const MachineFunction &MF) const {
   const Function &F = MF.getFunction();
   const RVMachineFunctionInfo &MFI = *MF.getInfo<RVMachineFunctionInfo>();
   return getBaseMaxNumSGPRs(F, MFI.getWavesPerEU(), MFI.getNumPreloadedSGPRs(),
@@ -766,7 +766,7 @@ unsigned GCNSubtarget::getMaxNumSGPRs(const MachineFunction &MF) const {
 }
 
 static unsigned getMaxNumPreloadedSGPRs() {
-  using USI = GCNUserSGPRUsageInfo;
+  using USI = RVUserSGPRUsageInfo;
   // Max number of user SGPRs
   const unsigned MaxUserSGPRs =
       USI::getNumUserSGPRForField(USI::PrivateSegmentBufferID) +
@@ -790,12 +790,12 @@ static unsigned getMaxNumPreloadedSGPRs() {
   return MaxUserSGPRs + MaxSystemSGPRs + SyntheticSGPRs;
 }
 
-unsigned GCNSubtarget::getMaxNumSGPRs(const Function &F) const {
+unsigned RVSubtarget::getMaxNumSGPRs(const Function &F) const {
   return getBaseMaxNumSGPRs(F, getWavesPerEU(F), getMaxNumPreloadedSGPRs(),
                             getReservedNumSGPRs(F));
 }
 
-unsigned GCNSubtarget::getBaseMaxNumVGPRs(
+unsigned RVSubtarget::getBaseMaxNumVGPRs(
     const Function &F, std::pair<unsigned, unsigned> WavesPerEU) const {
   // Compute maximum number of VGPRs function can use using default/requested
   // minimum number of waves per execution unit.
@@ -825,17 +825,17 @@ unsigned GCNSubtarget::getBaseMaxNumVGPRs(
   return MaxNumVGPRs;
 }
 
-unsigned GCNSubtarget::getMaxNumVGPRs(const Function &F) const {
+unsigned RVSubtarget::getMaxNumVGPRs(const Function &F) const {
   return getBaseMaxNumVGPRs(F, getWavesPerEU(F));
 }
 
-unsigned GCNSubtarget::getMaxNumVGPRs(const MachineFunction &MF) const {
+unsigned RVSubtarget::getMaxNumVGPRs(const MachineFunction &MF) const {
   const Function &F = MF.getFunction();
   const RVMachineFunctionInfo &MFI = *MF.getInfo<RVMachineFunctionInfo>();
   return getBaseMaxNumVGPRs(F, MFI.getWavesPerEU());
 }
 
-void GCNSubtarget::adjustSchedDependency(SUnit *Def, int DefOpIdx, SUnit *Use,
+void RVSubtarget::adjustSchedDependency(SUnit *Def, int DefOpIdx, SUnit *Use,
                                          int UseOpIdx, SDep &Dep) const {
   if (Dep.getKind() != SDep::Kind::Data || !Dep.getReg() ||
       !Def->isInstr() || !Use->isInstr())
@@ -934,7 +934,7 @@ struct FillMFMAShadowMutation : ScheduleDAGMutation {
   }
 
   void apply(ScheduleDAGInstrs *DAGInstrs) override {
-    const GCNSubtarget &ST = DAGInstrs->MF.getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = DAGInstrs->MF.getSubtarget<RVSubtarget>();
     if (!ST.hasMAIInsts())
       return;
     DAG = static_cast<ScheduleDAGMI*>(DAGInstrs);
@@ -979,18 +979,18 @@ struct FillMFMAShadowMutation : ScheduleDAGMutation {
 };
 } // namespace
 
-void GCNSubtarget::getPostRAMutations(
+void RVSubtarget::getPostRAMutations(
     std::vector<std::unique_ptr<ScheduleDAGMutation>> &Mutations) const {
   Mutations.push_back(std::make_unique<FillMFMAShadowMutation>(&InstrInfo));
 }
 
 std::unique_ptr<ScheduleDAGMutation>
-GCNSubtarget::createFillMFMAShadowMutation(const TargetInstrInfo *TII) const {
+RVSubtarget::createFillMFMAShadowMutation(const TargetInstrInfo *TII) const {
   return EnablePowerSched ? std::make_unique<FillMFMAShadowMutation>(&InstrInfo)
                           : nullptr;
 }
 
-unsigned GCNSubtarget::getNSAThreshold(const MachineFunction &MF) const {
+unsigned RVSubtarget::getNSAThreshold(const MachineFunction &MF) const {
   if (getGeneration() >= RVGPUSubtarget::GFX12)
     return 0; // Not MIMG encoding.
 
@@ -1006,15 +1006,15 @@ unsigned GCNSubtarget::getNSAThreshold(const MachineFunction &MF) const {
 }
 
 const RVGPUSubtarget &RVGPUSubtarget::get(const MachineFunction &MF) {
-    return static_cast<const RVGPUSubtarget&>(MF.getSubtarget<GCNSubtarget>());
+    return static_cast<const RVGPUSubtarget&>(MF.getSubtarget<RVSubtarget>());
 }
 
 const RVGPUSubtarget &RVGPUSubtarget::get(const TargetMachine &TM, const Function &F) {
-    return static_cast<const RVGPUSubtarget&>(TM.getSubtarget<GCNSubtarget>(F));
+    return static_cast<const RVGPUSubtarget&>(TM.getSubtarget<RVSubtarget>(F));
 }
 
-GCNUserSGPRUsageInfo::GCNUserSGPRUsageInfo(const Function &F,
-                                           const GCNSubtarget &ST)
+RVUserSGPRUsageInfo::RVUserSGPRUsageInfo(const Function &F,
+                                           const RVSubtarget &ST)
     : ST(ST) {
   const CallingConv::ID CC = F.getCallingConv();
   const bool IsKernel =
@@ -1079,12 +1079,12 @@ GCNUserSGPRUsageInfo::GCNUserSGPRUsageInfo(const Function &F,
     NumUsedUserSGPRs += getNumUserSGPRForField(FlatScratchInitID);
 }
 
-void GCNUserSGPRUsageInfo::allocKernargPreloadSGPRs(unsigned NumSGPRs) {
+void RVUserSGPRUsageInfo::allocKernargPreloadSGPRs(unsigned NumSGPRs) {
   assert(NumKernargPreloadSGPRs + NumSGPRs <= RVGPU::getMaxNumUserSGPRs(ST));
   NumKernargPreloadSGPRs += NumSGPRs;
   NumUsedUserSGPRs += NumSGPRs;
 }
 
-unsigned GCNUserSGPRUsageInfo::getNumFreeUserSGPRs() {
+unsigned RVUserSGPRUsageInfo::getNumFreeUserSGPRs() {
   return RVGPU::getMaxNumUserSGPRs(ST) - NumUsedUserSGPRs;
 }

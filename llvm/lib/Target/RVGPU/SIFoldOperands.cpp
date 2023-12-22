@@ -9,7 +9,7 @@
 //
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "llvm/ADT/DepthFirstIterator.h"
@@ -72,7 +72,7 @@ public:
   MachineRegisterInfo *MRI;
   const RVInstrInfo *TII;
   const RVRegisterInfo *TRI;
-  const GCNSubtarget *ST;
+  const RVSubtarget *ST;
   const RVMachineFunctionInfo *MFI;
 
   bool frameIndexMayFold(const MachineInstr &UseMI, int OpNo,
@@ -896,7 +896,7 @@ void SIFoldOperands::foldOperand(
       // =>
       // %sgpr = S_MOV_B32 imm
       if (FoldingImmLike) {
-        if (execMayBeModifiedBeforeUse(*MRI,
+        if (rvExecMayBeModifiedBeforeUse(*MRI,
                                        UseMI->getOperand(UseOpIdx).getReg(),
                                        *OpToFold.getParent(),
                                        *UseMI))
@@ -913,7 +913,7 @@ void SIFoldOperands::foldOperand(
       }
 
       if (OpToFold.isReg() && TRI->isSGPRReg(*MRI, OpToFold.getReg())) {
-        if (execMayBeModifiedBeforeUse(*MRI,
+        if (rvExecMayBeModifiedBeforeUse(*MRI,
                                        UseMI->getOperand(UseOpIdx).getReg(),
                                        *OpToFold.getParent(),
                                        *UseMI))
@@ -1308,7 +1308,7 @@ bool SIFoldOperands::foldInstOperand(MachineInstr &MI,
       Register Reg = Fold.OpToFold->getReg();
       MachineInstr *DefMI = Fold.OpToFold->getParent();
       if (DefMI->readsRegister(RVGPU::EXEC, TRI) &&
-          execMayBeModifiedBeforeUse(*MRI, Reg, *DefMI, *Fold.UseMI))
+          rvExecMayBeModifiedBeforeUse(*MRI, Reg, *DefMI, *Fold.UseMI))
         continue;
     }
     if (updateOperand(Fold)) {
@@ -2042,7 +2042,7 @@ bool SIFoldOperands::runOnMachineFunction(MachineFunction &MF) {
     return false;
 
   MRI = &MF.getRegInfo();
-  ST = &MF.getSubtarget<GCNSubtarget>();
+  ST = &MF.getSubtarget<RVSubtarget>();
   TII = ST->getInstrInfo();
   TRI = &TII->getRegisterInfo();
   MFI = MF.getInfo<RVMachineFunctionInfo>();

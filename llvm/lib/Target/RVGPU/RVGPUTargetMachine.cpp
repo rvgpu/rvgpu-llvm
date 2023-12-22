@@ -102,12 +102,12 @@ defaultSGPRRegAlloc("default",
 
 static cl::opt<SGPRRegisterRegAlloc::FunctionPassCtor, false,
                RegisterPassParser<SGPRRegisterRegAlloc>>
-SGPRRegAlloc("sgpr-regalloc", cl::Hidden, cl::init(&useDefaultRegisterAllocator),
+SGPRRegAlloc("rv-sgpr-regalloc", cl::Hidden, cl::init(&useDefaultRegisterAllocator),
              cl::desc("Register allocator to use for SGPRs"));
 
 static cl::opt<VGPRRegisterRegAlloc::FunctionPassCtor, false,
                RegisterPassParser<VGPRRegisterRegAlloc>>
-VGPRRegAlloc("vgpr-regalloc", cl::Hidden, cl::init(&useDefaultRegisterAllocator),
+VGPRRegAlloc("rv-vgpr-regalloc", cl::Hidden, cl::init(&useDefaultRegisterAllocator),
              cl::desc("Register allocator to use for VGPRs"));
 
 
@@ -364,7 +364,7 @@ static cl::opt<bool> EnableHipStdPar(
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTarget() {
   // Register the target
-  RegisterTargetMachine<GCNTargetMachine> Y(getTheRVGPUTarget());
+  RegisterTargetMachine<RVTargetMachine> Y(getTheRVGPUTarget());
 
   PassRegistry *PR = PassRegistry::getPassRegistry();
   initializeGlobalISel(*PR);
@@ -445,7 +445,7 @@ static ScheduleDAGInstrs *createSIMachineScheduler(MachineSchedContext *C) {
 
 static ScheduleDAGInstrs *
 createGCNMaxOccupancyMachineScheduler(MachineSchedContext *C) {
-  const GCNSubtarget &ST = C->MF->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = C->MF->getSubtarget<RVSubtarget>();
   ScheduleDAGMILive *DAG =
     new GCNScheduleDAGMILive(C, std::make_unique<GCNMaxOccupancySchedStrategy>(C));
   DAG->addMutation(createLoadClusterDAGMutation(DAG->TII, DAG->TRI));
@@ -467,7 +467,7 @@ createGCNMaxILPMachineScheduler(MachineSchedContext *C) {
 
 static ScheduleDAGInstrs *
 createIterativeGCNMaxOccupancyMachineScheduler(MachineSchedContext *C) {
-  const GCNSubtarget &ST = C->MF->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = C->MF->getSubtarget<RVSubtarget>();
   auto DAG = new GCNIterativeScheduler(C,
     GCNIterativeScheduler::SCHEDULE_LEGACYMAXOCCUPANCY);
   DAG->addMutation(createLoadClusterDAGMutation(DAG->TII, DAG->TRI));
@@ -483,7 +483,7 @@ static ScheduleDAGInstrs *createMinRegScheduler(MachineSchedContext *C) {
 
 static ScheduleDAGInstrs *
 createIterativeILPMachineScheduler(MachineSchedContext *C) {
-  const GCNSubtarget &ST = C->MF->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = C->MF->getSubtarget<RVSubtarget>();
   auto DAG = new GCNIterativeScheduler(C,
     GCNIterativeScheduler::SCHEDULE_ILP);
   DAG->addMutation(createLoadClusterDAGMutation(DAG->TII, DAG->TRI));
@@ -498,26 +498,26 @@ SISchedRegistry("si", "Run SI's custom scheduler",
                 createSIMachineScheduler);
 
 static MachineSchedRegistry
-GCNMaxOccupancySchedRegistry("gcn-max-occupancy",
+GCNMaxOccupancySchedRegistry("rv-max-occupancy",
                              "Run GCN scheduler to maximize occupancy",
                              createGCNMaxOccupancyMachineScheduler);
 
 static MachineSchedRegistry
-    GCNMaxILPSchedRegistry("gcn-max-ilp", "Run GCN scheduler to maximize ilp",
+    GCNMaxILPSchedRegistry("rv-max-ilp", "Run GCN scheduler to maximize ilp",
                            createGCNMaxILPMachineScheduler);
 
 static MachineSchedRegistry IterativeGCNMaxOccupancySchedRegistry(
-    "gcn-iterative-max-occupancy-experimental",
+    "rv-iterative-max-occupancy-experimental",
     "Run GCN scheduler to maximize occupancy (experimental)",
     createIterativeGCNMaxOccupancyMachineScheduler);
 
 static MachineSchedRegistry GCNMinRegSchedRegistry(
-    "gcn-iterative-minreg",
+    "rv-iterative-minreg",
     "Run GCN iterative scheduler for minimal register usage (experimental)",
     createMinRegScheduler);
 
 static MachineSchedRegistry GCNILPSchedRegistry(
-    "gcn-iterative-ilp",
+    "rv-iterative-ilp",
     "Run GCN iterative scheduler for ILP scheduling (experimental)",
     createIterativeILPMachineScheduler);
 
@@ -841,7 +841,7 @@ RVGPUTargetMachine::getAddressSpaceForPseudoSourceKind(unsigned Kind) const {
 // GCN Target Machine (SI+)
 //===----------------------------------------------------------------------===//
 
-GCNTargetMachine::GCNTargetMachine(const Target &T, const Triple &TT,
+RVTargetMachine::RVTargetMachine(const Target &T, const Triple &TT,
                                    StringRef CPU, StringRef FS,
                                    TargetOptions Options,
                                    std::optional<Reloc::Model> RM,
@@ -850,7 +850,7 @@ GCNTargetMachine::GCNTargetMachine(const Target &T, const Triple &TT,
     : RVGPUTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL) {}
 
 const TargetSubtargetInfo *
-GCNTargetMachine::getSubtargetImpl(const Function &F) const {
+RVTargetMachine::getSubtargetImpl(const Function &F) const {
   StringRef GPU = getGPUName(F);
   StringRef FS = getFeatureString(F);
 
@@ -863,7 +863,7 @@ GCNTargetMachine::getSubtargetImpl(const Function &F) const {
     // creation will depend on the TM and the code generation flags on the
     // function that reside in TargetOptions.
     resetTargetOptions(F);
-    I = std::make_unique<GCNSubtarget>(TargetTriple, GPU, FS, *this);
+    I = std::make_unique<RVSubtarget>(TargetTriple, GPU, FS, *this);
   }
 
   I->setScalarizeGlobalBehavior(ScalarizeGlobal);
@@ -872,8 +872,8 @@ GCNTargetMachine::getSubtargetImpl(const Function &F) const {
 }
 
 TargetTransformInfo
-GCNTargetMachine::getTargetTransformInfo(const Function &F) const {
-  return TargetTransformInfo(GCNTTIImpl(this, F));
+RVTargetMachine::getTargetTransformInfo(const Function &F) const {
+  return TargetTransformInfo(RVTTIImpl(this, F));
 }
 
 //===----------------------------------------------------------------------===//
@@ -897,8 +897,8 @@ public:
     substitutePass(&PostRASchedulerID, &PostMachineSchedulerID);
   }
 
-  GCNTargetMachine &getGCNTargetMachine() const {
-    return getTM<GCNTargetMachine>();
+  RVTargetMachine &getRVTargetMachine() const {
+    return getTM<RVTargetMachine>();
   }
 
   ScheduleDAGInstrs *
@@ -909,7 +909,7 @@ public:
     ScheduleDAGMI *DAG = new GCNPostScheduleDAGMILive(
         C, std::make_unique<PostGenericScheduler>(C),
         /*RemoveKillFlags=*/true);
-    const GCNSubtarget &ST = C->MF->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = C->MF->getSubtarget<RVSubtarget>();
     DAG->addMutation(createLoadClusterDAGMutation(DAG->TII, DAG->TRI));
     if (ST.shouldClusterStores())
       DAG->addMutation(createStoreClusterDAGMutation(DAG->TII, DAG->TRI));
@@ -1118,7 +1118,7 @@ bool RVGPUPassConfig::addGCPasses() {
 
 llvm::ScheduleDAGInstrs *
 RVGPUPassConfig::createMachineScheduler(MachineSchedContext *C) const {
-  const GCNSubtarget &ST = C->MF->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = C->MF->getSubtarget<RVSubtarget>();
   ScheduleDAGMILive *DAG = createGenericSchedLive(C);
   DAG->addMutation(createLoadClusterDAGMutation(DAG->TII, DAG->TRI));
   if (ST.shouldClusterStores())
@@ -1132,7 +1132,7 @@ RVGPUPassConfig::createMachineScheduler(MachineSchedContext *C) const {
 
 ScheduleDAGInstrs *GCNPassConfig::createMachineScheduler(
   MachineSchedContext *C) const {
-  const GCNSubtarget &ST = C->MF->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = C->MF->getSubtarget<RVSubtarget>();
   if (ST.enableSIScheduler())
     return createSIMachineScheduler(C);
 
@@ -1445,42 +1445,42 @@ void GCNPassConfig::addPreEmitPass() {
   addPass(&BranchRelaxationPassID);
 }
 
-TargetPassConfig *GCNTargetMachine::createPassConfig(PassManagerBase &PM) {
+TargetPassConfig *RVTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new GCNPassConfig(*this, PM);
 }
 
-void GCNTargetMachine::registerMachineRegisterInfoCallback(
+void RVTargetMachine::registerMachineRegisterInfoCallback(
     MachineFunction &MF) const {
   RVMachineFunctionInfo *MFI = MF.getInfo<RVMachineFunctionInfo>();
   MF.getRegInfo().addDelegate(MFI);
 }
 
-MachineFunctionInfo *GCNTargetMachine::createMachineFunctionInfo(
+MachineFunctionInfo *RVTargetMachine::createMachineFunctionInfo(
     BumpPtrAllocator &Allocator, const Function &F,
     const TargetSubtargetInfo *STI) const {
   return RVMachineFunctionInfo::create<RVMachineFunctionInfo>(
-      Allocator, F, static_cast<const GCNSubtarget *>(STI));
+      Allocator, F, static_cast<const RVSubtarget *>(STI));
 }
 
-yaml::MachineFunctionInfo *GCNTargetMachine::createDefaultFuncInfoYAML() const {
+yaml::MachineFunctionInfo *RVTargetMachine::createDefaultFuncInfoYAML() const {
   return new yaml::RVMachineFunctionInfo();
 }
 
 yaml::MachineFunctionInfo *
-GCNTargetMachine::convertFuncInfoToYAML(const MachineFunction &MF) const {
+RVTargetMachine::convertFuncInfoToYAML(const MachineFunction &MF) const {
   const RVMachineFunctionInfo *MFI = MF.getInfo<RVMachineFunctionInfo>();
   return new yaml::RVMachineFunctionInfo(
-      *MFI, *MF.getSubtarget<GCNSubtarget>().getRegisterInfo(), MF);
+      *MFI, *MF.getSubtarget<RVSubtarget>().getRegisterInfo(), MF);
 }
 
-bool GCNTargetMachine::parseMachineFunctionInfo(
+bool RVTargetMachine::parseMachineFunctionInfo(
     const yaml::MachineFunctionInfo &MFI_, PerFunctionMIParsingState &PFS,
     SMDiagnostic &Error, SMRange &SourceRange) const {
   const yaml::RVMachineFunctionInfo &YamlMFI =
       static_cast<const yaml::RVMachineFunctionInfo &>(MFI_);
   MachineFunction &MF = PFS.MF;
   RVMachineFunctionInfo *MFI = MF.getInfo<RVMachineFunctionInfo>();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
 
   if (MFI->initializeBaseYamlFields(YamlMFI, MF, PFS, Error, SourceRange))
     return true;
@@ -1558,7 +1558,7 @@ bool GCNTargetMachine::parseMachineFunctionInfo(
 
   auto parseAndCheckArgument = [&](const std::optional<yaml::SIArgument> &A,
                                    const TargetRegisterClass &RC,
-                                   ArgDescriptor &Arg, unsigned UserSGPRs,
+                                   RvArgDescriptor &Arg, unsigned UserSGPRs,
                                    unsigned SystemSGPRs) {
     // Skip parsing if it's not present.
     if (!A)
@@ -1572,12 +1572,12 @@ bool GCNTargetMachine::parseMachineFunctionInfo(
       }
       if (!RC.contains(Reg))
         return diagnoseRegisterClass(A->RegisterName);
-      Arg = ArgDescriptor::createRegister(Reg);
+      Arg = RvArgDescriptor::createRegister(Reg);
     } else
-      Arg = ArgDescriptor::createStack(A->StackOffset);
+      Arg = RvArgDescriptor::createStack(A->StackOffset);
     // Check and apply the optional mask.
     if (A->Mask)
-      Arg = ArgDescriptor::createArg(Arg, *A->Mask);
+      Arg = RvArgDescriptor::createArg(Arg, *A->Mask);
 
     MFI->NumUserSGPRs += UserSGPRs;
     MFI->NumSystemSGPRs += SystemSGPRs;

@@ -9,7 +9,7 @@
 //
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "Utils/RVGPUBaseInfo.h"
 #include "llvm/ADT/Statistic.h"
@@ -29,7 +29,7 @@ namespace {
 class SIShrinkInstructions : public MachineFunctionPass {
   MachineFunction *MF;
   MachineRegisterInfo *MRI;
-  const GCNSubtarget *ST;
+  const RVSubtarget *ST;
   const RVInstrInfo *TII;
   const RVRegisterInfo *TRI;
 
@@ -773,7 +773,7 @@ bool SIShrinkInstructions::runOnMachineFunction(MachineFunction &MF) {
 
   this->MF = &MF;
   MRI = &MF.getRegInfo();
-  ST = &MF.getSubtarget<GCNSubtarget>();
+  ST = &MF.getSubtarget<RVSubtarget>();
   TII = ST->getInstrInfo();
   TRI = &TII->getRegisterInfo();
 

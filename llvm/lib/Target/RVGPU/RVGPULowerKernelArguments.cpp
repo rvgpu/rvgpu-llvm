@@ -42,7 +42,7 @@ public:
   // arguments.
   void setInitialFreeUserSGPRsCount() {
     const unsigned MaxUserSGPRs = ST.getMaxNumUserSGPRs();
-    GCNUserSGPRUsageInfo UserSGPRInfo(F, ST);
+    RVUserSGPRUsageInfo UserSGPRInfo(F, ST);
 
     NumFreeUserSGPRs = MaxUserSGPRs - UserSGPRInfo.getNumUsedUserSGPRs();
   }

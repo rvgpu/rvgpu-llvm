@@ -1,4 +1,4 @@
-//===-- SIProgramInfo.cpp ----------------------------------------------===//
+//===-- RVProgramInfo.cpp ----------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -8,20 +8,20 @@
 //
 /// \file
 ///
-/// The SIProgramInfo tracks resource usage and hardware flags for kernels and
+/// The RVProgramInfo tracks resource usage and hardware flags for kernels and
 /// entry functions.
 //
 //===----------------------------------------------------------------------===//
 //
 
-#include "SIProgramInfo.h"
-#include "GCNSubtarget.h"
+#include "RVProgramInfo.h"
+#include "RVSubtarget.h"
 #include "SIDefines.h"
 #include "Utils/RVGPUBaseInfo.h"
 
 using namespace llvm;
 
-uint64_t SIProgramInfo::getComputePGMRSrc1(const GCNSubtarget &ST) const {
+uint64_t RVProgramInfo::getComputePGMRSrc1(const RVSubtarget &ST) const {
   uint64_t Reg = S_00B848_VGPRS(VGPRBlocks) | S_00B848_SGPRS(SGPRBlocks) |
                  S_00B848_PRIORITY(Priority) | S_00B848_FLOAT_MODE(FloatMode) |
                  S_00B848_PRIV(Priv) | S_00B848_DEBUG_MODE(DebugMode) |
@@ -39,8 +39,8 @@ uint64_t SIProgramInfo::getComputePGMRSrc1(const GCNSubtarget &ST) const {
   return Reg;
 }
 
-uint64_t SIProgramInfo::getPGMRSrc1(CallingConv::ID CC,
-                                    const GCNSubtarget &ST) const {
+uint64_t RVProgramInfo::getPGMRSrc1(CallingConv::ID CC,
+                                    const RVSubtarget &ST) const {
   if (RVGPU::isCompute(CC)) {
     return getComputePGMRSrc1(ST);
   }
@@ -76,7 +76,7 @@ uint64_t SIProgramInfo::getPGMRSrc1(CallingConv::ID CC,
   return Reg;
 }
 
-uint64_t SIProgramInfo::getComputePGMRSrc2() const {
+uint64_t RVProgramInfo::getComputePGMRSrc2() const {
   uint64_t Reg =
       S_00B84C_SCRATCH_EN(ScratchEnable) | S_00B84C_USER_SGPR(UserSGPR) |
       S_00B84C_TRAP_HANDLER(TrapHandlerEnable) |
@@ -89,7 +89,7 @@ uint64_t SIProgramInfo::getComputePGMRSrc2() const {
   return Reg;
 }
 
-uint64_t SIProgramInfo::getPGMRSrc2(CallingConv::ID CC) const {
+uint64_t RVProgramInfo::getPGMRSrc2(CallingConv::ID CC) const {
   if (RVGPU::isCompute(CC))
     return getComputePGMRSrc2();
 

@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPUMIRFormatter.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "RVMachineFunctionInfo.h"
 
 using namespace llvm;

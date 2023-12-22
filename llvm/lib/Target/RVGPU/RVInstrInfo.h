@@ -28,7 +28,7 @@
 namespace llvm {
 
 class APInt;
-class GCNSubtarget;
+class RVSubtarget;
 class LiveVariables;
 class MachineDominatorTree;
 class MachineRegisterInfo;
@@ -42,8 +42,8 @@ static const MachineMemOperand::Flags MONoClobber =
     MachineMemOperand::MOTargetFlag1;
 
 /// Utility to store machine instructions worklist.
-struct SIInstrWorklist {
-  SIInstrWorklist() = default;
+struct RVInstrWorklist {
+  RVInstrWorklist() = default;
 
   void insert(MachineInstr *MI);
 
@@ -79,7 +79,7 @@ private:
 class RVInstrInfo final : public RVGPUGenInstrInfo {
 private:
   const RVRegisterInfo RI;
-  const GCNSubtarget &ST;
+  const RVSubtarget &ST;
   TargetSchedModel SchedModel;
   mutable std::unique_ptr<RVGPUMIRFormatter> Formatter;
 
@@ -115,47 +115,47 @@ private:
   void swapOperands(MachineInstr &Inst) const;
 
   std::pair<bool, MachineBasicBlock *>
-  moveScalarAddSub(SIInstrWorklist &Worklist, MachineInstr &Inst,
+  moveScalarAddSub(RVInstrWorklist &Worklist, MachineInstr &Inst,
                    MachineDominatorTree *MDT = nullptr) const;
 
-  void lowerSelect(SIInstrWorklist &Worklist, MachineInstr &Inst,
+  void lowerSelect(RVInstrWorklist &Worklist, MachineInstr &Inst,
                    MachineDominatorTree *MDT = nullptr) const;
 
-  void lowerScalarAbs(SIInstrWorklist &Worklist, MachineInstr &Inst) const;
+  void lowerScalarAbs(RVInstrWorklist &Worklist, MachineInstr &Inst) const;
 
-  void lowerScalarXnor(SIInstrWorklist &Worklist, MachineInstr &Inst) const;
+  void lowerScalarXnor(RVInstrWorklist &Worklist, MachineInstr &Inst) const;
 
-  void splitScalarNotBinop(SIInstrWorklist &Worklist, MachineInstr &Inst,
+  void splitScalarNotBinop(RVInstrWorklist &Worklist, MachineInstr &Inst,
                            unsigned Opcode) const;
 
-  void splitScalarBinOpN2(SIInstrWorklist &Worklist, MachineInstr &Inst,
+  void splitScalarBinOpN2(RVInstrWorklist &Worklist, MachineInstr &Inst,
                           unsigned Opcode) const;
 
-  void splitScalar64BitUnaryOp(SIInstrWorklist &Worklist, MachineInstr &Inst,
+  void splitScalar64BitUnaryOp(RVInstrWorklist &Worklist, MachineInstr &Inst,
                                unsigned Opcode, bool Swap = false) const;
 
-  void splitScalar64BitBinaryOp(SIInstrWorklist &Worklist, MachineInstr &Inst,
+  void splitScalar64BitBinaryOp(RVInstrWorklist &Worklist, MachineInstr &Inst,
                                 unsigned Opcode,
                                 MachineDominatorTree *MDT = nullptr) const;
 
-  void splitScalar64BitXnor(SIInstrWorklist &Worklist, MachineInstr &Inst,
+  void splitScalar64BitXnor(RVInstrWorklist &Worklist, MachineInstr &Inst,
                             MachineDominatorTree *MDT = nullptr) const;
 
-  void splitScalar64BitBCNT(SIInstrWorklist &Worklist,
+  void splitScalar64BitBCNT(RVInstrWorklist &Worklist,
                             MachineInstr &Inst) const;
-  void splitScalar64BitBFE(SIInstrWorklist &Worklist, MachineInstr &Inst) const;
-  void movePackToVALU(SIInstrWorklist &Worklist, MachineRegisterInfo &MRI,
+  void splitScalar64BitBFE(RVInstrWorklist &Worklist, MachineInstr &Inst) const;
+  void movePackToVALU(RVInstrWorklist &Worklist, MachineRegisterInfo &MRI,
                       MachineInstr &Inst) const;
 
   void addUsersToMoveToVALUWorklist(Register Reg, MachineRegisterInfo &MRI,
-                                    SIInstrWorklist &Worklist) const;
+                                    RVInstrWorklist &Worklist) const;
 
   void addSCCDefUsersToVALUWorklist(MachineOperand &Op,
                                     MachineInstr &SCCDefInst,
-                                    SIInstrWorklist &Worklist,
+                                    RVInstrWorklist &Worklist,
                                     Register NewCond = Register()) const;
   void addSCCDefsToVALUWorklist(MachineInstr *SCCUseInst,
-                                SIInstrWorklist &Worklist) const;
+                                RVInstrWorklist &Worklist) const;
 
   const TargetRegisterClass *
   getDestEquivalentVGPRClass(const MachineInstr &Inst) const;
@@ -204,13 +204,13 @@ public:
     MO_ABS32_HI = 9,
   };
 
-  explicit RVInstrInfo(const GCNSubtarget &ST);
+  explicit RVInstrInfo(const RVSubtarget &ST);
 
   const RVRegisterInfo &getRegisterInfo() const {
     return RI;
   }
 
-  const GCNSubtarget &getSubtarget() const {
+  const RVSubtarget &getSubtarget() const {
     return ST;
   }
 
@@ -1149,9 +1149,9 @@ public:
   /// opcode.  This function will also move the users of MachineInstruntions
   /// in the \p WorkList to the VALU if necessary. If present, \p MDT is
   /// updated.
-  void moveToVALU(SIInstrWorklist &Worklist, MachineDominatorTree *MDT) const;
+  void moveToVALU(RVInstrWorklist &Worklist, MachineDominatorTree *MDT) const;
 
-  void moveToVALUImpl(SIInstrWorklist &Worklist, MachineDominatorTree *MDT,
+  void moveToVALUImpl(RVInstrWorklist &Worklist, MachineDominatorTree *MDT,
                       MachineInstr &Inst) const;
 
   void insertNoop(MachineBasicBlock &MBB,
@@ -1277,7 +1277,7 @@ public:
 
   bool isLegalMUBUFImmOffset(unsigned Imm) const;
 
-  static unsigned getMaxMUBUFImmOffset(const GCNSubtarget &ST);
+  static unsigned getMaxMUBUFImmOffset(const RVSubtarget &ST);
 
   bool splitMUBUFOffset(uint32_t Imm, uint32_t &SOffset, uint32_t &ImmOffset,
                         Align Alignment = Align(4)) const;
@@ -1365,19 +1365,19 @@ TargetInstrInfo::RegSubRegPair getRegSubRegPair(const MachineOperand &O) {
 }
 
 /// \brief Return the SubReg component from REG_SEQUENCE
-TargetInstrInfo::RegSubRegPair getRegSequenceSubReg(MachineInstr &MI,
+TargetInstrInfo::RegSubRegPair rvGetRegSequenceSubReg(MachineInstr &MI,
                                                     unsigned SubReg);
 
 /// \brief Return the defining instruction for a given reg:subreg pair
 /// skipping copy like instructions and subreg-manipulation pseudos.
 /// Following another subreg of a reg:subreg isn't supported.
-MachineInstr *getVRegSubRegDef(const TargetInstrInfo::RegSubRegPair &P,
+MachineInstr *rvGetVRegSubRegDef(const TargetInstrInfo::RegSubRegPair &P,
                                MachineRegisterInfo &MRI);
 
 /// \brief Return false if EXEC is not changed between the def of \p VReg at \p
 /// DefMI and the use at \p UseMI. Should be run on SSA. Currently does not
 /// attempt to track between blocks.
-bool execMayBeModifiedBeforeUse(const MachineRegisterInfo &MRI,
+bool rvExecMayBeModifiedBeforeUse(const MachineRegisterInfo &MRI,
                                 Register VReg,
                                 const MachineInstr &DefMI,
                                 const MachineInstr &UseMI);
@@ -1385,7 +1385,7 @@ bool execMayBeModifiedBeforeUse(const MachineRegisterInfo &MRI,
 /// \brief Return false if EXEC is not changed between the def of \p VReg at \p
 /// DefMI and all its uses. Should be run on SSA. Currently does not attempt to
 /// track between blocks.
-bool execMayBeModifiedBeforeAnyUse(const MachineRegisterInfo &MRI,
+bool rvExecMayBeModifiedBeforeAnyUse(const MachineRegisterInfo &MRI,
                                    Register VReg,
                                    const MachineInstr &DefMI);
 

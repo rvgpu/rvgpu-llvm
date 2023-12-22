@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVInstrInfo.h"
 #include "llvm/ADT/PostOrderIterator.h"
@@ -106,7 +106,7 @@ bool RVGPUSetWavePriority::runOnMachineFunction(MachineFunction &MF) {
   if (skipFunction(F) || !RVGPU::isEntryFunctionCC(F.getCallingConv()))
     return false;
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   TII = ST.getInstrInfo();
 
   unsigned VALUInstsThreshold = DefaultVALUInstsThreshold;

@@ -20,7 +20,7 @@
 
 namespace llvm {
 
-class GCNTargetMachine;
+class RVTargetMachine;
 class RVSubtarget;
 class MachineIRBuilder;
 
@@ -33,7 +33,7 @@ class RVGPULegalizerInfo final : public LegalizerInfo {
 
 public:
   RVGPULegalizerInfo(const RVSubtarget &ST,
-                      const GCNTargetMachine &TM);
+                      const RVTargetMachine &TM);
 
   bool legalizeCustom(LegalizerHelper &Helper, MachineInstr &MI) const override;
 
@@ -110,7 +110,7 @@ public:
                          MachineIRBuilder &B) const;
 
   bool loadInputValue(Register DstReg, MachineIRBuilder &B,
-                      const ArgDescriptor *Arg,
+                      const RvArgDescriptor *Arg,
                       const TargetRegisterClass *ArgRC, LLT ArgTy) const;
   bool loadInputValue(Register DstReg, MachineIRBuilder &B,
                       RVGPUFunctionArgInfo::PreloadedValue ArgType) const;

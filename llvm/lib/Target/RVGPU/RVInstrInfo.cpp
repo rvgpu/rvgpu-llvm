@@ -15,7 +15,7 @@
 #include "RVGPU.h"
 #include "RVGPUInstrInfo.h"
 #include "GCNHazardRecognizer.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "RVMachineFunctionInfo.h"
 #include "Utils/RVGPUBaseInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -63,7 +63,7 @@ static cl::opt<bool> Fix16BitCopies(
   cl::init(true),
   cl::ReallyHidden);
 
-RVInstrInfo::RVInstrInfo(const GCNSubtarget &ST)
+RVInstrInfo::RVInstrInfo(const RVSubtarget &ST)
   : RVGPUGenInstrInfo(RVGPU::ADJCALLSTACKUP, RVGPU::ADJCALLSTACKDOWN),
     RI(ST), ST(ST) {
   SchedModel.init(&ST);
@@ -2464,7 +2464,7 @@ bool RVInstrInfo::expandPostRAPseudo(MachineInstr &MI) const {
   }
   case RVGPU::SI_RETURN: {
     const MachineFunction *MF = MBB.getParent();
-    const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
     const RVRegisterInfo *TRI = ST.getRegisterInfo();
     // Hiding the return address use with SI_RETURN may lead to extra kills in
     // the function and missing live-ins. We are fine in practice because callee
@@ -2900,7 +2900,7 @@ void RVInstrInfo::insertIndirectBranch(MachineBasicBlock &MBB,
   } else {
     // As SGPR needs VGPR to be spilled, we reuse the slot of temporary VGPR for
     // SGPR spill.
-    const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
     const RVRegisterInfo *TRI = ST.getRegisterInfo();
     TRI->spillEmergencySGPR(GetPC, RestoreBB, RVGPU::SGPR0_SGPR1, RS);
     MRI.replaceRegWith(PCReg, RVGPU::SGPR0_SGPR1);
@@ -5341,7 +5341,7 @@ void RVInstrInfo::insertScratchExecCopy(MachineFunction &MF,
                                         const DebugLoc &DL, Register Reg,
                                         bool IsSCCLive,
                                         SlotIndexes *Indexes) const {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVInstrInfo *TII = ST.getInstrInfo();
   bool IsWave32 = ST.isWave32();
   if (IsSCCLive) {
@@ -5381,7 +5381,7 @@ void RVInstrInfo::restoreExec(MachineFunction &MF, MachineBasicBlock &MBB,
 }
 
 static const TargetRegisterClass *
-adjustAllocatableRegClass(const GCNSubtarget &ST, const RVRegisterInfo &RI,
+adjustAllocatableRegClass(const RVSubtarget &ST, const RVRegisterInfo &RI,
                           const MachineRegisterInfo &MRI,
                           const MCInstrDesc &TID, unsigned RCID,
                           bool IsAllocatable) {
@@ -6111,7 +6111,7 @@ static void emitLoadScalarOpsFromVGPRLoop(
     MachineBasicBlock &LoopBB, MachineBasicBlock &BodyBB, const DebugLoc &DL,
     ArrayRef<MachineOperand *> ScalarOps) {
   MachineFunction &MF = *OrigBB.getParent();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVRegisterInfo *TRI = ST.getRegisterInfo();
   unsigned Exec = ST.isWave32() ? RVGPU::EXEC_LO : RVGPU::EXEC;
   unsigned SaveExecOpc =
@@ -6256,7 +6256,7 @@ loadMBUFScalarOperandsFromVGPR(const RVInstrInfo &TII, MachineInstr &MI,
                                MachineBasicBlock::iterator End = nullptr) {
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVRegisterInfo *TRI = ST.getRegisterInfo();
   MachineRegisterInfo &MRI = MF.getRegInfo();
   if (!Begin.isValid())
@@ -6774,7 +6774,7 @@ RVInstrInfo::legalizeOperands(MachineInstr &MI,
   return CreatedBB;
 }
 
-void SIInstrWorklist::insert(MachineInstr *MI) {
+void RVInstrWorklist::insert(MachineInstr *MI) {
   InstrList.insert(MI);
   // Add MBUF instructiosn to deferred list.
   int RsrcIdx =
@@ -6784,11 +6784,11 @@ void SIInstrWorklist::insert(MachineInstr *MI) {
   }
 }
 
-bool SIInstrWorklist::isDeferred(MachineInstr *MI) {
+bool RVInstrWorklist::isDeferred(MachineInstr *MI) {
   return DeferredList.contains(MI);
 }
 
-void RVInstrInfo::moveToVALU(SIInstrWorklist &Worklist,
+void RVInstrInfo::moveToVALU(RVInstrWorklist &Worklist,
                              MachineDominatorTree *MDT) const {
 
   while (!Worklist.empty()) {
@@ -6809,7 +6809,7 @@ void RVInstrInfo::moveToVALU(SIInstrWorklist &Worklist,
   }
 }
 
-void RVInstrInfo::moveToVALUImpl(SIInstrWorklist &Worklist,
+void RVInstrInfo::moveToVALUImpl(RVInstrWorklist &Worklist,
                                  MachineDominatorTree *MDT,
                                  MachineInstr &Inst) const {
 
@@ -7302,7 +7302,7 @@ void RVInstrInfo::moveToVALUImpl(SIInstrWorklist &Worklist,
 
 // Add/sub require special handling to deal with carry outs.
 std::pair<bool, MachineBasicBlock *>
-RVInstrInfo::moveScalarAddSub(SIInstrWorklist &Worklist, MachineInstr &Inst,
+RVInstrInfo::moveScalarAddSub(RVInstrWorklist &Worklist, MachineInstr &Inst,
                               MachineDominatorTree *MDT) const {
   if (ST.hasAddNoCarry()) {
     // Assume there is no user of scc since we don't select this in that case.
@@ -7337,7 +7337,7 @@ RVInstrInfo::moveScalarAddSub(SIInstrWorklist &Worklist, MachineInstr &Inst,
   return std::pair(false, nullptr);
 }
 
-void RVInstrInfo::lowerSelect(SIInstrWorklist &Worklist, MachineInstr &Inst,
+void RVInstrInfo::lowerSelect(RVInstrWorklist &Worklist, MachineInstr &Inst,
                               MachineDominatorTree *MDT) const {
 
   MachineBasicBlock &MBB = *Inst.getParent();
@@ -7420,7 +7420,7 @@ void RVInstrInfo::lowerSelect(SIInstrWorklist &Worklist, MachineInstr &Inst,
   addUsersToMoveToVALUWorklist(NewDestReg, MRI, Worklist);
 }
 
-void RVInstrInfo::lowerScalarAbs(SIInstrWorklist &Worklist,
+void RVInstrInfo::lowerScalarAbs(RVInstrWorklist &Worklist,
                                  MachineInstr &Inst) const {
   MachineBasicBlock &MBB = *Inst.getParent();
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
@@ -7447,7 +7447,7 @@ void RVInstrInfo::lowerScalarAbs(SIInstrWorklist &Worklist,
   addUsersToMoveToVALUWorklist(ResultReg, MRI, Worklist);
 }
 
-void RVInstrInfo::lowerScalarXnor(SIInstrWorklist &Worklist,
+void RVInstrInfo::lowerScalarXnor(RVInstrWorklist &Worklist,
                                   MachineInstr &Inst) const {
   MachineBasicBlock &MBB = *Inst.getParent();
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
@@ -7512,7 +7512,7 @@ void RVInstrInfo::lowerScalarXnor(SIInstrWorklist &Worklist,
   }
 }
 
-void RVInstrInfo::splitScalarNotBinop(SIInstrWorklist &Worklist,
+void RVInstrInfo::splitScalarNotBinop(RVInstrWorklist &Worklist,
                                       MachineInstr &Inst,
                                       unsigned Opcode) const {
   MachineBasicBlock &MBB = *Inst.getParent();
@@ -7541,7 +7541,7 @@ void RVInstrInfo::splitScalarNotBinop(SIInstrWorklist &Worklist,
   addUsersToMoveToVALUWorklist(NewDest, MRI, Worklist);
 }
 
-void RVInstrInfo::splitScalarBinOpN2(SIInstrWorklist &Worklist,
+void RVInstrInfo::splitScalarBinOpN2(RVInstrWorklist &Worklist,
                                      MachineInstr &Inst,
                                      unsigned Opcode) const {
   MachineBasicBlock &MBB = *Inst.getParent();
@@ -7570,7 +7570,7 @@ void RVInstrInfo::splitScalarBinOpN2(SIInstrWorklist &Worklist,
   addUsersToMoveToVALUWorklist(NewDest, MRI, Worklist);
 }
 
-void RVInstrInfo::splitScalar64BitUnaryOp(SIInstrWorklist &Worklist,
+void RVInstrInfo::splitScalar64BitUnaryOp(RVInstrWorklist &Worklist,
                                           MachineInstr &Inst, unsigned Opcode,
                                           bool Swap) const {
   MachineBasicBlock &MBB = *Inst.getParent();
@@ -7629,7 +7629,7 @@ void RVInstrInfo::splitScalar64BitUnaryOp(SIInstrWorklist &Worklist,
   addUsersToMoveToVALUWorklist(FullDestReg, MRI, Worklist);
 }
 
-void RVInstrInfo::splitScalar64BitBinaryOp(SIInstrWorklist &Worklist,
+void RVInstrInfo::splitScalar64BitBinaryOp(RVInstrWorklist &Worklist,
                                            MachineInstr &Inst, unsigned Opcode,
                                            MachineDominatorTree *MDT) const {
   MachineBasicBlock &MBB = *Inst.getParent();
@@ -7696,7 +7696,7 @@ void RVInstrInfo::splitScalar64BitBinaryOp(SIInstrWorklist &Worklist,
   addUsersToMoveToVALUWorklist(FullDestReg, MRI, Worklist);
 }
 
-void RVInstrInfo::splitScalar64BitXnor(SIInstrWorklist &Worklist,
+void RVInstrInfo::splitScalar64BitXnor(RVInstrWorklist &Worklist,
                                        MachineInstr &Inst,
                                        MachineDominatorTree *MDT) const {
   MachineBasicBlock &MBB = *Inst.getParent();
@@ -7738,7 +7738,7 @@ void RVInstrInfo::splitScalar64BitXnor(SIInstrWorklist &Worklist,
   Worklist.insert(&Xor);
 }
 
-void RVInstrInfo::splitScalar64BitBCNT(SIInstrWorklist &Worklist,
+void RVInstrInfo::splitScalar64BitBCNT(RVInstrWorklist &Worklist,
                                        MachineInstr &Inst) const {
   MachineBasicBlock &MBB = *Inst.getParent();
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
@@ -7776,7 +7776,7 @@ void RVInstrInfo::splitScalar64BitBCNT(SIInstrWorklist &Worklist,
   addUsersToMoveToVALUWorklist(ResultReg, MRI, Worklist);
 }
 
-void RVInstrInfo::splitScalar64BitBFE(SIInstrWorklist &Worklist,
+void RVInstrInfo::splitScalar64BitBFE(RVInstrWorklist &Worklist,
                                       MachineInstr &Inst) const {
   MachineBasicBlock &MBB = *Inst.getParent();
   MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
@@ -7839,7 +7839,7 @@ void RVInstrInfo::splitScalar64BitBFE(SIInstrWorklist &Worklist,
 
 void RVInstrInfo::addUsersToMoveToVALUWorklist(
     Register DstReg, MachineRegisterInfo &MRI,
-    SIInstrWorklist &Worklist) const {
+    RVInstrWorklist &Worklist) const {
   for (MachineRegisterInfo::use_iterator I = MRI.use_begin(DstReg),
          E = MRI.use_end(); I != E;) {
     MachineInstr &UseMI = *I->getParent();
@@ -7873,7 +7873,7 @@ void RVInstrInfo::addUsersToMoveToVALUWorklist(
   }
 }
 
-void RVInstrInfo::movePackToVALU(SIInstrWorklist &Worklist,
+void RVInstrInfo::movePackToVALU(RVInstrWorklist &Worklist,
                                  MachineRegisterInfo &MRI,
                                  MachineInstr &Inst) const {
   Register ResultReg = MRI.createVirtualRegister(&RVGPU::VGPR_32RegClass);
@@ -7948,7 +7948,7 @@ void RVInstrInfo::movePackToVALU(SIInstrWorklist &Worklist,
 
 void RVInstrInfo::addSCCDefUsersToVALUWorklist(MachineOperand &Op,
                                                MachineInstr &SCCDefInst,
-                                               SIInstrWorklist &Worklist,
+                                               RVInstrWorklist &Worklist,
                                                Register NewCond) const {
 
   // Ensure that def inst defines SCC, which is still live.
@@ -7991,7 +7991,7 @@ void RVInstrInfo::addSCCDefUsersToVALUWorklist(MachineOperand &Op,
 // sure that the instruction that defines SCC is added to the moveToVALU
 // worklist.
 void RVInstrInfo::addSCCDefsToVALUWorklist(MachineInstr *SCCUseInst,
-                                           SIInstrWorklist &Worklist) const {
+                                           RVInstrWorklist &Worklist) const {
   // Look for a preceding instruction that either defines VCC or SCC. If VCC
   // then there is nothing to do because the defining instruction has been
   // converted to a VALU already. If SCC then that instruction needs to be
@@ -8572,7 +8572,7 @@ bool RVInstrInfo::isLegalMUBUFImmOffset(unsigned Imm) const {
   return Imm <= getMaxMUBUFImmOffset(ST);
 }
 
-unsigned RVInstrInfo::getMaxMUBUFImmOffset(const GCNSubtarget &ST) {
+unsigned RVInstrInfo::getMaxMUBUFImmOffset(const RVSubtarget &ST) {
   // GFX12 field is non-negative 24-bit signed byte offset.
   const unsigned OffsetBits =
       ST.getGeneration() >= RVGPUSubtarget::GFX12 ? 23 : 12;
@@ -8750,7 +8750,7 @@ bool RVInstrInfo::allowNegativeFlatOffset(uint64_t FlatVariant) const {
   return FlatVariant != SIInstrFlags::FLAT || RVGPU::isGFX12Plus(ST);
 }
 
-static unsigned subtargetEncodingFamily(const GCNSubtarget &ST) {
+static unsigned subtargetEncodingFamily(const RVSubtarget &ST) {
   switch (ST.getGeneration()) {
   default:
     break;
@@ -8869,7 +8869,7 @@ TargetInstrInfo::RegSubRegPair getRegOrUndef(const MachineOperand &RegOpnd) {
 }
 
 TargetInstrInfo::RegSubRegPair
-llvm::getRegSequenceSubReg(MachineInstr &MI, unsigned SubReg) {
+llvm::rvGetRegSequenceSubReg(MachineInstr &MI, unsigned SubReg) {
   assert(MI.isRegSequence());
   for (unsigned I = 0, E = (MI.getNumOperands() - 1)/ 2; I < E; ++I)
     if (MI.getOperand(1 + 2 * I + 1).getImm() == SubReg) {
@@ -8888,7 +8888,7 @@ static bool followSubRegDef(MachineInstr &MI,
   switch (MI.getOpcode()) {
   default: break;
   case RVGPU::REG_SEQUENCE:
-    RSR = getRegSequenceSubReg(MI, RSR.SubReg);
+    RSR = rvGetRegSequenceSubReg(MI, RSR.SubReg);
     return true;
   // EXTRACT_SUBREG ins't supported as this would follow a subreg of subreg
   case RVGPU::INSERT_SUBREG:
@@ -8906,7 +8906,7 @@ static bool followSubRegDef(MachineInstr &MI,
   return false;
 }
 
-MachineInstr *llvm::getVRegSubRegDef(const TargetInstrInfo::RegSubRegPair &P,
+MachineInstr *llvm::rvGetVRegSubRegDef(const TargetInstrInfo::RegSubRegPair &P,
                                      MachineRegisterInfo &MRI) {
   assert(MRI.isSSA());
   if (!P.Reg.isVirtual())
@@ -8941,7 +8941,7 @@ MachineInstr *llvm::getVRegSubRegDef(const TargetInstrInfo::RegSubRegPair &P,
   return nullptr;
 }
 
-bool llvm::execMayBeModifiedBeforeUse(const MachineRegisterInfo &MRI,
+bool llvm::rvExecMayBeModifiedBeforeUse(const MachineRegisterInfo &MRI,
                                       Register VReg,
                                       const MachineInstr &DefMI,
                                       const MachineInstr &UseMI) {
@@ -8974,7 +8974,7 @@ bool llvm::execMayBeModifiedBeforeUse(const MachineRegisterInfo &MRI,
   return false;
 }
 
-bool llvm::execMayBeModifiedBeforeAnyUse(const MachineRegisterInfo &MRI,
+bool llvm::rvExecMayBeModifiedBeforeAnyUse(const MachineRegisterInfo &MRI,
                                          Register VReg,
                                          const MachineInstr &DefMI) {
   assert(MRI.isSSA() && "Must be run on SSA");

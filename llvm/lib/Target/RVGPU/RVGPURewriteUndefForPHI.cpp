@@ -100,7 +100,7 @@ INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_END(RVGPURewriteUndefForPHILegacy, DEBUG_TYPE,
                     "Rewrite undef for PHI", false, false)
 
-bool rewritePHIs(Function &F, UniformityInfo &UA, DominatorTree *DT) {
+bool rvRewritePHIs(Function &F, UniformityInfo &UA, DominatorTree *DT) {
   bool Changed = false;
   SmallVector<PHINode *> ToBeDeleted;
   for (auto &BB : F) {
@@ -174,14 +174,14 @@ bool RVGPURewriteUndefForPHILegacy::runOnFunction(Function &F) {
   UniformityInfo &UA =
       getAnalysis<UniformityInfoWrapperPass>().getUniformityInfo();
   DominatorTree *DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
-  return rewritePHIs(F, UA, DT);
+  return rvRewritePHIs(F, UA, DT);
 }
 
 PreservedAnalyses
 RVGPURewriteUndefForPHIPass::run(Function &F, FunctionAnalysisManager &AM) {
   UniformityInfo &UA = AM.getResult<UniformityInfoAnalysis>(F);
   DominatorTree *DT = &AM.getResult<DominatorTreeAnalysis>(F);
-  bool Changed = rewritePHIs(F, UA, DT);
+  bool Changed = rvRewritePHIs(F, UA, DT);
   if (Changed) {
     PreservedAnalyses PA;
     PA.preserveSet<CFGAnalyses>();

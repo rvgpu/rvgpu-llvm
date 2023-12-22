@@ -65,7 +65,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/ADT/SetOperations.h"
 #include "llvm/CodeGen/MachineDominators.h"
@@ -607,7 +607,7 @@ bool SIFixSGPRCopies::runOnMachineFunction(MachineFunction &MF) {
         MachineFunctionProperties::Property::Selected))
     return false;
 
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   MRI = &MF.getRegInfo();
   TRI = ST.getRegisterInfo();
   TII = ST.getInstrInfo();
@@ -891,7 +891,7 @@ bool SIFixSGPRCopies::lowerSpecialCase(MachineInstr &MI,
     return true;
   }
   if (!SrcReg.isVirtual() || TRI->isAGPR(*MRI, SrcReg)) {
-    SIInstrWorklist worklist;
+    RVInstrWorklist worklist;
     worklist.insert(&MI);
     TII->moveToVALU(worklist, MDT);
     return true;
@@ -1017,7 +1017,7 @@ void SIFixSGPRCopies::lowerVGPR2SGPRCopies(MachineFunction &MF) {
 
   // Store all the V2S copy instructions that need to be moved to VALU
   // in the Copies worklist.
-  SIInstrWorklist Copies;
+  RVInstrWorklist Copies;
 
   while (!LoweringWorklist.empty()) {
     unsigned CurID = LoweringWorklist.pop_back_val();
@@ -1095,7 +1095,7 @@ void SIFixSGPRCopies::lowerVGPR2SGPRCopies(MachineFunction &MF) {
 }
 
 void SIFixSGPRCopies::fixSCCCopies(MachineFunction &MF) {
-  bool IsWave32 = MF.getSubtarget<GCNSubtarget>().isWave32();
+  bool IsWave32 = MF.getSubtarget<RVSubtarget>().isWave32();
   for (MachineFunction::iterator BI = MF.begin(), BE = MF.end(); BI != BE;
        ++BI) {
     MachineBasicBlock *MBB = &*BI;

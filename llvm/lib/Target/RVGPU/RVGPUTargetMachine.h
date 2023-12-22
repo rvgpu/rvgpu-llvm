@@ -14,7 +14,7 @@
 #ifndef LLVM_LIB_TARGET_RVGPU_RVGPUTARGETMACHINE_H
 #define LLVM_LIB_TARGET_RVGPU_RVGPUTARGETMACHINE_H
 
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/Target/TargetMachine.h"
 #include <optional>
@@ -70,12 +70,12 @@ public:
 // GCN Target Machine (SI+)
 //===----------------------------------------------------------------------===//
 
-class GCNTargetMachine final : public RVGPUTargetMachine {
+class RVTargetMachine final : public RVGPUTargetMachine {
 private:
-  mutable StringMap<std::unique_ptr<GCNSubtarget>> SubtargetMap;
+  mutable StringMap<std::unique_ptr<RVSubtarget>> SubtargetMap;
 
 public:
-  GCNTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+  RVTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                    StringRef FS, TargetOptions Options,
                    std::optional<Reloc::Model> RM,
                    std::optional<CodeModel::Model> CM, CodeGenOptLevel OL,

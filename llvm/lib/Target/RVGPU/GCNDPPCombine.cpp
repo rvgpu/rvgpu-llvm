@@ -169,7 +169,7 @@ int GCNDPPCombine::getDPPOp(unsigned Op, bool IsShrinkable) const {
 //   2. nullptr if the register operand is undef
 //   3. the operand itself otherwise
 MachineOperand *GCNDPPCombine::getOldOpndValue(MachineOperand &OldOpnd) const {
-  auto *Def = getVRegSubRegDef(getRegSubRegPair(OldOpnd), *MRI);
+  auto *Def = rvGetVRegSubRegDef(getRegSubRegPair(OldOpnd), *MRI);
   if (!Def)
     return nullptr;
 
@@ -258,7 +258,7 @@ MachineInstr *GCNDPPCombine::createDPPInst(MachineInstr &OrigMI,
           *MRI->getRegClass(
               TII->getNamedOperand(MovMI, RVGPU::OpName::vdst)->getReg()),
           *MRI));
-      auto *Def = getVRegSubRegDef(CombOldVGPR, *MRI);
+      auto *Def = rvGetVRegSubRegDef(CombOldVGPR, *MRI);
       DPPInst.addReg(CombOldVGPR.Reg, Def ? 0 : RegState::Undef,
                      CombOldVGPR.SubReg);
       ++NumOperands;
@@ -516,7 +516,7 @@ bool GCNDPPCombine::combineDPPMov(MachineInstr &MovMI) const {
     LLVM_DEBUG(dbgs() << "  failed: dpp move writes physreg\n");
     return false;
   }
-  if (execMayBeModifiedBeforeAnyUse(*MRI, DPPMovReg, MovMI)) {
+  if (rvExecMayBeModifiedBeforeAnyUse(*MRI, DPPMovReg, MovMI)) {
     LLVM_DEBUG(dbgs() << "  failed: EXEC mask should remain the same"
                          " for all uses\n");
     return false;
@@ -626,7 +626,7 @@ bool GCNDPPCombine::combineDPPMov(MachineInstr &MovMI) const {
       Register FwdReg = OrigMI.getOperand(0).getReg();
       unsigned FwdSubReg = 0;
 
-      if (execMayBeModifiedBeforeAnyUse(*MRI, FwdReg, OrigMI)) {
+      if (rvExecMayBeModifiedBeforeAnyUse(*MRI, FwdReg, OrigMI)) {
         LLVM_DEBUG(dbgs() << "  failed: EXEC mask should remain the same"
                              " for all uses\n");
         break;

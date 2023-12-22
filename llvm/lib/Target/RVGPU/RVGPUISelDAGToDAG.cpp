@@ -2337,7 +2337,7 @@ static SDValue combineBallotPattern(SDValue VCMP, bool &Negate) {
     if (ISD::isExtOpcode(Cond->getOpcode())) // Skip extension.
       Cond = Cond.getOperand(0);
 
-    if (isBoolSGPR(Cond)) {
+    if (rvIsBoolSGPR(Cond)) {
       Negate = VCMP_CC == ISD::SETEQ;
       return Cond;
     }

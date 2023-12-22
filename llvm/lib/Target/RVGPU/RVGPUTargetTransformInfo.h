@@ -24,7 +24,7 @@
 namespace llvm {
 
 class RVGPUTargetMachine;
-class GCNSubtarget;
+class RVSubtarget;
 class InstCombiner;
 class Loop;
 class ScalarEvolution;
@@ -59,13 +59,13 @@ public:
   int64_t getMaxMemIntrinsicInlineSizeThreshold() const;
 };
 
-class GCNTTIImpl final : public BasicTTIImplBase<GCNTTIImpl> {
-  using BaseT = BasicTTIImplBase<GCNTTIImpl>;
+class RVTTIImpl final : public BasicTTIImplBase<RVTTIImpl> {
+  using BaseT = BasicTTIImplBase<RVTTIImpl>;
   using TTI = TargetTransformInfo;
 
   friend BaseT;
 
-  const GCNSubtarget *ST;
+  const RVSubtarget *ST;
   const RVTargetLowering *TLI;
   RVGPUTTIImpl CommonTTI;
   bool IsGraphics;
@@ -75,7 +75,7 @@ class GCNTTIImpl final : public BasicTTIImplBase<GCNTTIImpl> {
 
   static const FeatureBitset InlineFeatureIgnoreList;
 
-  const GCNSubtarget *getST() const { return ST; }
+  const RVSubtarget *getST() const { return ST; }
   const RVTargetLowering *getTLI() const { return TLI; }
 
   static inline int getFullRateInstrCost() {
@@ -101,7 +101,7 @@ class GCNTTIImpl final : public BasicTTIImplBase<GCNTTIImpl> {
   std::pair<InstructionCost, MVT> getTypeLegalizationCost(Type *Ty) const;
 
 public:
-  explicit GCNTTIImpl(const RVGPUTargetMachine *TM, const Function &F);
+  explicit RVTTIImpl(const RVGPUTargetMachine *TM, const Function &F);
 
   bool hasBranchDivergence(const Function *F = nullptr) const;
 

@@ -49,7 +49,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/CodeGen/LiveIntervals.h"
@@ -712,7 +712,7 @@ MachineBasicBlock *SILowerControlFlow::process(MachineInstr &MI) {
 void SILowerControlFlow::lowerInitExec(MachineBasicBlock *MBB,
                                        MachineInstr &MI) {
   MachineFunction &MF = *MBB->getParent();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   bool IsWave32 = ST.isWave32();
 
   if (MI.getOpcode() == RVGPU::SI_INIT_EXEC) {
@@ -845,7 +845,7 @@ bool SILowerControlFlow::removeMBBifRedundant(MachineBasicBlock &MBB) {
 }
 
 bool SILowerControlFlow::runOnMachineFunction(MachineFunction &MF) {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   TII = ST.getInstrInfo();
   TRI = &TII->getRegisterInfo();
   EnableOptimizeEndCf = RemoveRedundantEndcf &&

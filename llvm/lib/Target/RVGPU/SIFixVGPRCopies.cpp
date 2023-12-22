@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 
@@ -50,7 +50,7 @@ char SIFixVGPRCopies::ID = 0;
 char &llvm::SIFixVGPRCopiesID = SIFixVGPRCopies::ID;
 
 bool SIFixVGPRCopies::runOnMachineFunction(MachineFunction &MF) {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVRegisterInfo *TRI = ST.getRegisterInfo();
   const RVInstrInfo *TII = ST.getInstrInfo();
   bool Changed = false;

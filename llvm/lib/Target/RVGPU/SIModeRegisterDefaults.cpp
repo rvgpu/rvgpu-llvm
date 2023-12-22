@@ -7,12 +7,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "SIModeRegisterDefaults.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 
 using namespace llvm;
 
 SIModeRegisterDefaults::SIModeRegisterDefaults(const Function &F,
-                                               const GCNSubtarget &ST) {
+                                               const RVSubtarget &ST) {
   *this = getDefaultForCallingConv(F.getCallingConv());
 
   if (ST.hasIEEEMode()) {

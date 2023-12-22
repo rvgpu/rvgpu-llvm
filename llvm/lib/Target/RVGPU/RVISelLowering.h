@@ -20,7 +20,7 @@
 
 namespace llvm {
 
-class GCNSubtarget;
+class RVSubtarget;
 class RVMachineFunctionInfo;
 class RVRegisterInfo;
 
@@ -30,7 +30,7 @@ struct ImageDimIntrinsicInfo;
 
 class RVTargetLowering final : public RVGPUTargetLowering {
 private:
-  const GCNSubtarget *Subtarget;
+  const RVSubtarget *Subtarget;
 
 public:
   MVT getRegisterTypeForCallingConv(LLVMContext &Context,
@@ -81,7 +81,7 @@ private:
                                         unsigned NewOpcode) const;
 
   SDValue lowerWorkitemID(SelectionDAG &DAG, SDValue Op, unsigned Dim,
-                          const ArgDescriptor &ArgDesc) const;
+                          const RvArgDescriptor &ArgDesc) const;
 
   SDValue LowerINTRINSIC_WO_CHAIN(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerINTRINSIC_W_CHAIN(SDValue Op, SelectionDAG &DAG) const;
@@ -248,7 +248,7 @@ public:
   /// expanded into a set of cmp/select instructions.
   static bool shouldExpandVectorDynExt(unsigned EltSize, unsigned NumElem,
                                        bool IsDivergentIdx,
-                                       const GCNSubtarget *Subtarget);
+                                       const RVSubtarget *Subtarget);
 
   bool shouldExpandVectorDynExt(SDNode *N) const;
 
@@ -280,9 +280,9 @@ private:
                                       MemSDNode *M) const;
 
 public:
-  RVTargetLowering(const TargetMachine &tm, const GCNSubtarget &STI);
+  RVTargetLowering(const TargetMachine &tm, const RVSubtarget &STI);
 
-  const GCNSubtarget *getSubtarget() const;
+  const RVSubtarget *getSubtarget() const;
 
   bool isFPExtFoldable(const SelectionDAG &DAG, unsigned Opcode, EVT DestVT,
                        EVT SrcVT) const override;
@@ -591,7 +591,7 @@ public:
 
 // Returns true if argument is a boolean value which is not serialized into
 // memory or argument and does not require v_cndmask_b32 to be deserialized.
-bool isBoolSGPR(SDValue V);
+bool rvIsBoolSGPR(SDValue V);
 
 } // End namespace llvm
 

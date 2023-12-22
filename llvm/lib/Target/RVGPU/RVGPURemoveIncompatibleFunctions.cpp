@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
@@ -80,7 +80,7 @@ StringRef getFeatureName(unsigned Feature) {
   llvm_unreachable("Unknown Target feature");
 }
 
-const SubtargetSubTypeKV *getGPUInfo(const GCNSubtarget &ST,
+const SubtargetSubTypeKV *getGPUInfo(const RVSubtarget &ST,
                                      StringRef GPUName) {
   for (const SubtargetSubTypeKV &KV : ST.getAllProcessorDescriptions())
     if (StringRef(KV.Key) == GPUName)
@@ -135,8 +135,8 @@ bool RVGPURemoveIncompatibleFunctions::checkFunction(Function &F) {
   if (F.isDeclaration())
     return false;
 
-  const GCNSubtarget *ST =
-      static_cast<const GCNSubtarget *>(TM->getSubtargetImpl(F));
+  const RVSubtarget *ST =
+      static_cast<const RVSubtarget *>(TM->getSubtargetImpl(F));
 
   // Check the GPU isn't generic. Generic is used for testing only
   // and we don't want this pass to interfere with it.

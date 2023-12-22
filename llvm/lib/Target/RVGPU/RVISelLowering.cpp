@@ -15,7 +15,7 @@
 #include "RVGPU.h"
 #include "RVGPUInstrInfo.h"
 #include "RVGPUTargetMachine.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "RVRegisterInfo.h"
@@ -81,7 +81,7 @@ static unsigned findFirstFreeSGPR(CCState &CCInfo) {
 }
 
 RVTargetLowering::RVTargetLowering(const TargetMachine &TM,
-                                   const GCNSubtarget &STI)
+                                   const RVSubtarget &STI)
     : RVGPUTargetLowering(TM, STI),
       Subtarget(&STI) {
   addRegisterClass(MVT::i1, &RVGPU::VReg_1RegClass);
@@ -862,7 +862,7 @@ RVTargetLowering::RVTargetLowering(const TargetMachine &TM,
   setSchedulingPreference(Sched::RegPressure);
 }
 
-const GCNSubtarget *RVTargetLowering::getSubtarget() const {
+const RVSubtarget *RVTargetLowering::getSubtarget() const {
   return Subtarget;
 }
 
@@ -1267,8 +1267,8 @@ bool RVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::rvgpu_ds_gws_sema_release_all: {
     Info.opc = ISD::INTRINSIC_VOID;
 
-    const GCNTargetMachine &TM =
-        static_cast<const GCNTargetMachine &>(getTargetMachine());
+    const RVTargetMachine &TM =
+        static_cast<const RVTargetMachine &>(getTargetMachine());
 
     RVMachineFunctionInfo *MFI = MF.getInfo<RVMachineFunctionInfo>();
     Info.ptrVal = MFI->getGWSPSV(TM);
@@ -1295,8 +1295,8 @@ bool RVTargetLowering::getTgtMemIntrinsic(IntrinsicInfo &Info,
   case Intrinsic::rvgpu_ds_bvh_stack_rtn: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
 
-    const GCNTargetMachine &TM =
-        static_cast<const GCNTargetMachine &>(getTargetMachine());
+    const RVTargetMachine &TM =
+        static_cast<const RVTargetMachine &>(getTargetMachine());
 
     RVMachineFunctionInfo *MFI = MF.getInfo<RVMachineFunctionInfo>();
     Info.ptrVal = MFI->getGWSPSV(TM);
@@ -1740,8 +1740,8 @@ bool RVTargetLowering::isFreeAddrSpaceCast(unsigned SrcAS,
   if (SrcAS == RVGPUAS::FLAT_ADDRESS)
     return true;
 
-  const GCNTargetMachine &TM =
-      static_cast<const GCNTargetMachine &>(getTargetMachine());
+  const RVTargetMachine &TM =
+      static_cast<const RVTargetMachine &>(getTargetMachine());
   return TM.isNoopAddrSpaceCast(SrcAS, DestAS);
 }
 
@@ -1808,7 +1808,7 @@ SDValue RVTargetLowering::lowerKernArgParameterPtr(SelectionDAG &DAG,
   MachineFunction &MF = DAG.getMachineFunction();
   const RVMachineFunctionInfo *Info = MF.getInfo<RVMachineFunctionInfo>();
 
-  const ArgDescriptor *InputPtrReg;
+  const RvArgDescriptor *InputPtrReg;
   const TargetRegisterClass *RC;
   LLT ArgTy;
   MVT PtrVT = getPointerTy(DL, RVGPUAS::CONSTANT_ADDRESS);
@@ -1973,7 +1973,7 @@ SDValue RVTargetLowering::getPreloadedValue(SelectionDAG &DAG,
   const RVMachineFunctionInfo &MFI,
   EVT VT,
   RVGPUFunctionArgInfo::PreloadedValue PVID) const {
-  const ArgDescriptor *Reg;
+  const RvArgDescriptor *Reg;
   const TargetRegisterClass *RC;
   LLT Ty;
 
@@ -2057,34 +2057,34 @@ void RVTargetLowering::allocateSpecialEntryInputVGPRs(CCState &CCInfo,
     CCInfo.AllocateReg(Reg);
     unsigned Mask = (Subtarget->hasPackedTID() &&
                      Info.hasWorkItemIDY()) ? 0x3ff : ~0u;
-    Info.setWorkItemIDX(ArgDescriptor::createRegister(Reg, Mask));
+    Info.setWorkItemIDX(RvArgDescriptor::createRegister(Reg, Mask));
   }
 
   if (Info.hasWorkItemIDY()) {
     assert(Info.hasWorkItemIDX());
     if (Subtarget->hasPackedTID()) {
-      Info.setWorkItemIDY(ArgDescriptor::createRegister(RVGPU::VGPR0,
+      Info.setWorkItemIDY(RvArgDescriptor::createRegister(RVGPU::VGPR0,
                                                         0x3ff << 10));
     } else {
       unsigned Reg = RVGPU::VGPR1;
       MRI.setType(MF.addLiveIn(Reg, &RVGPU::VGPR_32RegClass), S32);
 
       CCInfo.AllocateReg(Reg);
-      Info.setWorkItemIDY(ArgDescriptor::createRegister(Reg));
+      Info.setWorkItemIDY(RvArgDescriptor::createRegister(Reg));
     }
   }
 
   if (Info.hasWorkItemIDZ()) {
     assert(Info.hasWorkItemIDX() && Info.hasWorkItemIDY());
     if (Subtarget->hasPackedTID()) {
-      Info.setWorkItemIDZ(ArgDescriptor::createRegister(RVGPU::VGPR0,
+      Info.setWorkItemIDZ(RvArgDescriptor::createRegister(RVGPU::VGPR0,
                                                         0x3ff << 20));
     } else {
       unsigned Reg = RVGPU::VGPR2;
       MRI.setType(MF.addLiveIn(Reg, &RVGPU::VGPR_32RegClass), S32);
 
       CCInfo.AllocateReg(Reg);
-      Info.setWorkItemIDZ(ArgDescriptor::createRegister(Reg));
+      Info.setWorkItemIDZ(RvArgDescriptor::createRegister(Reg));
     }
   }
 }
@@ -2093,10 +2093,10 @@ void RVTargetLowering::allocateSpecialEntryInputVGPRs(CCState &CCInfo,
 // VGPRs are left allocating a stack slot.
 // If \p Mask is is given it indicates bitfield position in the register.
 // If \p Arg is given use it with new ]p Mask instead of allocating new.
-static ArgDescriptor allocateVGPR32Input(CCState &CCInfo, unsigned Mask = ~0u,
-                                         ArgDescriptor Arg = ArgDescriptor()) {
+static RvArgDescriptor allocateVGPR32Input(CCState &CCInfo, unsigned Mask = ~0u,
+                                         RvArgDescriptor Arg = RvArgDescriptor()) {
   if (Arg.isSet())
-    return ArgDescriptor::createArg(Arg, Mask);
+    return RvArgDescriptor::createArg(Arg, Mask);
 
   ArrayRef<MCPhysReg> ArgVGPRs = ArrayRef(RVGPU::VGPR_32RegClass.begin(), 32);
   unsigned RegIdx = CCInfo.getFirstUnallocated(ArgVGPRs);
@@ -2104,7 +2104,7 @@ static ArgDescriptor allocateVGPR32Input(CCState &CCInfo, unsigned Mask = ~0u,
     // Spill to stack required.
     int64_t Offset = CCInfo.AllocateStack(4, Align(4));
 
-    return ArgDescriptor::createStack(Offset, Mask);
+    return RvArgDescriptor::createStack(Offset, Mask);
   }
 
   unsigned Reg = ArgVGPRs[RegIdx];
@@ -2114,10 +2114,10 @@ static ArgDescriptor allocateVGPR32Input(CCState &CCInfo, unsigned Mask = ~0u,
   MachineFunction &MF = CCInfo.getMachineFunction();
   Register LiveInVReg = MF.addLiveIn(Reg, &RVGPU::VGPR_32RegClass);
   MF.getRegInfo().setType(LiveInVReg, LLT::scalar(32));
-  return ArgDescriptor::createRegister(Reg, Mask);
+  return RvArgDescriptor::createRegister(Reg, Mask);
 }
 
-static ArgDescriptor allocateSGPR32InputImpl(CCState &CCInfo,
+static RvArgDescriptor allocateSGPR32InputImpl(CCState &CCInfo,
                                              const TargetRegisterClass *RC,
                                              unsigned NumArgRegs) {
   ArrayRef<MCPhysReg> ArgSGPRs = ArrayRef(RC->begin(), 32);
@@ -2131,7 +2131,7 @@ static ArgDescriptor allocateSGPR32InputImpl(CCState &CCInfo,
 
   MachineFunction &MF = CCInfo.getMachineFunction();
   MF.addLiveIn(Reg, RC);
-  return ArgDescriptor::createRegister(Reg);
+  return RvArgDescriptor::createRegister(Reg);
 }
 
 // If this has a fixed position, we still should allocate the register in the
@@ -2146,7 +2146,7 @@ static void allocateFixedSGPRInputImpl(CCState &CCInfo,
   MF.addLiveIn(Reg, RC);
 }
 
-static void allocateSGPR32Input(CCState &CCInfo, ArgDescriptor &Arg) {
+static void allocateSGPR32Input(CCState &CCInfo, RvArgDescriptor &Arg) {
   if (Arg) {
     allocateFixedSGPRInputImpl(CCInfo, &RVGPU::SGPR_32RegClass,
                                Arg.getRegister());
@@ -2154,7 +2154,7 @@ static void allocateSGPR32Input(CCState &CCInfo, ArgDescriptor &Arg) {
     Arg = allocateSGPR32InputImpl(CCInfo, &RVGPU::SGPR_32RegClass, 32);
 }
 
-static void allocateSGPR64Input(CCState &CCInfo, ArgDescriptor &Arg) {
+static void allocateSGPR64Input(CCState &CCInfo, RvArgDescriptor &Arg) {
   if (Arg) {
     allocateFixedSGPRInputImpl(CCInfo, &RVGPU::SGPR_64RegClass,
                                Arg.getRegister());
@@ -2168,7 +2168,7 @@ void RVTargetLowering::allocateSpecialInputVGPRs(
   CCState &CCInfo, MachineFunction &MF,
   const RVRegisterInfo &TRI, RVMachineFunctionInfo &Info) const {
   const unsigned Mask = 0x3ff;
-  ArgDescriptor Arg;
+  RvArgDescriptor Arg;
 
   if (Info.hasWorkItemIDX()) {
     Arg = allocateVGPR32Input(CCInfo, Mask);
@@ -2193,9 +2193,9 @@ void RVTargetLowering::allocateSpecialInputVGPRsFixed(
     report_fatal_error("failed to allocated VGPR for implicit arguments");
 
   const unsigned Mask = 0x3ff;
-  Info.setWorkItemIDX(ArgDescriptor::createRegister(Reg, Mask));
-  Info.setWorkItemIDY(ArgDescriptor::createRegister(Reg, Mask << 10));
-  Info.setWorkItemIDZ(ArgDescriptor::createRegister(Reg, Mask << 20));
+  Info.setWorkItemIDX(RvArgDescriptor::createRegister(Reg, Mask));
+  Info.setWorkItemIDY(RvArgDescriptor::createRegister(Reg, Mask << 10));
+  Info.setWorkItemIDZ(RvArgDescriptor::createRegister(Reg, Mask << 20));
 }
 
 void RVTargetLowering::allocateSpecialInputSGPRs(
@@ -2204,7 +2204,7 @@ void RVTargetLowering::allocateSpecialInputSGPRs(
   const RVRegisterInfo &TRI,
   RVMachineFunctionInfo &Info) const {
   auto &ArgInfo = Info.getArgInfo();
-  const GCNUserSGPRUsageInfo &UserSGPRInfo = Info.getUserSGPRInfo();
+  const RVUserSGPRUsageInfo &UserSGPRInfo = Info.getUserSGPRInfo();
 
   // TODO: Unify handling with private memory pointers.
   if (UserSGPRInfo.hasDispatchPtr())
@@ -2243,7 +2243,7 @@ void RVTargetLowering::allocateHSAUserSGPRs(CCState &CCInfo,
                                             MachineFunction &MF,
                                             const RVRegisterInfo &TRI,
                                             RVMachineFunctionInfo &Info) const {
-  const GCNUserSGPRUsageInfo &UserSGPRInfo = Info.getUserSGPRInfo();
+  const RVUserSGPRUsageInfo &UserSGPRInfo = Info.getUserSGPRInfo();
   if (UserSGPRInfo.hasImplicitBufferPtr()) {
     Register ImplicitBufferPtrReg = Info.addImplicitBufferPtr(TRI);
     MF.addLiveIn(ImplicitBufferPtrReg, &RVGPU::SGPR_64RegClass);
@@ -2304,8 +2304,8 @@ void RVTargetLowering::allocatePreloadKernArgSGPRs(
     const RVRegisterInfo &TRI, RVMachineFunctionInfo &Info) const {
   Function &F = MF.getFunction();
   unsigned LastExplicitArgOffset =
-      MF.getSubtarget<GCNSubtarget>().getExplicitKernelArgOffset();
-  GCNUserSGPRUsageInfo &SGPRInfo = Info.getUserSGPRInfo();
+      MF.getSubtarget<RVSubtarget>().getExplicitKernelArgOffset();
+  RVUserSGPRUsageInfo &SGPRInfo = Info.getUserSGPRInfo();
   bool InPreloadSequence = true;
   unsigned InIdx = 0;
   for (auto &Arg : F.args()) {
@@ -2469,7 +2469,7 @@ static void reservePrivateMemoryRegs(const TargetMachine &TM,
   // should reserve the arguments and use them directly.
   MachineFrameInfo &MFI = MF.getFrameInfo();
   bool HasStackObjects = MFI.hasStackObjects();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
 
   // Record that we know we have non-spill stack objects so we don't need to
   // check all stack objects later.
@@ -2624,7 +2624,7 @@ SDValue RVTargetLowering::LowerFormalArguments(
   bool IsEntryFunc = RVGPU::isEntryFunctionCC(CallConv);
 
   if (IsGraphics) {
-    const GCNUserSGPRUsageInfo &UserSGPRInfo = Info->getUserSGPRInfo();
+    const RVUserSGPRUsageInfo &UserSGPRInfo = Info->getUserSGPRInfo();
     assert(!UserSGPRInfo.hasDispatchPtr() &&
            !UserSGPRInfo.hasKernargSegmentPtr() && !Info->hasWorkGroupInfo() &&
            !Info->hasLDSKernelId() && !Info->hasWorkItemIDX() &&
@@ -2735,8 +2735,8 @@ SDValue RVTargetLowering::LowerFormalArguments(
       if (Arg.Flags.isByRef()) {
         SDValue Ptr = lowerKernArgParameterPtr(DAG, DL, Chain, Offset);
 
-        const GCNTargetMachine &TM =
-            static_cast<const GCNTargetMachine &>(getTargetMachine());
+        const RVTargetMachine &TM =
+            static_cast<const RVTargetMachine &>(getTargetMachine());
         if (!TM.isNoopAddrSpaceCast(RVGPUAS::CONSTANT_ADDRESS,
                                     Arg.Flags.getPointerAddrSpace())) {
           Ptr = DAG.getAddrSpaceCast(DL, VT, Ptr, RVGPUAS::CONSTANT_ADDRESS,
@@ -3145,7 +3145,7 @@ void RVTargetLowering::passSpecialInputs(
   };
 
   for (auto Attr : ImplicitAttrs) {
-    const ArgDescriptor *OutgoingArg;
+    const RvArgDescriptor *OutgoingArg;
     const TargetRegisterClass *ArgRC;
     LLT ArgTy;
 
@@ -3160,7 +3160,7 @@ void RVTargetLowering::passSpecialInputs(
     if (!OutgoingArg)
       continue;
 
-    const ArgDescriptor *IncomingArg;
+    const RvArgDescriptor *IncomingArg;
     const TargetRegisterClass *IncomingArgRC;
     LLT Ty;
     std::tie(IncomingArg, IncomingArgRC, Ty) =
@@ -3206,7 +3206,7 @@ void RVTargetLowering::passSpecialInputs(
 
   // Pack workitem IDs into a single register or pass it as is if already
   // packed.
-  const ArgDescriptor *OutgoingArg;
+  const RvArgDescriptor *OutgoingArg;
   const TargetRegisterClass *ArgRC;
   LLT Ty;
 
@@ -3221,11 +3221,11 @@ void RVTargetLowering::passSpecialInputs(
   if (!OutgoingArg)
     return;
 
-  const ArgDescriptor *IncomingArgX = std::get<0>(
+  const RvArgDescriptor *IncomingArgX = std::get<0>(
       CallerArgInfo.getPreloadedValue(RVGPUFunctionArgInfo::WORKITEM_ID_X));
-  const ArgDescriptor *IncomingArgY = std::get<0>(
+  const RvArgDescriptor *IncomingArgY = std::get<0>(
       CallerArgInfo.getPreloadedValue(RVGPUFunctionArgInfo::WORKITEM_ID_Y));
-  const ArgDescriptor *IncomingArgZ = std::get<0>(
+  const RvArgDescriptor *IncomingArgZ = std::get<0>(
       CallerArgInfo.getPreloadedValue(RVGPUFunctionArgInfo::WORKITEM_ID_Z));
 
   SDValue InputReg;
@@ -3273,7 +3273,7 @@ void RVTargetLowering::passSpecialInputs(
     } else {
       // Workitem ids are already packed, any of present incoming arguments
       // will carry all required fields.
-      ArgDescriptor IncomingArg = ArgDescriptor::createArg(
+      RvArgDescriptor IncomingArg = RvArgDescriptor::createArg(
         IncomingArgX ? *IncomingArgX :
         IncomingArgY ? *IncomingArgY :
         *IncomingArgZ, ~0u);
@@ -4076,7 +4076,7 @@ emitLoadM0FromVGPRLoop(const RVInstrInfo *TII, MachineRegisterInfo &MRI,
                        Register &SGPRIdxReg) {
 
   MachineFunction *MF = OrigBB.getParent();
-  const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
   const RVRegisterInfo *TRI = ST.getRegisterInfo();
   MachineBasicBlock::iterator I = LoopBB.begin();
 
@@ -4164,7 +4164,7 @@ loadM0FromVGPR(const RVInstrInfo *TII, MachineBasicBlock &MBB, MachineInstr &MI,
                unsigned InitResultReg, unsigned PhiReg, int Offset,
                bool UseGPRIdxMode, Register &SGPRIdxReg) {
   MachineFunction *MF = MBB.getParent();
-  const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
   const RVRegisterInfo *TRI = ST.getRegisterInfo();
   MachineRegisterInfo &MRI = MF->getRegInfo();
   const DebugLoc &DL = MI.getDebugLoc();
@@ -4264,7 +4264,7 @@ static Register getIndirectSGPRIdx(const RVInstrInfo *TII,
 
 static MachineBasicBlock *emitIndirectSrc(MachineInstr &MI,
                                           MachineBasicBlock &MBB,
-                                          const GCNSubtarget &ST) {
+                                          const RVSubtarget &ST) {
   const RVInstrInfo *TII = ST.getInstrInfo();
   const RVRegisterInfo &TRI = TII->getRegisterInfo();
   MachineFunction *MF = MBB.getParent();
@@ -4350,7 +4350,7 @@ static MachineBasicBlock *emitIndirectSrc(MachineInstr &MI,
 
 static MachineBasicBlock *emitIndirectDst(MachineInstr &MI,
                                           MachineBasicBlock &MBB,
-                                          const GCNSubtarget &ST) {
+                                          const RVSubtarget &ST) {
   const RVInstrInfo *TII = ST.getInstrInfo();
   const RVRegisterInfo &TRI = TII->getRegisterInfo();
   MachineFunction *MF = MBB.getParent();
@@ -4454,7 +4454,7 @@ static MachineBasicBlock *emitIndirectDst(MachineInstr &MI,
 
 static MachineBasicBlock *lowerWaveReduce(MachineInstr &MI,
                                           MachineBasicBlock &BB,
-                                          const GCNSubtarget &ST,
+                                          const RVSubtarget &ST,
                                           unsigned Opc) {
   MachineRegisterInfo &MRI = BB.getParent()->getRegInfo();
   const RVRegisterInfo *TRI = ST.getRegisterInfo();
@@ -4602,7 +4602,7 @@ MachineBasicBlock *RVTargetLowering::EmitInstrWithCustomInserter(
   case RVGPU::S_SUB_U64_PSEUDO: {
     // For targets older than GFX12, we emit a sequence of 32-bit operations.
     // For GFX12, we emit s_add_u64 and s_sub_u64.
-    const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
     MachineRegisterInfo &MRI = BB->getParent()->getRegInfo();
     const DebugLoc &DL = MI.getDebugLoc();
     MachineOperand &Dest = MI.getOperand(0);
@@ -4651,7 +4651,7 @@ MachineBasicBlock *RVTargetLowering::EmitInstrWithCustomInserter(
   case RVGPU::V_ADD_U64_PSEUDO:
   case RVGPU::V_SUB_U64_PSEUDO: {
     MachineRegisterInfo &MRI = BB->getParent()->getRegInfo();
-    const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
     const RVRegisterInfo *TRI = ST.getRegisterInfo();
     const DebugLoc &DL = MI.getDebugLoc();
 
@@ -4734,7 +4734,7 @@ MachineBasicBlock *RVTargetLowering::EmitInstrWithCustomInserter(
     // only from uniform add/subcarry node. All the VGPR operands
     // therefore assumed to be splat vectors.
     MachineRegisterInfo &MRI = BB->getParent()->getRegInfo();
-    const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
     const RVRegisterInfo *TRI = ST.getRegisterInfo();
     MachineBasicBlock::iterator MII = MI;
     const DebugLoc &DL = MI.getDebugLoc();
@@ -4853,7 +4853,7 @@ MachineBasicBlock *RVTargetLowering::EmitInstrWithCustomInserter(
     return splitKillBlock(MI, BB);
   case RVGPU::V_CNDMASK_B64_PSEUDO: {
     MachineRegisterInfo &MRI = BB->getParent()->getRegInfo();
-    const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
     const RVRegisterInfo *TRI = ST.getRegisterInfo();
 
     Register Dst = MI.getOperand(0).getReg();
@@ -4960,7 +4960,7 @@ MachineBasicBlock *RVTargetLowering::EmitInstrWithCustomInserter(
 
     auto I = BuildMI(*BB, MI, DL, TII->get(Opc), MI.getOperand(0).getReg());
     if (TII->isVOP3(*I)) {
-      const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+      const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
       const RVRegisterInfo *TRI = ST.getRegisterInfo();
       I.addReg(TRI->getVCC(), RegState::Define);
     }
@@ -5066,7 +5066,7 @@ MachineBasicBlock *RVTargetLowering::EmitInstrWithCustomInserter(
   case RVGPU::S_INVERSE_BALLOT_U32:
   case RVGPU::S_INVERSE_BALLOT_U64: {
     MachineRegisterInfo &MRI = BB->getParent()->getRegInfo();
-    const GCNSubtarget &ST = MF->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MF->getSubtarget<RVSubtarget>();
     const RVRegisterInfo *TRI = ST.getRegisterInfo();
     const DebugLoc &DL = MI.getDebugLoc();
     const Register DstReg = MI.getOperand(0).getReg();
@@ -6144,7 +6144,7 @@ SDValue RVTargetLowering::lowerXMUL_LOHI(SDValue Op, SelectionDAG &DAG) const {
 
 SDValue RVTargetLowering::lowerTRAP(SDValue Op, SelectionDAG &DAG) const {
   if (!Subtarget->isTrapHandlerEnabled() ||
-      Subtarget->getTrapHandlerAbi() != GCNSubtarget::TrapHandlerAbi::RVHSA)
+      Subtarget->getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::RVHSA)
     return lowerTrapEndpgm(Op, DAG);
 
   return Subtarget->supportsGetDoorbellID() ? lowerTrapHsa(Op, DAG) :
@@ -6200,7 +6200,7 @@ SDValue RVTargetLowering::lowerTrapHsaQueuePtr(
   SDValue ToReg = DAG.getCopyToReg(Chain, SL, SGPR01,
                                    QueuePtr, SDValue());
 
-  uint64_t TrapID = static_cast<uint64_t>(GCNSubtarget::TrapID::LLVMRVHSATrap);
+  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMRVHSATrap);
   SDValue Ops[] = {
     ToReg,
     DAG.getTargetConstant(TrapID, SL, MVT::i16),
@@ -6215,7 +6215,7 @@ SDValue RVTargetLowering::lowerTrapHsa(
   SDLoc SL(Op);
   SDValue Chain = Op.getOperand(0);
 
-  uint64_t TrapID = static_cast<uint64_t>(GCNSubtarget::TrapID::LLVMRVHSATrap);
+  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMRVHSATrap);
   SDValue Ops[] = {
     Chain,
     DAG.getTargetConstant(TrapID, SL, MVT::i16)
@@ -6229,7 +6229,7 @@ SDValue RVTargetLowering::lowerDEBUGTRAP(SDValue Op, SelectionDAG &DAG) const {
   MachineFunction &MF = DAG.getMachineFunction();
 
   if (!Subtarget->isTrapHandlerEnabled() ||
-      Subtarget->getTrapHandlerAbi() != GCNSubtarget::TrapHandlerAbi::RVHSA) {
+      Subtarget->getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::RVHSA) {
     DiagnosticInfoUnsupported NoTrap(MF.getFunction(),
                                      "debugtrap handler not supported",
                                      Op.getDebugLoc(),
@@ -6239,7 +6239,7 @@ SDValue RVTargetLowering::lowerDEBUGTRAP(SDValue Op, SelectionDAG &DAG) const {
     return Chain;
   }
 
-  uint64_t TrapID = static_cast<uint64_t>(GCNSubtarget::TrapID::LLVMRVHSADebugTrap);
+  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMRVHSADebugTrap);
   SDValue Ops[] = {
     Chain,
     DAG.getTargetConstant(TrapID, SL, MVT::i16)
@@ -7159,7 +7159,7 @@ SDValue RVTargetLowering::lowerImage(SDValue Op,
                                      SelectionDAG &DAG, bool WithChain) const {
   SDLoc DL(Op);
   MachineFunction &MF = DAG.getMachineFunction();
-  const GCNSubtarget* ST = &MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget* ST = &MF.getSubtarget<RVSubtarget>();
   const RVGPU::MIMGBaseOpcodeInfo *BaseOpcode =
       RVGPU::getMIMGBaseOpcodeInfo(Intr->BaseOpcode);
   const RVGPU::MIMGDimInfo *DimInfo = RVGPU::getMIMGDimInfo(Intr->Dim);
@@ -7606,7 +7606,7 @@ SDValue RVTargetLowering::lowerSBuffer(EVT VT, SDLoc DL, SDValue Rsrc,
 
 SDValue RVTargetLowering::lowerWorkitemID(SelectionDAG &DAG, SDValue Op,
                                           unsigned Dim,
-                                          const ArgDescriptor &Arg) const {
+                                          const RvArgDescriptor &Arg) const {
   SDLoc SL(Op);
   MachineFunction &MF = DAG.getMachineFunction();
   unsigned MaxID = Subtarget->getMaxWorkitemID(MF.getFunction(), Dim);
@@ -7727,7 +7727,7 @@ SDValue RVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
   case Intrinsic::rvgpu_workitem_id_z:
     return lowerWorkitemID(DAG, Op, 2, MFI->getArgInfo().WorkItemIDZ);
   case Intrinsic::rvgpu_wavefrontsize:
-    return DAG.getConstant(MF.getSubtarget<GCNSubtarget>().getWavefrontSize(),
+    return DAG.getConstant(MF.getSubtarget<RVSubtarget>().getWavefrontSize(),
                            SDLoc(Op), MVT::i32);
   case Intrinsic::rvgpu_s_buffer_load: {
     unsigned CPol = cast<ConstantSDNode>(Op.getOperand(3))->getZExtValue();
@@ -7906,7 +7906,7 @@ SDValue RVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
 // On targets not supporting constant in soffset field, turn zero to
 // SGPR_NULL to avoid generating an extra s_mov with zero.
 static SDValue selectSOffset(SDValue SOffset, SelectionDAG &DAG,
-                             const GCNSubtarget *Subtarget) {
+                             const RVSubtarget *Subtarget) {
   if (Subtarget->hasRestrictedSOffset())
     if (auto SOffsetConst = dyn_cast<ConstantSDNode>(SOffset)) {
       if (SOffsetConst->isZero()) {
@@ -8855,7 +8855,7 @@ SDValue RVTargetLowering::LowerINTRINSIC_VOID(SDValue Op,
     return SDValue(DAG.getMachineNode(Opc, DL, Op->getVTList(), Ops), 0);
   }
   case Intrinsic::rvgpu_s_barrier: {
-    const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
     if (getTargetMachine().getOptLevel() > CodeGenOptLevel::None) {
       unsigned WGSize = ST.getFlatWorkGroupSizes(MF.getFunction()).second;
       if (WGSize <= ST.getWavefrontSize())
@@ -10003,7 +10003,7 @@ SDValue RVTargetLowering::lowerFDIV_FAST(SDValue Op, SelectionDAG &DAG) const {
 // S_DENORM_MODE instruction.
 static SDValue getSPDenormModeValue(uint32_t SPDenormMode, SelectionDAG &DAG,
                                     const RVMachineFunctionInfo *Info,
-                                    const GCNSubtarget *ST) {
+                                    const RVSubtarget *ST) {
   assert(ST->hasDenormModeInst() && "Requires S_DENORM_MODE");
   uint32_t DPDenormModeDefault = Info->getMode().fpDenormModeDPValue();
   uint32_t Mode = SPDenormMode | (DPDenormModeDefault << 2);
@@ -10801,7 +10801,7 @@ SDValue RVTargetLowering::splitBinaryBitConstantOp(
   return SDValue();
 }
 
-bool llvm::isBoolSGPR(SDValue V) {
+bool llvm::rvIsBoolSGPR(SDValue V) {
   if (V.getValueType() != MVT::i1)
     return false;
   switch (V.getOpcode()) {
@@ -10813,7 +10813,7 @@ bool llvm::isBoolSGPR(SDValue V) {
   case ISD::AND:
   case ISD::OR:
   case ISD::XOR:
-    return isBoolSGPR(V.getOperand(0)) && isBoolSGPR(V.getOperand(1));
+    return rvIsBoolSGPR(V.getOperand(0)) && rvIsBoolSGPR(V.getOperand(1));
   }
   return false;
 }
@@ -11012,7 +11012,7 @@ SDValue RVTargetLowering::performAndCombine(SDNode *N,
     // and x, (sext cc from i1) => select cc, x, 0
     if (RHS.getOpcode() != ISD::SIGN_EXTEND)
       std::swap(LHS, RHS);
-    if (isBoolSGPR(RHS.getOperand(0)))
+    if (rvIsBoolSGPR(RHS.getOperand(0)))
       return DAG.getSelect(SDLoc(N), MVT::i32, RHS.getOperand(0),
                            LHS, DAG.getConstant(0, SDLoc(N), MVT::i32));
   }
@@ -12568,7 +12568,7 @@ SDValue RVTargetLowering::performCvtPkRTZCombine(SDNode *N,
 bool RVTargetLowering::shouldExpandVectorDynExt(unsigned EltSize,
                                                 unsigned NumElem,
                                                 bool IsDivergentIdx,
-                                                const GCNSubtarget *Subtarget) {
+                                                const RVSubtarget *Subtarget) {
   if (UseDivergentRegisterIndexing)
     return false;
 
@@ -13447,7 +13447,7 @@ SDValue RVTargetLowering::performAddCombine(SDNode *N,
     auto Cond = RHS.getOperand(0);
     // If this won't be a real VOPC output, we would still need to insert an
     // extra instruction anyway.
-    if (!isBoolSGPR(Cond))
+    if (!rvIsBoolSGPR(Cond))
       break;
     SDVTList VTList = DAG.getVTList(MVT::i32, MVT::i1);
     SDValue Args[] = { LHS, DAG.getConstant(0, SL, MVT::i32), Cond };
@@ -13488,7 +13488,7 @@ SDValue RVTargetLowering::performSubCombine(SDNode *N,
     auto Cond = RHS.getOperand(0);
     // If this won't be a real VOPC output, we would still need to insert an
     // extra instruction anyway.
-    if (!isBoolSGPR(Cond))
+    if (!rvIsBoolSGPR(Cond))
       break;
     SDVTList VTList = DAG.getVTList(MVT::i32, MVT::i1);
     SDValue Args[] = { LHS, DAG.getConstant(0, SL, MVT::i32), Cond };
@@ -13751,7 +13751,7 @@ SDValue RVTargetLowering::performSetCCCombine(SDNode *N,
 
   if (CRHS) {
     if (VT == MVT::i32 && LHS.getOpcode() == ISD::SIGN_EXTEND &&
-        isBoolSGPR(LHS.getOperand(0))) {
+        rvIsBoolSGPR(LHS.getOperand(0))) {
       // setcc (sext from i1 cc), -1, ne|sgt|ult) => not cc => xor cc, -1
       // setcc (sext from i1 cc), -1, eq|sle|uge) => cc
       // setcc (sext from i1 cc),  0, eq|sge|ule) => not cc => xor cc, -1
@@ -13775,7 +13775,7 @@ SDValue RVTargetLowering::performSetCCCombine(SDNode *N,
         isa<ConstantSDNode>(LHS.getOperand(1)) &&
         isa<ConstantSDNode>(LHS.getOperand(2)) &&
         LHS.getConstantOperandVal(1) != LHS.getConstantOperandVal(2) &&
-        isBoolSGPR(LHS.getOperand(0))) {
+        rvIsBoolSGPR(LHS.getOperand(0))) {
       // Given CT != FT:
       // setcc (select cc, CT, CF), CF, eq => xor cc, -1
       // setcc (select cc, CT, CF), CF, ne => cc
@@ -14880,7 +14880,7 @@ static int getAlignedAGPRClassID(unsigned UnalignedClassID) {
 void RVTargetLowering::finalizeLowering(MachineFunction &MF) const {
   MachineRegisterInfo &MRI = MF.getRegInfo();
   RVMachineFunctionInfo *Info = MF.getInfo<RVMachineFunctionInfo>();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVRegisterInfo *TRI = Subtarget->getRegisterInfo();
   const RVInstrInfo *TII = ST.getInstrInfo();
 
@@ -14954,8 +14954,8 @@ void RVTargetLowering::computeKnownBitsForTargetNode(const SDValue Op,
     switch (IID) {
     case Intrinsic::rvgpu_mbcnt_lo:
     case Intrinsic::rvgpu_mbcnt_hi: {
-      const GCNSubtarget &ST =
-          DAG.getMachineFunction().getSubtarget<GCNSubtarget>();
+      const RVSubtarget &ST =
+          DAG.getMachineFunction().getSubtarget<RVSubtarget>();
       // These return at most the (wavefront size - 1) + src1
       // As long as src1 is an immediate we can calc known bits
       KnownBits Src1Known = DAG.computeKnownBits(Op.getOperand(2), Depth + 1);
@@ -14986,7 +14986,7 @@ void RVTargetLowering::computeKnownBitsForFrameIndex(
   Known.Zero.setHighBits(getSubtarget()->getKnownHighZeroBitsForFrameIndex());
 }
 
-static void knownBitsForWorkitemID(const GCNSubtarget &ST, GISelKnownBits &KB,
+static void knownBitsForWorkitemID(const RVSubtarget &ST, GISelKnownBits &KB,
                                    KnownBits &Known, unsigned Dim) {
   unsigned MaxValue =
       ST.getMaxWorkitemID(KB.getMachineFunction().getFunction(), Dim);
@@ -15286,7 +15286,7 @@ static bool fpModeMatchesGlobalFPAtomicMode(const AtomicRMWInst *RMW) {
 // floating point atomic instructions. May generate more efficient code,
 // but may not respect rounding and denormal modes, and may give incorrect
 // results for certain memory destinations.
-bool unsafeFPAtomicsDisabled(Function *F) {
+bool rvUnsafeFPAtomicsDisabled(Function *F) {
   return F->getFnAttribute("rvgpu-unsafe-fp-atomics").getValueAsString() !=
          "true";
 }
@@ -15336,7 +15336,7 @@ RVTargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *RMW) const {
       if (Subtarget->hasGFX940Insts())
         return AtomicExpansionKind::None;
 
-      if (unsafeFPAtomicsDisabled(RMW->getFunction()))
+      if (rvUnsafeFPAtomicsDisabled(RMW->getFunction()))
         return AtomicExpansionKind::CmpXChg;
 
       // Always expand system scope fp atomics.
@@ -15404,7 +15404,7 @@ RVTargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *RMW) const {
   case AtomicRMWInst::UMax: {
     if (RVGPU::isFlatGlobalAddrSpace(AS)) {
       if (RMW->getType()->isFloatTy() &&
-          unsafeFPAtomicsDisabled(RMW->getFunction()))
+          rvUnsafeFPAtomicsDisabled(RMW->getFunction()))
         return AtomicExpansionKind::CmpXChg;
 
       // Always expand system scope min/max atomics.

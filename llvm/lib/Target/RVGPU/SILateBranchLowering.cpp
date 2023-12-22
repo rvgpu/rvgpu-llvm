@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "llvm/CodeGen/MachineDominators.h"
@@ -82,7 +82,7 @@ static void generateEndPgm(MachineBasicBlock &MBB,
 
   if (IsPS && (HasExports || MustExport)) {
     // Generate "null export" if hardware is expecting PS to export.
-    const GCNSubtarget &ST = MBB.getParent()->getSubtarget<GCNSubtarget>();
+    const RVSubtarget &ST = MBB.getParent()->getSubtarget<RVSubtarget>();
     int Target =
         ST.hasNullExportTarget()
             ? RVGPU::Exp::ET_NULL
@@ -146,7 +146,7 @@ void SILateBranchLowering::earlyTerm(MachineInstr &MI,
 }
 
 bool SILateBranchLowering::runOnMachineFunction(MachineFunction &MF) {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   TII = ST.getInstrInfo();
   TRI = &TII->getRegisterInfo();
   MDT = &getAnalysis<MachineDominatorTree>();

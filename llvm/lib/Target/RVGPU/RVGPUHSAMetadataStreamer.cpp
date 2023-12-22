@@ -17,7 +17,7 @@
 #include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUTargetStreamer.h"
 #include "RVMachineFunctionInfo.h"
-#include "SIProgramInfo.h"
+#include "RVProgramInfo.h"
 #include "llvm/IR/Module.h"
 using namespace llvm;
 
@@ -456,7 +456,7 @@ void MetadataStreamerMsgPackV4::emitHiddenKernelArgs(
 
 msgpack::MapDocNode
 MetadataStreamerMsgPackV4::getHSAKernelProps(const MachineFunction &MF,
-                                             const SIProgramInfo &ProgramInfo,
+                                             const RVProgramInfo &ProgramInfo,
                                              unsigned CodeObjectVersion) const {
   const RVSubtarget &STM = MF.getSubtarget<RVSubtarget>();
   const RVMachineFunctionInfo &MFI = *MF.getInfo<RVMachineFunctionInfo>();
@@ -526,7 +526,7 @@ void MetadataStreamerMsgPackV4::end() {
 }
 
 void MetadataStreamerMsgPackV4::emitKernel(const MachineFunction &MF,
-                                           const SIProgramInfo &ProgramInfo) {
+                                           const RVProgramInfo &ProgramInfo) {
   auto &Func = MF.getFunction();
   if (Func.getCallingConv() != CallingConv::RVGPU_KERNEL &&
       Func.getCallingConv() != CallingConv::SPIR_KERNEL)

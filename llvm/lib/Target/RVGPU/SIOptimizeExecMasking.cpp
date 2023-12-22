@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVRegisterInfo.h"
 #include "llvm/ADT/SmallVector.h"
@@ -25,7 +25,7 @@ namespace {
 
 class SIOptimizeExecMasking : public MachineFunctionPass {
   MachineFunction *MF = nullptr;
-  const GCNSubtarget *ST = nullptr;
+  const RVSubtarget *ST = nullptr;
   const RVRegisterInfo *TRI = nullptr;
   const RVInstrInfo *TII = nullptr;
   const MachineRegisterInfo *MRI = nullptr;
@@ -791,7 +791,7 @@ bool SIOptimizeExecMasking::runOnMachineFunction(MachineFunction &MF) {
     return false;
 
   this->MF = &MF;
-  ST = &MF.getSubtarget<GCNSubtarget>();
+  ST = &MF.getSubtarget<RVSubtarget>();
   TRI = ST->getRegisterInfo();
   TII = ST->getInstrInfo();
   MRI = &MF.getRegInfo();

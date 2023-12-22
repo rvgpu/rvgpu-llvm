@@ -14,7 +14,7 @@
 #include "RVGPU.h"
 #include "RVGPUCombinerHelper.h"
 #include "RVGPULegalizerInfo.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/CodeGen/GlobalISel/CSEInfo.h"
 #include "llvm/CodeGen/GlobalISel/Combiner.h"
@@ -44,7 +44,7 @@ namespace {
 class RVGPUPreLegalizerCombinerImpl : public Combiner {
 protected:
   const RVGPUPreLegalizerCombinerImplRuleConfig &RuleConfig;
-  const GCNSubtarget &STI;
+  const RVSubtarget &STI;
   // TODO: Make CombinerHelper methods const.
   mutable RVGPUCombinerHelper Helper;
 
@@ -53,7 +53,7 @@ public:
       MachineFunction &MF, CombinerInfo &CInfo, const TargetPassConfig *TPC,
       GISelKnownBits &KB, GISelCSEInfo *CSEInfo,
       const RVGPUPreLegalizerCombinerImplRuleConfig &RuleConfig,
-      const GCNSubtarget &STI, MachineDominatorTree *MDT,
+      const RVSubtarget &STI, MachineDominatorTree *MDT,
       const LegalizerInfo *LI);
 
   static const char *getName() { return "RVGPUPreLegalizerCombinerImpl"; }
@@ -76,14 +76,14 @@ public:
 
 private:
 #define GET_GICOMBINER_CLASS_MEMBERS
-#define RVGPUSubtarget GCNSubtarget
+#define RVGPUSubtarget RVSubtarget
 #include "RVGPUGenPreLegalizeGICombiner.inc"
 #undef GET_GICOMBINER_CLASS_MEMBERS
 #undef RVGPUSubtarget
 };
 
 #define GET_GICOMBINER_IMPL
-#define RVGPUSubtarget GCNSubtarget
+#define RVGPUSubtarget RVSubtarget
 #include "RVGPUGenPreLegalizeGICombiner.inc"
 #undef RVGPUSubtarget
 #undef GET_GICOMBINER_IMPL
@@ -92,7 +92,7 @@ RVGPUPreLegalizerCombinerImpl::RVGPUPreLegalizerCombinerImpl(
     MachineFunction &MF, CombinerInfo &CInfo, const TargetPassConfig *TPC,
     GISelKnownBits &KB, GISelCSEInfo *CSEInfo,
     const RVGPUPreLegalizerCombinerImplRuleConfig &RuleConfig,
-    const GCNSubtarget &STI, MachineDominatorTree *MDT, const LegalizerInfo *LI)
+    const RVSubtarget &STI, MachineDominatorTree *MDT, const LegalizerInfo *LI)
     : Combiner(MF, CInfo, TPC, &KB, CSEInfo), RuleConfig(RuleConfig), STI(STI),
       Helper(Observer, B, /*IsPreLegalize*/ true, &KB, MDT, LI),
 #define GET_GICOMBINER_CONSTRUCTOR_INITS
@@ -274,7 +274,7 @@ bool RVGPUPreLegalizerCombiner::runOnMachineFunction(MachineFunction &MF) {
       getAnalysis<GISelCSEAnalysisWrapperPass>().getCSEWrapper();
   auto *CSEInfo = &Wrapper.get(TPC->getCSEConfig());
 
-  const GCNSubtarget &STI = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &STI = MF.getSubtarget<RVSubtarget>();
   MachineDominatorTree *MDT =
       IsOptNone ? nullptr : &getAnalysis<MachineDominatorTree>();
   CombinerInfo CInfo(/*AllowIllegalOps*/ true, /*ShouldLegalizeIllegal*/ false,

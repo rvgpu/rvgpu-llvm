@@ -16,7 +16,7 @@
 #include "RVGPUArgumentUsageInfo.h"
 #include "RVGPUMachineFunction.h"
 #include "RVGPUTargetMachine.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVInstrInfo.h"
 #include "SIModeRegisterDefaults.h"
@@ -374,7 +374,7 @@ public:
 /// tells the hardware which interpolation parameters to load.
 class RVMachineFunctionInfo final : public RVGPUMachineFunction,
                                     private MachineRegisterInfo::Delegate {
-  friend class GCNTargetMachine;
+  friend class RVTargetMachine;
 
   // State of MODE register, assumed FP mode.
   SIModeRegisterDefaults Mode;
@@ -440,7 +440,7 @@ private:
 
   // Tracks information about user SGPRs that will be setup by hardware which
   // will apply to all wavefronts of the grid.
-  GCNUserSGPRUsageInfo UserSGPRInfo;
+  RVUserSGPRUsageInfo UserSGPRInfo;
 
   // Feature bits required for inputs passed in system SGPRs.
   bool WorkGroupIDX : 1; // Always initialized.
@@ -563,7 +563,7 @@ public:
 
 public:
   RVMachineFunctionInfo(const RVMachineFunctionInfo &MFI) = default;
-  RVMachineFunctionInfo(const Function &F, const GCNSubtarget *STI);
+  RVMachineFunctionInfo(const Function &F, const RVSubtarget *STI);
 
   MachineFunctionInfo *
   clone(BumpPtrAllocator &Allocator, MachineFunction &DestMF,
@@ -595,9 +595,9 @@ public:
     return PrologEpilogSGPRSpills;
   }
 
-  GCNUserSGPRUsageInfo &getUserSGPRInfo() { return UserSGPRInfo; }
+  RVUserSGPRUsageInfo &getUserSGPRInfo() { return UserSGPRInfo; }
 
-  const GCNUserSGPRUsageInfo &getUserSGPRInfo() const { return UserSGPRInfo; }
+  const RVUserSGPRUsageInfo &getUserSGPRInfo() const { return UserSGPRInfo; }
 
   void addToPrologEpilogSGPRSpills(Register Reg,
                                    PrologEpilogSGPRSaveRestoreInfo SI) {
@@ -747,7 +747,7 @@ public:
   Register addWorkGroupIDX(bool HasArchitectedSGPRs) {
     Register Reg =
         HasArchitectedSGPRs ? (MCPhysReg)RVGPU::TTMP9 : getNextSystemSGPR();
-    ArgInfo.WorkGroupIDX = ArgDescriptor::createRegister(Reg);
+    ArgInfo.WorkGroupIDX = RvArgDescriptor::createRegister(Reg);
     if (!HasArchitectedSGPRs)
       NumSystemSGPRs += 1;
 
@@ -758,7 +758,7 @@ public:
     Register Reg =
         HasArchitectedSGPRs ? (MCPhysReg)RVGPU::TTMP7 : getNextSystemSGPR();
     unsigned Mask = HasArchitectedSGPRs && hasWorkGroupIDZ() ? 0xffff : ~0u;
-    ArgInfo.WorkGroupIDY = ArgDescriptor::createRegister(Reg, Mask);
+    ArgInfo.WorkGroupIDY = RvArgDescriptor::createRegister(Reg, Mask);
     if (!HasArchitectedSGPRs)
       NumSystemSGPRs += 1;
 
@@ -769,7 +769,7 @@ public:
     Register Reg =
         HasArchitectedSGPRs ? (MCPhysReg)RVGPU::TTMP7 : getNextSystemSGPR();
     unsigned Mask = HasArchitectedSGPRs ? 0xffff << 16 : ~0u;
-    ArgInfo.WorkGroupIDZ = ArgDescriptor::createRegister(Reg, Mask);
+    ArgInfo.WorkGroupIDZ = RvArgDescriptor::createRegister(Reg, Mask);
     if (!HasArchitectedSGPRs)
       NumSystemSGPRs += 1;
 
@@ -777,7 +777,7 @@ public:
   }
 
   Register addWorkGroupInfo() {
-    ArgInfo.WorkGroupInfo = ArgDescriptor::createRegister(getNextSystemSGPR());
+    ArgInfo.WorkGroupInfo = RvArgDescriptor::createRegister(getNextSystemSGPR());
     NumSystemSGPRs += 1;
     return ArgInfo.WorkGroupInfo.getRegister();
   }
@@ -785,27 +785,27 @@ public:
   bool hasLDSKernelId() const { return LDSKernelId; }
 
   // Add special VGPR inputs
-  void setWorkItemIDX(ArgDescriptor Arg) {
+  void setWorkItemIDX(RvArgDescriptor Arg) {
     ArgInfo.WorkItemIDX = Arg;
   }
 
-  void setWorkItemIDY(ArgDescriptor Arg) {
+  void setWorkItemIDY(RvArgDescriptor Arg) {
     ArgInfo.WorkItemIDY = Arg;
   }
 
-  void setWorkItemIDZ(ArgDescriptor Arg) {
+  void setWorkItemIDZ(RvArgDescriptor Arg) {
     ArgInfo.WorkItemIDZ = Arg;
   }
 
   Register addPrivateSegmentWaveByteOffset() {
     ArgInfo.PrivateSegmentWaveByteOffset
-      = ArgDescriptor::createRegister(getNextSystemSGPR());
+      = RvArgDescriptor::createRegister(getNextSystemSGPR());
     NumSystemSGPRs += 1;
     return ArgInfo.PrivateSegmentWaveByteOffset.getRegister();
   }
 
   void setPrivateSegmentWaveByteOffset(Register Reg) {
-    ArgInfo.PrivateSegmentWaveByteOffset = ArgDescriptor::createRegister(Reg);
+    ArgInfo.PrivateSegmentWaveByteOffset = RvArgDescriptor::createRegister(Reg);
   }
 
   bool hasWorkGroupIDX() const {
@@ -852,7 +852,7 @@ public:
     return ArgInfo;
   }
 
-  std::tuple<const ArgDescriptor *, const TargetRegisterClass *, LLT>
+  std::tuple<const RvArgDescriptor *, const TargetRegisterClass *, LLT>
   getPreloadedValue(RVGPUFunctionArgInfo::PreloadedValue Value) const {
     return ArgInfo.getPreloadedValue(Value);
   }

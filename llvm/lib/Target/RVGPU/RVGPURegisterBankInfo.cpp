@@ -73,7 +73,7 @@
 #include "RVGPU.h"
 #include "RVGPUGlobalISelUtils.h"
 #include "RVGPUInstrInfo.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "RVMachineFunctionInfo.h"
 #include "RVRegisterInfo.h"
 #include "llvm/CodeGen/GlobalISel/GenericMachineInstrs.h"
@@ -201,7 +201,7 @@ public:
 
 }
 
-RVGPURegisterBankInfo::RVGPURegisterBankInfo(const GCNSubtarget &ST)
+RVGPURegisterBankInfo::RVGPURegisterBankInfo(const RVSubtarget &ST)
     : Subtarget(ST), TRI(Subtarget.getRegisterInfo()),
       TII(Subtarget.getInstrInfo()) {
 
@@ -1161,7 +1161,7 @@ bool RVGPURegisterBankInfo::applyMappingDynStackAlloc(
     MachineInstr &MI) const {
   MachineRegisterInfo &MRI = *B.getMRI();
   const MachineFunction &MF = B.getMF();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const auto &TFI = *ST.getFrameLowering();
 
   // Guard in case the stack growth direction ever changes with scratch

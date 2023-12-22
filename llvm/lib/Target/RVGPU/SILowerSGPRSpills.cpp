@@ -16,7 +16,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
-#include "GCNSubtarget.h"
+#include "RVSubtarget.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVMachineFunctionInfo.h"
 #include "llvm/CodeGen/LiveIntervals.h"
@@ -90,7 +90,7 @@ static void insertCSRSaves(MachineBasicBlock &SaveBlock,
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVRegisterInfo *RI = ST.getRegisterInfo();
 
   MachineBasicBlock::iterator I = SaveBlock.begin();
@@ -133,7 +133,7 @@ static void insertCSRRestores(MachineBasicBlock &RestoreBlock,
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVRegisterInfo *RI = ST.getRegisterInfo();
   // Restore all registers immediately before the return and any
   // terminators that precede it.
@@ -210,7 +210,7 @@ bool SILowerSGPRSpills::spillCalleeSavedRegs(
     MachineFunction &MF, SmallVectorImpl<int> &CalleeSavedFIs) {
   MachineRegisterInfo &MRI = MF.getRegInfo();
   const Function &F = MF.getFunction();
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   const RVFrameLowering *TFI = ST.getFrameLowering();
   MachineFrameInfo &MFI = MF.getFrameInfo();
   RegScavenger *RS = nullptr;
@@ -306,7 +306,7 @@ void SILowerSGPRSpills::extendWWMVirtRegLiveness(MachineFunction &MF,
 }
 
 bool SILowerSGPRSpills::runOnMachineFunction(MachineFunction &MF) {
-  const GCNSubtarget &ST = MF.getSubtarget<GCNSubtarget>();
+  const RVSubtarget &ST = MF.getSubtarget<RVSubtarget>();
   TII = ST.getInstrInfo();
   TRI = &TII->getRegisterInfo();
 

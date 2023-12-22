@@ -23,7 +23,7 @@
 
 namespace llvm {
 
-class GCNSubtarget;
+class RVSubtarget;
 class LiveIntervals;
 class LiveRegUnits;
 class RegisterBank;
@@ -31,7 +31,7 @@ struct SGPRSpillBuilder;
 
 class RVRegisterInfo final : public RVGPUGenRegisterInfo {
 private:
-  const GCNSubtarget &ST;
+  const RVSubtarget &ST;
   bool SpillSGPRToVGPR;
   bool isWave32;
   BitVector RegPressureIgnoredUnits;
@@ -51,7 +51,7 @@ private:
   void reserveRegisterTuples(BitVector &, MCRegister Reg) const;
 
 public:
-  RVRegisterInfo(const GCNSubtarget &ST);
+  RVRegisterInfo(const RVSubtarget &ST);
 
   struct SpilledReg {
     Register VGPR;
