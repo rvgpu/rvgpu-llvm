@@ -30,6 +30,7 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   case amdgcn:         return "amdgcn";
   case amdil64:        return "amdil64";
   case amdil:          return "amdil";
+  case rvgpu:         return "rvgpu";
   case arc:            return "arc";
   case arm:            return "arm";
   case armeb:          return "armeb";
@@ -154,6 +155,7 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
 
   case amdgcn:      return "amdgcn";
   case r600:        return "r600";
+  case rvgpu:      return "rvgpu";
 
   case bpfel:
   case bpfeb:       return "bpf";
@@ -239,6 +241,8 @@ StringRef Triple::getOSTypeName(OSType Kind) {
   case AIX: return "aix";
   case AMDHSA: return "amdhsa";
   case AMDPAL: return "amdpal";
+  case RVHSA: return "rvhsa";
+  case RVPAL: return "rvpal";
   case CUDA: return "cuda";
   case Darwin: return "darwin";
   case DragonFly: return "dragonfly";
@@ -383,6 +387,7 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     .Case("ppc64le", ppc64le)
     .Case("r600", r600)
     .Case("amdgcn", amdgcn)
+    .Case("rvgpu", rvgpu)
     .Case("riscv32", riscv32)
     .Case("riscv64", riscv64)
     .Case("hexagon", hexagon)
@@ -530,6 +535,7 @@ static Triple::ArchType parseArch(StringRef ArchName) {
            "mipsn32r6el", Triple::mips64el)
     .Case("r600", Triple::r600)
     .Case("amdgcn", Triple::amdgcn)
+    .Case("rvgpu", Triple::rvgpu)
     .Case("riscv32", Triple::riscv32)
     .Case("riscv64", Triple::riscv64)
     .Case("hexagon", Triple::hexagon)
@@ -628,6 +634,7 @@ static Triple::OSType parseOS(StringRef OSName) {
     .StartsWith("cuda", Triple::CUDA)
     .StartsWith("nvcl", Triple::NVCL)
     .StartsWith("amdhsa", Triple::AMDHSA)
+    .StartsWith("rvhsa", Triple::RVHSA)
     .StartsWith("ps4", Triple::PS4)
     .StartsWith("ps5", Triple::PS5)
     .StartsWith("elfiamcu", Triple::ELFIAMCU)
@@ -836,6 +843,7 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
     }
   case Triple::aarch64_be:
   case Triple::amdgcn:
+  case Triple::rvgpu:
   case Triple::amdil64:
   case Triple::amdil:
   case Triple::arc:
@@ -1442,6 +1450,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::aarch64:
   case llvm::Triple::aarch64_be:
   case llvm::Triple::amdgcn:
+  case llvm::Triple::rvgpu:
   case llvm::Triple::amdil64:
   case llvm::Triple::bpfeb:
   case llvm::Triple::bpfel:
@@ -1485,6 +1494,7 @@ Triple Triple::get32BitArchVariant() const {
   switch (getArch()) {
   case Triple::UnknownArch:
   case Triple::amdgcn:
+  case Triple::rvgpu:
   case Triple::avr:
   case Triple::bpfeb:
   case Triple::bpfel:
@@ -1587,6 +1597,7 @@ Triple Triple::get64BitArchVariant() const {
   case Triple::aarch64:
   case Triple::aarch64_be:
   case Triple::amdgcn:
+  case Triple::rvgpu:
   case Triple::amdil64:
   case Triple::bpfeb:
   case Triple::bpfel:
@@ -1650,6 +1661,7 @@ Triple Triple::getBigEndianArchVariant() const {
   switch (getArch()) {
   case Triple::UnknownArch:
   case Triple::amdgcn:
+  case Triple::rvgpu:
   case Triple::amdil64:
   case Triple::amdil:
   case Triple::avr:
@@ -1752,6 +1764,7 @@ bool Triple::isLittleEndian() const {
   case Triple::aarch64:
   case Triple::aarch64_32:
   case Triple::amdgcn:
+  case Triple::rvgpu:
   case Triple::amdil64:
   case Triple::amdil:
   case Triple::arm:

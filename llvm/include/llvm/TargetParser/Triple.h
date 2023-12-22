@@ -107,7 +107,8 @@ public:
     renderscript32, // 32-bit RenderScript
     renderscript64, // 64-bit RenderScript
     ve,             // NEC SX-Aurora Vector Engine
-    LastArchType = ve
+    rvgpu,          //  risc gpu
+    LastArchType = rvgpu
   };
   enum SubArchType {
     NoSubArch,
@@ -181,7 +182,8 @@ public:
     Mesa,
     SUSE,
     OpenEmbedded,
-    LastVendorType = OpenEmbedded
+    sietium,
+    LastVendorType = sietium
   };
   enum OSType {
     UnknownOS,
@@ -223,7 +225,10 @@ public:
     ShaderModel, // DirectX ShaderModel
     LiteOS,
     Serenity,
-    LastOSType = Serenity
+    RVHSA,     // AMD HSA Runtime
+    RVPAL,     // AMD HSA Runtime
+    SS,
+    LastOSType = SS
   };
   enum EnvironmentType {
     UnknownEnvironment,
@@ -804,7 +809,10 @@ public:
   bool isAMDGPU() const {
     return getArch() == Triple::r600 || getArch() == Triple::amdgcn;
   }
-
+ 
+  bool isRVGPU() const {
+      return getArch() == Triple::rvgpu;
+  }
   /// Tests whether the target is Thumb (little and big endian).
   bool isThumb() const {
     return getArch() == Triple::thumb || getArch() == Triple::thumbeb;

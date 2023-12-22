@@ -33,6 +33,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/IntrinsicsAArch64.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/IR/IntrinsicsARM.h"
 #include "llvm/IR/IntrinsicsBPF.h"
 #include "llvm/IR/IntrinsicsDirectX.h"

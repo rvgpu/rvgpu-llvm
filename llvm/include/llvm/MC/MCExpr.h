@@ -341,6 +341,14 @@ public:
     VK_AMDGPU_REL64,         // symbol@rel64
     VK_AMDGPU_ABS32_LO,      // symbol@abs32@lo
     VK_AMDGPU_ABS32_HI,      // symbol@abs32@hi
+    
+    VK_RVGPU_GOTPCREL32_LO, // symbol@gotpcrel32@lo
+    VK_RVGPU_GOTPCREL32_HI, // symbol@gotpcrel32@hi
+    VK_RVGPU_REL32_LO,      // symbol@rel32@lo
+    VK_RVGPU_REL32_HI,      // symbol@rel32@hi
+    VK_RVGPU_REL64,         // symbol@rel64
+    VK_RVGPU_ABS32_LO,      // symbol@abs32@lo
+    VK_RVGPU_ABS32_HI,      // symbol@abs32@hi
 
     VK_VE_HI32,        // symbol@hi
     VK_VE_LO32,        // symbol@lo
