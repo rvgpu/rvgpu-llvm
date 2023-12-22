@@ -251,6 +251,30 @@ namespace CallingConv {
     /// Used by GraalVM. Two additional registers are reserved.
     GRAAL = 107,
 
+    RVGPU_KERNEL = 110,
+    /// Used for Mesa vertex shaders, or AMDPAL last shader stage before
+    /// rasterization (vertex shader if tessellation and geometry are not in
+    /// use, or otherwise copy shader if one is needed).
+    RVGPU_VS = 111,
+
+    /// Used for Mesa/AMDPAL geometry shaders.
+    RVGPU_GS = 112,
+
+    /// Used for Mesa/AMDPAL pixel shaders.
+    RVGPU_PS = 113,
+
+    /// Used for Mesa/AMDPAL compute shaders.
+    RVGPU_CS = 114,
+    RVGPU_Gfx = 115,
+    RVGPU_LS = 116,
+    RVGPU_CS_Chain = 117,
+    RVGPU_ES = 118,
+
+    /// Used on AMDGPUs to give the middle-end more control over argument
+    /// placement. Preserves active lane values for input VGPRs.
+    RVGPU_CS_ChainPreserve = 119,
+    RVGPU_HS = 120,
+
     /// The highest possible ID. Must be some 2^k - 1.
     MaxID = 1023
   };

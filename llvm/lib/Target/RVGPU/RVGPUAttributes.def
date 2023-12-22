@@ -1,0 +1,34 @@
+//===--- RVGPUAttributes.def ---------------------------------*- C++ -*---===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains descriptions of the various function attributes
+// that indicate *absence* of the corresponding implicit kernel
+// arguments.
+//
+//===----------------------------------------------------------------------===//
+
+// NOTE: NO INCLUDE GUARD DESIRED!
+
+RVGPU_ATTRIBUTE(DISPATCH_PTR, "rvgpu-no-dispatch-ptr")
+RVGPU_ATTRIBUTE(QUEUE_PTR, "rvgpu-no-queue-ptr")
+RVGPU_ATTRIBUTE(DISPATCH_ID, "rvgpu-no-dispatch-id")
+RVGPU_ATTRIBUTE(IMPLICIT_ARG_PTR, "rvgpu-no-implicitarg-ptr")
+RVGPU_ATTRIBUTE(MULTIGRID_SYNC_ARG, "rvgpu-no-multigrid-sync-arg")
+RVGPU_ATTRIBUTE(HOSTCALL_PTR, "rvgpu-no-hostcall-ptr")
+RVGPU_ATTRIBUTE(HEAP_PTR, "rvgpu-no-heap-ptr")
+RVGPU_ATTRIBUTE(WORKGROUP_ID_X, "rvgpu-no-workgroup-id-x")
+RVGPU_ATTRIBUTE(WORKGROUP_ID_Y, "rvgpu-no-workgroup-id-y")
+RVGPU_ATTRIBUTE(WORKGROUP_ID_Z, "rvgpu-no-workgroup-id-z")
+RVGPU_ATTRIBUTE(WORKITEM_ID_X, "rvgpu-no-workitem-id-x")
+RVGPU_ATTRIBUTE(WORKITEM_ID_Y, "rvgpu-no-workitem-id-y")
+RVGPU_ATTRIBUTE(WORKITEM_ID_Z, "rvgpu-no-workitem-id-z")
+RVGPU_ATTRIBUTE(LDS_KERNEL_ID, "rvgpu-no-lds-kernel-id")
+RVGPU_ATTRIBUTE(DEFAULT_QUEUE, "rvgpu-no-default-queue")
+RVGPU_ATTRIBUTE(COMPLETION_ACTION, "rvgpu-no-completion-action")
+
+#undef RVGPU_ATTRIBUTE

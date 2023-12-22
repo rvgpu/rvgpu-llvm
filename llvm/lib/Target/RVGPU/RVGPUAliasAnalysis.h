@@ -1,0 +1,99 @@
+//===- RVGPUAliasAnalysis --------------------------------------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+/// \file
+/// This is the AMGPU address space based alias analysis pass.
+//===----------------------------------------------------------------------===//
+
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUALIASANALYSIS_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUALIASANALYSIS_H
+
+#include "llvm/Analysis/AliasAnalysis.h"
+
+namespace llvm {
+
+class DataLayout;
+class MemoryLocation;
+
+/// A simple AA result that uses TBAA metadata to answer queries.
+class RVGPUAAResult : public AAResultBase {
+  const DataLayout &DL;
+
+public:
+  explicit RVGPUAAResult(const DataLayout &DL) : DL(DL) {}
+  RVGPUAAResult(RVGPUAAResult &&Arg)
+      : AAResultBase(std::move(Arg)), DL(Arg.DL) {}
+
+  /// Handle invalidation events from the new pass manager.
+  ///
+  /// By definition, this result is stateless and so remains valid.
+  bool invalidate(Function &, const PreservedAnalyses &,
+                  FunctionAnalysisManager::Invalidator &Inv) {
+    return false;
+  }
+
+  AliasResult alias(const MemoryLocation &LocA, const MemoryLocation &LocB,
+                    AAQueryInfo &AAQI, const Instruction *CtxI);
+  ModRefInfo getModRefInfoMask(const MemoryLocation &Loc, AAQueryInfo &AAQI,
+                               bool IgnoreLocals);
+};
+
+/// Analysis pass providing a never-invalidated alias analysis result.
+class RVGPUAA : public AnalysisInfoMixin<RVGPUAA> {
+  friend AnalysisInfoMixin<RVGPUAA>;
+
+  static AnalysisKey Key;
+
+public:
+  using Result = RVGPUAAResult;
+
+  RVGPUAAResult run(Function &F, AnalysisManager<Function> &AM) {
+    return RVGPUAAResult(F.getParent()->getDataLayout());
+  }
+};
+
+/// Legacy wrapper pass to provide the RVGPUAAResult object.
+class RVGPUAAWrapperPass : public ImmutablePass {
+  std::unique_ptr<RVGPUAAResult> Result;
+
+public:
+  static char ID;
+
+  RVGPUAAWrapperPass();
+
+  RVGPUAAResult &getResult() { return *Result; }
+  const RVGPUAAResult &getResult() const { return *Result; }
+
+  bool doInitialization(Module &M) override {
+    Result.reset(new RVGPUAAResult(M.getDataLayout()));
+    return false;
+  }
+
+  bool doFinalization(Module &M) override {
+    Result.reset();
+    return false;
+  }
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+};
+
+// Wrapper around ExternalAAWrapperPass so that the default constructor gets the
+// callback.
+class RVGPUExternalAAWrapper : public ExternalAAWrapperPass {
+public:
+  static char ID;
+
+  RVGPUExternalAAWrapper() : ExternalAAWrapperPass(
+    [](Pass &P, Function &, AAResults &AAR) {
+      if (auto *WrapperPass = P.getAnalysisIfAvailable<RVGPUAAWrapperPass>())
+        AAR.addAAResult(WrapperPass->getResult());
+    }) {}
+};
+
+} // end namespace llvm
+
+#endif // LLVM_LIB_TARGET_RVGPU_RVGPUALIASANALYSIS_H

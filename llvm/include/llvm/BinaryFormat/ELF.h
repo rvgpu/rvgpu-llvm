@@ -320,6 +320,7 @@ enum {
   EM_VE = 251,            // NEC SX-Aurora VE
   EM_CSKY = 252,          // C-SKY 32-bit processor
   EM_LOONGARCH = 258,     // LoongArch
+  EM_RVGPU = 259,        // RV GPU architecture
 };
 
 // Object file classes.
@@ -363,6 +364,9 @@ enum {
   ELFOSABI_ARM = 97,           // ARM
   ELFOSABI_C6000_ELFABI = 64,  // Bare-metal TMS320C6000
   ELFOSABI_C6000_LINUX = 65,   // Linux TMS320C6000
+  ELFOSABI_RVGPU_HSA = 66,    // RV HSA runtime
+  ELFOSABI_RVGPU_PAL = 67,    // RV PAL runtime
+  ELFOSABI_RVGPU_MESA3D = 68, // RV GCN GPUs (GFX6+) for MESA runtime
   ELFOSABI_STANDALONE = 255,   // Standalone (embedded) application
   ELFOSABI_LAST_ARCH = 255     // Last Architecture-specific OS ABI
 };
@@ -375,6 +379,15 @@ enum {
   ELFABIVERSION_AMDGPU_HSA_V3 = 1,
   ELFABIVERSION_AMDGPU_HSA_V4 = 2,
   ELFABIVERSION_AMDGPU_HSA_V5 = 3
+};
+// RVGPU OS ABI Version identification.
+enum {
+  // ELFABIVERSION_RVGPU_HSA_V1 does not exist because OS ABI identification
+  // was never defined for V1.
+  ELFABIVERSION_RVGPU_HSA_V2 = 0,
+  ELFABIVERSION_RVGPU_HSA_V3 = 1,
+  ELFABIVERSION_RVGPU_HSA_V4 = 2,
+  ELFABIVERSION_RVGPU_HSA_V5 = 3
 };
 
 #define ELF_RELOC(name, value) name = value,
@@ -846,6 +859,16 @@ enum {
 #include "ELFRelocs/AMDGPU.def"
 };
 
+// RVGPU specific e_flags.
+enum : unsigned {
+  // Processor selection mask for EF_RVGPU_MACH_* values.
+  EF_RVGPU_MACH_NONE = 0,
+  EF_RVGPU_MACH_1000       = 1,
+  // clang-format on
+};
+enum {
+#include "ELFRelocs/RVGPU.def"
+};
 // NVPTX specific e_flags.
 enum : unsigned {
   // Processor selection mask for EF_CUDA_SM* values.
@@ -1315,7 +1338,8 @@ enum {
   STT_HIPROC = 15,    // Highest processor-specific symbol type
 
   // AMDGPU symbol types
-  STT_AMDGPU_HSA_KERNEL = 10
+  STT_AMDGPU_HSA_KERNEL = 10,
+  STT_RVGPU_HSA_KERNEL = 16
 };
 
 enum {
@@ -1832,6 +1856,25 @@ enum {
   NT_AMDGPU_METADATA = 32
 };
 
+// RVGPU-specific section indices.
+enum {
+  SHN_RVGPU_LDS = 0xff00, // Variable in LDS; symbol encoded like SHN_COMMON
+};
+// RV vendor specific notes. (Code Object V2)
+enum {
+  NT_RV_HSA_CODE_OBJECT_VERSION = 1,
+  NT_RV_HSA_HSAIL = 2,
+  NT_RV_HSA_ISA_VERSION = 3,
+  // Note types with values between 4 and 9 (inclusive) are reserved.
+  NT_RV_HSA_METADATA = 10,
+  NT_RV_HSA_ISA_NAME = 11,
+  NT_RV_PAL_METADATA = 12
+};
+// RVGPU vendor specific notes. (Code Object V3)
+enum {
+  // Note types with values between 0 and 31 (inclusive) are reserved.
+  NT_RVGPU_METADATA = 32
+};
 // LLVMOMPOFFLOAD specific notes.
 enum : unsigned {
   NT_LLVM_OPENMP_OFFLOAD_VERSION = 1,

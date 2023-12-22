@@ -372,6 +372,14 @@ StringRef MCSymbolRefExpr::getVariantKindName(VariantKind Kind) {
   case VK_AMDGPU_REL64: return "rel64";
   case VK_AMDGPU_ABS32_LO: return "abs32@lo";
   case VK_AMDGPU_ABS32_HI: return "abs32@hi";
+  
+  case VK_RVGPU_GOTPCREL32_LO: return "gotpcrel32@lo";
+  case VK_RVGPU_GOTPCREL32_HI: return "gotpcrel32@hi";
+  case VK_RVGPU_REL32_LO: return "rel32@lo";
+  case VK_RVGPU_REL32_HI: return "rel32@hi";
+  case VK_RVGPU_REL64: return "rel64";
+  case VK_RVGPU_ABS32_LO: return "abs32@lo";
+  case VK_RVGPU_ABS32_HI: return "abs32@hi";
   case VK_VE_HI32: return "hi";
   case VK_VE_LO32: return "lo";
   case VK_VE_PC_HI32: return "pc_hi";
