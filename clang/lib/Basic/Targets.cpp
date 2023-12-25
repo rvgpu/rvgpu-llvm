@@ -33,6 +33,7 @@
 #include "Targets/PNaCl.h"
 #include "Targets/PPC.h"
 #include "Targets/RISCV.h"
+#include "Targets/RVGPU.h"
 #include "Targets/SPIR.h"
 #include "Targets/Sparc.h"
 #include "Targets/SystemZ.h"
@@ -421,7 +422,9 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
   case llvm::Triple::nvptx64:
     return std::make_unique<NVPTXTargetInfo>(Triple, Opts,
                                              /*TargetPointerWidth=*/64);
-
+  case llvm::Triple::rvgpu:
+    return std::make_unique<RVGPUTargetInfo>(Triple, Opts,
+                                             /*TargetPointerWidth=*/64);
   case llvm::Triple::amdgcn:
   case llvm::Triple::r600:
     return std::make_unique<AMDGPUTargetInfo>(Triple, Opts);
@@ -763,6 +766,7 @@ TargetInfo::CreateTargetInfo(DiagnosticsEngine &Diags,
   // Construct the target
   std::unique_ptr<TargetInfo> Target = AllocateTarget(Triple, *Opts);
   if (!Target) {
+    printf("eeeee 2\n");
     Diags.Report(diag::err_target_unknown_triple) << Triple.str();
     return nullptr;
   }
