@@ -565,6 +565,11 @@ std::string tools::getCPUName(const Driver &D, const ArgList &Args,
       return A->getValue();
     return "";
 
+  case llvm::Triple::rvgpu:
+    if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
+      return A->getValue();
+    return "";
+
   case llvm::Triple::ppc:
   case llvm::Triple::ppcle:
   case llvm::Triple::ppc64:
