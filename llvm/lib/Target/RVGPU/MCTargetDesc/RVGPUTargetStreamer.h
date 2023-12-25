@@ -27,7 +27,7 @@ struct Metadata;
 }
 } // namespace RVGPU
 
-namespace rvhsa {
+namespace ss {
 struct kernel_descriptor_t;
 }
 
@@ -95,9 +95,9 @@ public:
     return true;
   }
 
-  virtual void EmitRvhsaKernelDescriptor(
+  virtual void EmitSsKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
-      const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
+      const ss::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
       uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
       unsigned CodeObjectVersion){};
 
@@ -162,9 +162,9 @@ public:
   /// \returns True on success, false on failure.
   bool EmitKernargPreloadHeader(const MCSubtargetInfo &STI) override;
 
-  void EmitRvhsaKernelDescriptor(
+  void EmitSsKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
-      const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
+      const ss::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
       uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
       unsigned CodeObjectVersion) override;
 };
@@ -181,7 +181,7 @@ class RVGPUTargetELFStreamer final : public RVGPUTargetStreamer {
   unsigned getEFlagsRVGPU();
 
   unsigned getEFlagsUnknownOS();
-  unsigned getEFlagsRVHSA();
+  unsigned getEFlagsSS();
   unsigned getEFlagsRVPAL();
   unsigned getEFlagsMesa3D();
 
@@ -225,9 +225,9 @@ public:
   /// \returns True on success, false on failure.
   bool EmitKernargPreloadHeader(const MCSubtargetInfo &STI) override;
 
-  void EmitRvhsaKernelDescriptor(
+  void EmitSsKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
-      const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
+      const ss::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
       uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
       unsigned CodeObjectVersion) override;
 };

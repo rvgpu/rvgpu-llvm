@@ -36,7 +36,7 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/TargetRegistry.h"
-#include "llvm/Support/RVHSAKernelDescriptor.h"
+#include "llvm/Support/SSKernelDescriptor.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/TargetParser/RVTargetParser.h"
@@ -114,17 +114,14 @@ void RVGPUAsmPrinter::initTargetStreamer(Module &M) {
   if (getTargetStreamer() && !getTargetStreamer()->getTargetID())
     initializeTargetID(M);
 
-  if (TM.getTargetTriple().getOS() != Triple::RVHSA &&
-      TM.getTargetTriple().getOS() != Triple::RVPAL)
+  if (TM.getTargetTriple().getOS() != Triple::SS)
     return;
 
   getTargetStreamer()->EmitDirectiveRVGPUTarget();
 
-  if (TM.getTargetTriple().getOS() == Triple::RVHSA)
+  if (TM.getTargetTriple().getOS() == Triple::SS)
     HSAMetadataStream->begin(M, *getTargetStreamer()->getTargetID());
 
-  if (TM.getTargetTriple().getOS() == Triple::RVPAL)
-    getTargetStreamer()->getPALMetadata()->readFromIR(M);
 }
 
 void RVGPUAsmPrinter::emitEndOfAsmFile(Module &M) {
@@ -132,12 +129,12 @@ void RVGPUAsmPrinter::emitEndOfAsmFile(Module &M) {
   if (!IsTargetStreamerInitialized)
     initTargetStreamer(M);
 
-  if (TM.getTargetTriple().getOS() != Triple::RVHSA)
+  if (TM.getTargetTriple().getOS() != Triple::SS)
     getTargetStreamer()->EmitISAVersion();
 
   // Emit HSA Metadata (NT_RV_RVGPU_HSA_METADATA).
   // Emit HSA Metadata (NT_RV_HSA_METADATA).
-  if (TM.getTargetTriple().getOS() == Triple::RVHSA) {
+  if (TM.getTargetTriple().getOS() == Triple::SS) {
     HSAMetadataStream->end();
     bool Success = HSAMetadataStream->emitTo(*getTargetStreamer());
     (void)Success;
@@ -200,7 +197,7 @@ void RVGPUAsmPrinter::emitFunctionBodyEnd() {
   if (!MFI.isEntryFunction())
     return;
 
-  if (TM.getTargetTriple().getOS() != Triple::RVHSA)
+  if (TM.getTargetTriple().getOS() != Triple::SS)
     return;
 
   auto &Streamer = getTargetStreamer()->getStreamer();
@@ -220,8 +217,8 @@ void RVGPUAsmPrinter::emitFunctionBodyEnd() {
 
   SmallString<128> KernelName;
   getNameWithPrefix(KernelName, &MF->getFunction());
-  getTargetStreamer()->EmitRvhsaKernelDescriptor(
-      STM, KernelName, getRvhsaKernelDescriptor(*MF, CurrentProgramInfo),
+  getTargetStreamer()->EmitSsKernelDescriptor(
+      STM, KernelName, getSsKernelDescriptor(*MF, CurrentProgramInfo),
       CurrentProgramInfo.NumVGPRsForWavesPerEU,
       CurrentProgramInfo.NumSGPRsForWavesPerEU -
           IsaInfo::getNumExtraSGPRs(
@@ -249,7 +246,7 @@ void RVGPUAsmPrinter::emitImplicitDef(const MachineInstr *MI) const {
 }
 
 void RVGPUAsmPrinter::emitFunctionEntryLabel() {
-  if (TM.getTargetTriple().getOS() == Triple::RVHSA) {
+  if (TM.getTargetTriple().getOS() == Triple::SS) {
     AsmPrinter::emitFunctionEntryLabel();
     return;
   }
@@ -295,7 +292,7 @@ void RVGPUAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
 
     // LDS variables aren't emitted in HSA or PAL yet.
     const Triple::OSType OS = TM.getTargetTriple().getOS();
-    if (OS == Triple::RVHSA || OS == Triple::RVPAL)
+    if (OS == Triple::SS)
       return;
 
     MCSymbol *GVSym = getSymbol(GV);
@@ -322,12 +319,12 @@ void RVGPUAsmPrinter::emitGlobalVariable(const GlobalVariable *GV) {
 bool RVGPUAsmPrinter::doInitialization(Module &M) {
   CodeObjectVersion = RVGPU::getCodeObjectVersion(M);
 
-  if (TM.getTargetTriple().getOS() == Triple::RVHSA) {
+  if (TM.getTargetTriple().getOS() == Triple::SS) {
     switch (CodeObjectVersion) {
-    case RVGPU::RVHSA_COV4:
+    case RVGPU::SS_COV4:
       HSAMetadataStream.reset(new HSRV::MetadataStreamerMsgPackV4());
       break;
-    case RVGPU::RVHSA_COV5:
+    case RVGPU::SS_COV5:
       HSAMetadataStream.reset(new HSRV::MetadataStreamerMsgPackV5());
       break;
     default:
@@ -343,8 +340,7 @@ bool RVGPUAsmPrinter::doFinalization(Module &M) {
   // which is why this isn't done for Mesa.
   const MCSubtargetInfo &STI = *getGlobalSTI();
   if ((RVGPU::isGFX10Plus(STI) || RVGPU::isGFX90A(STI)) &&
-      (STI.getTargetTriple().getOS() == Triple::RVHSA ||
-       STI.getTargetTriple().getOS() == Triple::RVPAL)) {
+      (STI.getTargetTriple().getOS() == Triple::SS)) {
     OutStreamer->switchSection(getObjFileLowering().getTextSection());
     getTargetStreamer()->EmitCodeEnd(STI);
   }
@@ -370,7 +366,7 @@ void RVGPUAsmPrinter::emitCommonFunctionComments(
                               false);
 }
 
-uint16_t RVGPUAsmPrinter::getRvhsaKernelCodeProperties(
+uint16_t RVGPUAsmPrinter::getSsKernelCodeProperties(
     const MachineFunction &MF) const {
   const RVMachineFunctionInfo &MFI = *MF.getInfo<RVMachineFunctionInfo>();
   uint16_t KernelCodeProperties = 0;
@@ -378,48 +374,48 @@ uint16_t RVGPUAsmPrinter::getRvhsaKernelCodeProperties(
 
   if (UserSGPRInfo.hasPrivateSegmentBuffer()) {
     KernelCodeProperties |=
-        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER;
+        ss::KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER;
   }
   if (UserSGPRInfo.hasDispatchPtr()) {
     KernelCodeProperties |=
-        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_PTR;
+        ss::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_PTR;
   }
-  if (UserSGPRInfo.hasQueuePtr() && CodeObjectVersion < RVGPU::RVHSA_COV5) {
+  if (UserSGPRInfo.hasQueuePtr() && CodeObjectVersion < RVGPU::SS_COV5) {
     KernelCodeProperties |=
-        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_QUEUE_PTR;
+        ss::KERNEL_CODE_PROPERTY_ENABLE_SGPR_QUEUE_PTR;
   }
   if (UserSGPRInfo.hasKernargSegmentPtr()) {
     KernelCodeProperties |=
-        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR;
+        ss::KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR;
   }
   if (UserSGPRInfo.hasDispatchID()) {
     KernelCodeProperties |=
-        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_ID;
+        ss::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_ID;
   }
   if (UserSGPRInfo.hasFlatScratchInit()) {
     KernelCodeProperties |=
-        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_FLAT_SCRATCH_INIT;
+        ss::KERNEL_CODE_PROPERTY_ENABLE_SGPR_FLAT_SCRATCH_INIT;
   }
   if (MF.getSubtarget<RVSubtarget>().isWave32()) {
     KernelCodeProperties |=
-        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32;
+        ss::KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32;
   }
 
   if (CurrentProgramInfo.DynamicCallStack &&
-      CodeObjectVersion >= RVGPU::RVHSA_COV5)
-    KernelCodeProperties |= rvhsa::KERNEL_CODE_PROPERTY_USES_DYNAMIC_STACK;
+      CodeObjectVersion >= RVGPU::SS_COV5)
+    KernelCodeProperties |= ss::KERNEL_CODE_PROPERTY_USES_DYNAMIC_STACK;
 
   return KernelCodeProperties;
 }
 
-rvhsa::kernel_descriptor_t RVGPUAsmPrinter::getRvhsaKernelDescriptor(
+ss::kernel_descriptor_t RVGPUAsmPrinter::getSsKernelDescriptor(
     const MachineFunction &MF,
     const RVProgramInfo &PI) const {
   const RVSubtarget &STM = MF.getSubtarget<RVSubtarget>();
   const Function &F = MF.getFunction();
   const RVMachineFunctionInfo *Info = MF.getInfo<RVMachineFunctionInfo>();
 
-  rvhsa::kernel_descriptor_t KernelDescriptor;
+  ss::kernel_descriptor_t KernelDescriptor;
   memset(&KernelDescriptor, 0x0, sizeof(KernelDescriptor));
 
   assert(isUInt<32>(PI.ScratchSize));
@@ -434,7 +430,7 @@ rvhsa::kernel_descriptor_t RVGPUAsmPrinter::getRvhsaKernelDescriptor(
 
   KernelDescriptor.compute_pgm_rsrc1 = PI.getComputePGMRSrc1(STM);
   KernelDescriptor.compute_pgm_rsrc2 = PI.getComputePGMRSrc2();
-  KernelDescriptor.kernel_code_properties = getRvhsaKernelCodeProperties(MF);
+  KernelDescriptor.kernel_code_properties = getSsKernelCodeProperties(MF);
 
   assert(STM.hasGFX90AInsts() || CurrentProgramInfo.ComputePGMRSrc3GFX90A == 0);
   if (STM.hasGFX90AInsts())
@@ -593,13 +589,13 @@ bool RVGPUAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
     if (STM.hasGFX90AInsts()) {
       OutStreamer->emitRawComment(
         " COMPUTE_PGM_RSRC3_GFX90A:ACCUM_OFFSET: " +
-        Twine((RVHSA_BITS_GET(CurrentProgramInfo.ComputePGMRSrc3GFX90A,
-                               rvhsa::COMPUTE_PGM_RSRC3_GFX90A_ACCUM_OFFSET))),
+        Twine((SS_BITS_GET(CurrentProgramInfo.ComputePGMRSrc3GFX90A,
+                               ss::COMPUTE_PGM_RSRC3_GFX90A_ACCUM_OFFSET))),
                                false);
       OutStreamer->emitRawComment(
         " COMPUTE_PGM_RSRC3_GFX90A:TG_SPLIT: " +
-        Twine((RVHSA_BITS_GET(CurrentProgramInfo.ComputePGMRSrc3GFX90A,
-                               rvhsa::COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT))),
+        Twine((SS_BITS_GET(CurrentProgramInfo.ComputePGMRSrc3GFX90A,
+                               ss::COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT))),
                                false);
     }
   }
@@ -911,7 +907,7 @@ void RVGPUAsmPrinter::getRVProgramInfo(RVProgramInfo &ProgInfo,
   ProgInfo.ScratchEnable =
       ProgInfo.ScratchBlocks > 0 || ProgInfo.DynamicCallStack;
   ProgInfo.UserSGPR = MFI->getNumUserSGPRs();
-  // For RVHSA, TRAP_HANDLER must be zero, as it is populated by the CP.
+  // For SS, TRAP_HANDLER must be zero, as it is populated by the CP.
   ProgInfo.TrapHandlerEnable =
       STM.isRvHsaOS() ? 0 : STM.isTrapHandlerEnabled();
   ProgInfo.TGIdXEnable = MFI->hasWorkGroupIDX();
@@ -920,16 +916,16 @@ void RVGPUAsmPrinter::getRVProgramInfo(RVProgramInfo &ProgInfo,
   ProgInfo.TGSizeEnable = MFI->hasWorkGroupInfo();
   ProgInfo.TIdIGCompCount = TIDIGCompCnt;
   ProgInfo.EXCPEnMSB = 0;
-  // For RVHSA, LDS_SIZE must be zero, as it is populated by the CP.
+  // For SS, LDS_SIZE must be zero, as it is populated by the CP.
   ProgInfo.LdsSize = STM.isRvHsaOS() ? 0 : ProgInfo.LDSBlocks;
   ProgInfo.EXCPEnable = 0;
 
   if (STM.hasGFX90AInsts()) {
-    RVHSA_BITS_SET(ProgInfo.ComputePGMRSrc3GFX90A,
-                    rvhsa::COMPUTE_PGM_RSRC3_GFX90A_ACCUM_OFFSET,
+    SS_BITS_SET(ProgInfo.ComputePGMRSrc3GFX90A,
+                    ss::COMPUTE_PGM_RSRC3_GFX90A_ACCUM_OFFSET,
                     ProgInfo.AccumOffset);
-    RVHSA_BITS_SET(ProgInfo.ComputePGMRSrc3GFX90A,
-                    rvhsa::COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT,
+    SS_BITS_SET(ProgInfo.ComputePGMRSrc3GFX90A,
+                    ss::COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT,
                     ProgInfo.TgSplit);
   }
 
@@ -1173,7 +1169,7 @@ void RVGPUAsmPrinter::getRvKernelCode(rv_kernel_code_t &Out,
   if (UserSGPRInfo.hasDispatchPtr())
     Out.code_properties |= RV_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_PTR;
 
-  if (UserSGPRInfo.hasQueuePtr() && CodeObjectVersion < RVGPU::RVHSA_COV5)
+  if (UserSGPRInfo.hasQueuePtr() && CodeObjectVersion < RVGPU::SS_COV5)
     Out.code_properties |= RV_CODE_PROPERTY_ENABLE_SGPR_QUEUE_PTR;
 
   if (UserSGPRInfo.hasKernargSegmentPtr())

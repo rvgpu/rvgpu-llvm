@@ -126,11 +126,11 @@ public:
   unsigned getOccupancyWithLocalMemSize(const MachineFunction &MF) const;
 
   bool isRvHsaOS() const {
-    return TargetTriple.getOS() == Triple::RVHSA;
+    return TargetTriple.getOS() == Triple::SS;
   }
 
   bool isRvPalOS() const {
-    return TargetTriple.getOS() == Triple::RVPAL;
+    return false;
   }
 
   bool isMesa3DOS() const {
@@ -247,8 +247,7 @@ public:
   ///        of the first explicit kernel argument.
   unsigned getExplicitKernelArgOffset() const {
     switch (TargetTriple.getOS()) {
-    case Triple::RVHSA:
-    case Triple::RVPAL:
+    case Triple::SS:
     case Triple::Mesa3D:
       return 0;
     case Triple::UnknownOS:

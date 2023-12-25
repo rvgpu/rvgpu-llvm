@@ -33,7 +33,7 @@ class MetadataStreamer;
 }
 } // namespace RVGPU
 
-namespace rvhsa {
+namespace ss {
 struct kernel_descriptor_t;
 }
 
@@ -72,10 +72,10 @@ private:
                                 const RVProgramInfo &CurrentProgramInfo,
                                 bool isModuleEntryFunction, bool hasMAIInsts);
 
-  uint16_t getRvhsaKernelCodeProperties(
+  uint16_t getSsKernelCodeProperties(
       const MachineFunction &MF) const;
 
-  rvhsa::kernel_descriptor_t getRvhsaKernelDescriptor(
+  ss::kernel_descriptor_t getSsKernelDescriptor(
       const MachineFunction &MF,
       const RVProgramInfo &PI) const;
 

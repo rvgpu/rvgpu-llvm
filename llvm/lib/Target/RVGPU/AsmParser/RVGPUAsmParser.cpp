@@ -34,7 +34,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/RVGPUMetadata.h"
-#include "llvm/Support/RVHSAKernelDescriptor.h"
+#include "llvm/Support/SSKernelDescriptor.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/TargetParser/RVTargetParser.h"
@@ -42,7 +42,7 @@
 
 using namespace llvm;
 using namespace llvm::RVGPU;
-using namespace llvm::rvhsa;
+using namespace llvm::ss;
 
 namespace {
 
@@ -1295,7 +1295,7 @@ private:
                           unsigned NextFreeSGPR, SMRange SGPRRange,
                           unsigned &VGPRBlocks, unsigned &SGPRBlocks);
   bool ParseDirectiveRVGPUTarget();
-  bool ParseDirectiveRVHSAKernel();
+  bool ParseDirectiveSSKernel();
   bool ParseDirectiveMajorMinor(uint32_t &Major, uint32_t &Minor);
   bool ParseDirectiveHSACodeObjectVersion();
   bool ParseDirectiveHSACodeObjectISA();
@@ -5135,18 +5135,18 @@ bool RVGPUAsmParser::calculateGPRBlocks(
   return false;
 }
 
-bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
+bool RVGPUAsmParser::ParseDirectiveSSKernel() {
   if (getSTI().getTargetTriple().getArch() != Triple::rvgpu)
     return TokError("directive only supported for rvgpu architecture");
 
   if (!isHsaAbi(getSTI()))
-    return TokError("directive only supported for rvhsa OS");
+    return TokError("directive only supported for ss OS");
 
   StringRef KernelName;
   if (getParser().parseIdentifier(KernelName))
     return true;
 
-  kernel_descriptor_t KD = getDefaultRvhsaKernelDescriptor(&getSTI());
+  kernel_descriptor_t KD = getDefaultSsKernelDescriptor(&getSTI());
 
   StringSet<> Seen;
 
@@ -5176,14 +5176,14 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
 
     StringRef ID;
     SMRange IDRange = getTok().getLocRange();
-    if (!parseId(ID, "expected .rvhsa_ directive or .end_rvhsa_kernel"))
+    if (!parseId(ID, "expected .ss_ directive or .end_ss_kernel"))
       return true;
 
-    if (ID == ".end_rvhsa_kernel")
+    if (ID == ".end_ss_kernel")
       break;
 
     if (!Seen.insert(ID).second)
-      return TokError(".rvhsa_ directives cannot be repeated");
+      return TokError(".ss_ directives cannot be repeated");
 
     SMLoc ValStart = getLoc();
     int64_t IVal;
@@ -5200,23 +5200,23 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
 #define PARSE_BITS_ENTRY(FIELD, ENTRY, VALUE, RANGE)                           \
   if (!isUInt<ENTRY##_WIDTH>(VALUE))                                           \
     return OutOfRangeError(RANGE);                                             \
-  RVHSA_BITS_SET(FIELD, ENTRY, VALUE);
+  SS_BITS_SET(FIELD, ENTRY, VALUE);
 
-    if (ID == ".rvhsa_group_segment_fixed_size") {
+    if (ID == ".ss_group_segment_fixed_size") {
       if (!isUInt<sizeof(KD.group_segment_fixed_size) * CHAR_BIT>(Val))
         return OutOfRangeError(ValRange);
       KD.group_segment_fixed_size = Val;
-    } else if (ID == ".rvhsa_private_segment_fixed_size") {
+    } else if (ID == ".ss_private_segment_fixed_size") {
       if (!isUInt<sizeof(KD.private_segment_fixed_size) * CHAR_BIT>(Val))
         return OutOfRangeError(ValRange);
       KD.private_segment_fixed_size = Val;
-    } else if (ID == ".rvhsa_kernarg_size") {
+    } else if (ID == ".ss_kernarg_size") {
       if (!isUInt<sizeof(KD.kernarg_size) * CHAR_BIT>(Val))
         return OutOfRangeError(ValRange);
       KD.kernarg_size = Val;
-    } else if (ID == ".rvhsa_user_sgpr_count") {
+    } else if (ID == ".ss_user_sgpr_count") {
       ExplicitUserSGPRCount = Val;
-    } else if (ID == ".rvhsa_user_sgpr_private_segment_buffer") {
+    } else if (ID == ".ss_user_sgpr_private_segment_buffer") {
       if (hasArchitectedFlatScratch())
         return Error(IDRange.Start,
                      "directive is not supported with architected flat scratch",
@@ -5226,7 +5226,7 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
                        Val, ValRange);
       if (Val)
         ImpliedUserSGPRCount += 4;
-    } else if (ID == ".rvhsa_user_sgpr_kernarg_preload_length") {
+    } else if (ID == ".ss_user_sgpr_kernarg_preload_length") {
       if (!hasKernargPreload())
         return Error(IDRange.Start, "directive requires gfx90a+", IDRange);
 
@@ -5238,7 +5238,7 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
         ImpliedUserSGPRCount += Val;
         PreloadLength = Val;
       }
-    } else if (ID == ".rvhsa_user_sgpr_kernarg_preload_offset") {
+    } else if (ID == ".ss_user_sgpr_kernarg_preload_offset") {
       if (!hasKernargPreload())
         return Error(IDRange.Start, "directive requires gfx90a+", IDRange);
 
@@ -5248,31 +5248,31 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
                        ValRange);
       if (Val)
         PreloadOffset = Val;
-    } else if (ID == ".rvhsa_user_sgpr_dispatch_ptr") {
+    } else if (ID == ".ss_user_sgpr_dispatch_ptr") {
       PARSE_BITS_ENTRY(KD.kernel_code_properties,
                        KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_PTR, Val,
                        ValRange);
       if (Val)
         ImpliedUserSGPRCount += 2;
-    } else if (ID == ".rvhsa_user_sgpr_queue_ptr") {
+    } else if (ID == ".ss_user_sgpr_queue_ptr") {
       PARSE_BITS_ENTRY(KD.kernel_code_properties,
                        KERNEL_CODE_PROPERTY_ENABLE_SGPR_QUEUE_PTR, Val,
                        ValRange);
       if (Val)
         ImpliedUserSGPRCount += 2;
-    } else if (ID == ".rvhsa_user_sgpr_kernarg_segment_ptr") {
+    } else if (ID == ".ss_user_sgpr_kernarg_segment_ptr") {
       PARSE_BITS_ENTRY(KD.kernel_code_properties,
                        KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR,
                        Val, ValRange);
       if (Val)
         ImpliedUserSGPRCount += 2;
-    } else if (ID == ".rvhsa_user_sgpr_dispatch_id") {
+    } else if (ID == ".ss_user_sgpr_dispatch_id") {
       PARSE_BITS_ENTRY(KD.kernel_code_properties,
                        KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_ID, Val,
                        ValRange);
       if (Val)
         ImpliedUserSGPRCount += 2;
-    } else if (ID == ".rvhsa_user_sgpr_flat_scratch_init") {
+    } else if (ID == ".ss_user_sgpr_flat_scratch_init") {
       if (hasArchitectedFlatScratch())
         return Error(IDRange.Start,
                      "directive is not supported with architected flat scratch",
@@ -5282,30 +5282,30 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
                        ValRange);
       if (Val)
         ImpliedUserSGPRCount += 2;
-    } else if (ID == ".rvhsa_user_sgpr_private_segment_size") {
+    } else if (ID == ".ss_user_sgpr_private_segment_size") {
       PARSE_BITS_ENTRY(KD.kernel_code_properties,
                        KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE,
                        Val, ValRange);
       if (Val)
         ImpliedUserSGPRCount += 1;
-    } else if (ID == ".rvhsa_wavefront_size32") {
+    } else if (ID == ".ss_wavefront_size32") {
       if (IVersion.Major < 10)
         return Error(IDRange.Start, "directive requires gfx10+", IDRange);
       EnableWavefrontSize32 = Val;
       PARSE_BITS_ENTRY(KD.kernel_code_properties,
                        KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32,
                        Val, ValRange);
-    } else if (ID == ".rvhsa_uses_dynamic_stack") {
+    } else if (ID == ".ss_uses_dynamic_stack") {
       PARSE_BITS_ENTRY(KD.kernel_code_properties,
                        KERNEL_CODE_PROPERTY_USES_DYNAMIC_STACK, Val, ValRange);
-    } else if (ID == ".rvhsa_system_sgpr_private_segment_wavefront_offset") {
+    } else if (ID == ".ss_system_sgpr_private_segment_wavefront_offset") {
       if (hasArchitectedFlatScratch())
         return Error(IDRange.Start,
                      "directive is not supported with architected flat scratch",
                      IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_PRIVATE_SEGMENT, Val, ValRange);
-    } else if (ID == ".rvhsa_enable_private_segment") {
+    } else if (ID == ".ss_enable_private_segment") {
       if (!hasArchitectedFlatScratch())
         return Error(
             IDRange.Start,
@@ -5313,41 +5313,41 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
             IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_PRIVATE_SEGMENT, Val, ValRange);
-    } else if (ID == ".rvhsa_system_sgpr_workgroup_id_x") {
+    } else if (ID == ".ss_system_sgpr_workgroup_id_x") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_X, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_system_sgpr_workgroup_id_y") {
+    } else if (ID == ".ss_system_sgpr_workgroup_id_y") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_Y, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_system_sgpr_workgroup_id_z") {
+    } else if (ID == ".ss_system_sgpr_workgroup_id_z") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_Z, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_system_sgpr_workgroup_info") {
+    } else if (ID == ".ss_system_sgpr_workgroup_info") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_INFO, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_system_vgpr_workitem_id") {
+    } else if (ID == ".ss_system_vgpr_workitem_id") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_VGPR_WORKITEM_ID, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_next_free_vgpr") {
+    } else if (ID == ".ss_next_free_vgpr") {
       VGPRRange = ValRange;
       NextFreeVGPR = Val;
-    } else if (ID == ".rvhsa_next_free_sgpr") {
+    } else if (ID == ".ss_next_free_sgpr") {
       SGPRRange = ValRange;
       NextFreeSGPR = Val;
-    } else if (ID == ".rvhsa_accum_offset") {
+    } else if (ID == ".ss_accum_offset") {
       if (!isGFX90A())
         return Error(IDRange.Start, "directive requires gfx90a+", IDRange);
       AccumOffset = Val;
-    } else if (ID == ".rvhsa_reserve_vcc") {
+    } else if (ID == ".ss_reserve_vcc") {
       if (!isUInt<1>(Val))
         return OutOfRangeError(ValRange);
       ReserveVCC = Val;
-    } else if (ID == ".rvhsa_reserve_flat_scratch") {
+    } else if (ID == ".ss_reserve_flat_scratch") {
       if (IVersion.Major < 7)
         return Error(IDRange.Start, "directive requires gfx7+", IDRange);
       if (hasArchitectedFlatScratch())
@@ -5357,119 +5357,119 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
       if (!isUInt<1>(Val))
         return OutOfRangeError(ValRange);
       ReserveFlatScr = Val;
-    } else if (ID == ".rvhsa_reserve_xnack_mask") {
+    } else if (ID == ".ss_reserve_xnack_mask") {
       if (IVersion.Major < 8)
         return Error(IDRange.Start, "directive requires gfx8+", IDRange);
       if (!isUInt<1>(Val))
         return OutOfRangeError(ValRange);
       if (Val != getTargetStreamer().getTargetID()->isXnackOnOrAny())
-        return getParser().Error(IDRange.Start, ".rvhsa_reserve_xnack_mask does not match target id",
+        return getParser().Error(IDRange.Start, ".ss_reserve_xnack_mask does not match target id",
                                  IDRange);
-    } else if (ID == ".rvhsa_float_round_mode_32") {
+    } else if (ID == ".ss_float_round_mode_32") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
                        COMPUTE_PGM_RSRC1_FLOAT_ROUND_MODE_32, Val, ValRange);
-    } else if (ID == ".rvhsa_float_round_mode_16_64") {
+    } else if (ID == ".ss_float_round_mode_16_64") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
                        COMPUTE_PGM_RSRC1_FLOAT_ROUND_MODE_16_64, Val, ValRange);
-    } else if (ID == ".rvhsa_float_denorm_mode_32") {
+    } else if (ID == ".ss_float_denorm_mode_32") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
                        COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_32, Val, ValRange);
-    } else if (ID == ".rvhsa_float_denorm_mode_16_64") {
+    } else if (ID == ".ss_float_denorm_mode_16_64") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
                        COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_16_64, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_dx10_clamp") {
+    } else if (ID == ".ss_dx10_clamp") {
       if (IVersion.Major >= 12)
         return Error(IDRange.Start, "directive unsupported on gfx12+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
                        COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_ieee_mode") {
+    } else if (ID == ".ss_ieee_mode") {
       if (IVersion.Major >= 12)
         return Error(IDRange.Start, "directive unsupported on gfx12+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
                        COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_fp16_overflow") {
+    } else if (ID == ".ss_fp16_overflow") {
       if (IVersion.Major < 9)
         return Error(IDRange.Start, "directive requires gfx9+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1, COMPUTE_PGM_RSRC1_GFX9_PLUS_FP16_OVFL, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_tg_split") {
+    } else if (ID == ".ss_tg_split") {
       if (!isGFX90A())
         return Error(IDRange.Start, "directive requires gfx90a+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc3, COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_workgroup_processor_mode") {
+    } else if (ID == ".ss_workgroup_processor_mode") {
       if (IVersion.Major < 10)
         return Error(IDRange.Start, "directive requires gfx10+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1, COMPUTE_PGM_RSRC1_GFX10_PLUS_WGP_MODE, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_memory_ordered") {
+    } else if (ID == ".ss_memory_ordered") {
       if (IVersion.Major < 10)
         return Error(IDRange.Start, "directive requires gfx10+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1, COMPUTE_PGM_RSRC1_GFX10_PLUS_MEM_ORDERED, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_forward_progress") {
+    } else if (ID == ".ss_forward_progress") {
       if (IVersion.Major < 10)
         return Error(IDRange.Start, "directive requires gfx10+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1, COMPUTE_PGM_RSRC1_GFX10_PLUS_FWD_PROGRESS, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_shared_vgpr_count") {
+    } else if (ID == ".ss_shared_vgpr_count") {
       if (IVersion.Major < 10)
         return Error(IDRange.Start, "directive requires gfx10+", IDRange);
       SharedVGPRCount = Val;
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc3,
                        COMPUTE_PGM_RSRC3_GFX10_PLUS_SHARED_VGPR_COUNT, Val,
                        ValRange);
-    } else if (ID == ".rvhsa_exception_fp_ieee_invalid_op") {
+    } else if (ID == ".ss_exception_fp_ieee_invalid_op") {
       PARSE_BITS_ENTRY(
           KD.compute_pgm_rsrc2,
           COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_INVALID_OPERATION, Val,
           ValRange);
-    } else if (ID == ".rvhsa_exception_fp_denorm_src") {
+    } else if (ID == ".ss_exception_fp_denorm_src") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_FP_DENORMAL_SOURCE,
                        Val, ValRange);
-    } else if (ID == ".rvhsa_exception_fp_ieee_div_zero") {
+    } else if (ID == ".ss_exception_fp_ieee_div_zero") {
       PARSE_BITS_ENTRY(
           KD.compute_pgm_rsrc2,
           COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_DIVISION_BY_ZERO, Val,
           ValRange);
-    } else if (ID == ".rvhsa_exception_fp_ieee_overflow") {
+    } else if (ID == ".ss_exception_fp_ieee_overflow") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_OVERFLOW,
                        Val, ValRange);
-    } else if (ID == ".rvhsa_exception_fp_ieee_underflow") {
+    } else if (ID == ".ss_exception_fp_ieee_underflow") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_UNDERFLOW,
                        Val, ValRange);
-    } else if (ID == ".rvhsa_exception_fp_ieee_inexact") {
+    } else if (ID == ".ss_exception_fp_ieee_inexact") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_INEXACT,
                        Val, ValRange);
-    } else if (ID == ".rvhsa_exception_int_div_zero") {
+    } else if (ID == ".ss_exception_int_div_zero") {
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc2,
                        COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_INT_DIVIDE_BY_ZERO,
                        Val, ValRange);
-    } else if (ID == ".rvhsa_round_robin_scheduling") {
+    } else if (ID == ".ss_round_robin_scheduling") {
       if (IVersion.Major < 12)
         return Error(IDRange.Start, "directive requires gfx12+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
                        COMPUTE_PGM_RSRC1_GFX12_PLUS_ENABLE_WG_RR_EN, Val,
                        ValRange);
     } else {
-      return Error(IDRange.Start, "unknown .rvhsa_kernel directive", IDRange);
+      return Error(IDRange.Start, "unknown .ss_kernel directive", IDRange);
     }
 
 #undef PARSE_BITS_ENTRY
   }
 
-  if (!Seen.contains(".rvhsa_next_free_vgpr"))
-    return TokError(".rvhsa_next_free_vgpr directive is required");
+  if (!Seen.contains(".ss_next_free_vgpr"))
+    return TokError(".ss_next_free_vgpr directive is required");
 
-  if (!Seen.contains(".rvhsa_next_free_sgpr"))
-    return TokError(".rvhsa_next_free_sgpr directive is required");
+  if (!Seen.contains(".ss_next_free_sgpr"))
+    return TokError(".ss_next_free_sgpr directive is required");
 
   unsigned VGPRBlocks;
   unsigned SGPRBlocks;
@@ -5483,13 +5483,13 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
   if (!isUInt<COMPUTE_PGM_RSRC1_GRANULATED_WORKITEM_VGPR_COUNT_WIDTH>(
           VGPRBlocks))
     return OutOfRangeError(VGPRRange);
-  RVHSA_BITS_SET(KD.compute_pgm_rsrc1,
+  SS_BITS_SET(KD.compute_pgm_rsrc1,
                   COMPUTE_PGM_RSRC1_GRANULATED_WORKITEM_VGPR_COUNT, VGPRBlocks);
 
   if (!isUInt<COMPUTE_PGM_RSRC1_GRANULATED_WAVEFRONT_SGPR_COUNT_WIDTH>(
           SGPRBlocks))
     return OutOfRangeError(SGPRRange);
-  RVHSA_BITS_SET(KD.compute_pgm_rsrc1,
+  SS_BITS_SET(KD.compute_pgm_rsrc1,
                   COMPUTE_PGM_RSRC1_GRANULATED_WAVEFRONT_SGPR_COUNT,
                   SGPRBlocks);
 
@@ -5502,7 +5502,7 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
 
   if (!isUInt<COMPUTE_PGM_RSRC2_USER_SGPR_COUNT_WIDTH>(UserSGPRCount))
     return TokError("too many user SGPRs enabled");
-  RVHSA_BITS_SET(KD.compute_pgm_rsrc2, COMPUTE_PGM_RSRC2_USER_SGPR_COUNT,
+  SS_BITS_SET(KD.compute_pgm_rsrc2, COMPUTE_PGM_RSRC2_USER_SGPR_COUNT,
                   UserSGPRCount);
 
   if (PreloadLength && KD.kernarg_size &&
@@ -5511,14 +5511,14 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
                     "kernarg segment size");
 
   if (isGFX90A()) {
-    if (!Seen.contains(".rvhsa_accum_offset"))
-      return TokError(".rvhsa_accum_offset directive is required");
+    if (!Seen.contains(".ss_accum_offset"))
+      return TokError(".ss_accum_offset directive is required");
     if (AccumOffset < 4 || AccumOffset > 256 || (AccumOffset & 3))
       return TokError("accum_offset should be in range [4..256] in "
                       "increments of 4");
     if (AccumOffset > alignTo(std::max((uint64_t)1, NextFreeVGPR), 4))
       return TokError("accum_offset exceeds total VGPR allocation");
-    RVHSA_BITS_SET(KD.compute_pgm_rsrc3, COMPUTE_PGM_RSRC3_GFX90A_ACCUM_OFFSET,
+    SS_BITS_SET(KD.compute_pgm_rsrc3, COMPUTE_PGM_RSRC3_GFX90A_ACCUM_OFFSET,
                     (AccumOffset / 4 - 1));
   }
 
@@ -5535,9 +5535,9 @@ bool RVGPUAsmParser::ParseDirectiveRVHSAKernel() {
     }
   }
 
-  getTargetStreamer().EmitRvhsaKernelDescriptor(
+  getTargetStreamer().EmitSsKernelDescriptor(
       getSTI(), KernelName, KD, NextFreeVGPR, NextFreeSGPR, ReserveVCC,
-      ReserveFlatScr, RVGPU::getRvhsaCodeObjectVersion());
+      ReserveFlatScr, RVGPU::getSsCodeObjectVersion());
   return false;
 }
 
@@ -5790,32 +5790,6 @@ bool RVGPUAsmParser::ParseDirectivePALMetadataBegin() {
 
 /// Parse the assembler directive for old linear-format PAL metadata.
 bool RVGPUAsmParser::ParseDirectivePALMetadata() {
-  if (getSTI().getTargetTriple().getOS() != Triple::RVPAL) {
-    return Error(getLoc(),
-                 (Twine(RVPALMD::AssemblerDirective) + Twine(" directive is "
-                 "not available on non-rvpal OSes")).str());
-  }
-
-  auto PALMetadata = getTargetStreamer().getPALMetadata();
-  PALMetadata->setLegacy();
-  for (;;) {
-    uint32_t Key, Value;
-    if (ParseAsAbsoluteExpression(Key)) {
-      return TokError(Twine("invalid value in ") +
-                      Twine(RVPALMD::AssemblerDirective));
-    }
-    if (!trySkipToken(AsmToken::Comma)) {
-      return TokError(Twine("expected an even number of values in ") +
-                      Twine(RVPALMD::AssemblerDirective));
-    }
-    if (ParseAsAbsoluteExpression(Value)) {
-      return TokError(Twine("invalid value in ") +
-                      Twine(RVPALMD::AssemblerDirective));
-    }
-    PALMetadata->setRegister(Key, Value);
-    if (!trySkipToken(AsmToken::Comma))
-      break;
-  }
   return false;
 }
 
@@ -5875,8 +5849,8 @@ bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
   StringRef IDVal = DirectiveID.getString();
 
   if (isHsaAbi(getSTI())) {
-    if (IDVal == ".rvhsa_kernel")
-     return ParseDirectiveRVHSAKernel();
+    if (IDVal == ".ss_kernel")
+     return ParseDirectiveSSKernel();
 
     // TODO: Restructure/combine with PAL metadata directive.
     if (IDVal == RVGPU::HSRV::V3::AssemblerDirectiveBegin)
@@ -5900,7 +5874,7 @@ bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
     if (IDVal == RVGPU::HSRV::AssemblerDirectiveBegin) {
       return Error(getLoc(), (Twine(HSRV::AssemblerDirectiveBegin) +
                               Twine(" directive is "
-                                    "not available on non-rvhsa OSes"))
+                                    "not available on non-ss OSes"))
                                  .str());
     }
   }
@@ -8061,7 +8035,7 @@ void RVGPUAsmParser::onBeginOfFile() {
   if (!getTargetStreamer().getTargetID())
     getTargetStreamer().initializeTargetID(getSTI(), getSTI().getFeatureString(),
         // TODO: Should try to check code object version from directive???
-        RVGPU::getRvhsaCodeObjectVersion());
+        RVGPU::getSsCodeObjectVersion());
 
   if (isHsaAbi(getSTI()))
     getTargetStreamer().EmitDirectiveRVGPUTarget();

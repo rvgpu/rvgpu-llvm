@@ -2212,7 +2212,7 @@ void RVTargetLowering::allocateSpecialInputSGPRs(
 
   const Module *M = MF.getFunction().getParent();
   if (UserSGPRInfo.hasQueuePtr() &&
-      RVGPU::getCodeObjectVersion(*M) < RVGPU::RVHSA_COV5)
+      RVGPU::getCodeObjectVersion(*M) < RVGPU::SS_COV5)
     allocateSGPR64Input(CCInfo, ArgInfo.QueuePtr);
 
   // Implicit arg ptr takes the place of the kernarg segment pointer. This is a
@@ -2265,7 +2265,7 @@ void RVTargetLowering::allocateHSAUserSGPRs(CCState &CCInfo,
 
   const Module *M = MF.getFunction().getParent();
   if (UserSGPRInfo.hasQueuePtr() &&
-      RVGPU::getCodeObjectVersion(*M) < RVGPU::RVHSA_COV5) {
+      RVGPU::getCodeObjectVersion(*M) < RVGPU::SS_COV5) {
     Register QueuePtrReg = Info.addQueuePtr(TRI);
     MF.addLiveIn(QueuePtrReg, &RVGPU::SGPR_64RegClass);
     CCInfo.AllocateReg(QueuePtrReg);
@@ -4817,8 +4817,7 @@ MachineBasicBlock *RVTargetLowering::EmitInstrWithCustomInserter(
     return BB;
   }
   case RVGPU::GET_GROUPSTATICSIZE: {
-    assert(getTargetMachine().getTargetTriple().getOS() == Triple::RVHSA ||
-           getTargetMachine().getTargetTriple().getOS() == Triple::RVPAL);
+    assert(getTargetMachine().getTargetTriple().getOS() == Triple::SS);
     DebugLoc DL = MI.getDebugLoc();
     BuildMI(*BB, MI, DL, TII->get(RVGPU::S_MOV_B32))
         .add(MI.getOperand(0))
@@ -5885,7 +5884,7 @@ bool RVTargetLowering::shouldUseLDSConstAddress(const GlobalValue *GV) const {
     return true;
 
   const auto OS = getTargetMachine().getTargetTriple().getOS();
-  return OS == Triple::RVHSA || OS == Triple::RVPAL;
+  return OS == Triple::SS;
 }
 
 /// This transforms the control flow intrinsics to get the branch destination as
@@ -6144,7 +6143,7 @@ SDValue RVTargetLowering::lowerXMUL_LOHI(SDValue Op, SelectionDAG &DAG) const {
 
 SDValue RVTargetLowering::lowerTRAP(SDValue Op, SelectionDAG &DAG) const {
   if (!Subtarget->isTrapHandlerEnabled() ||
-      Subtarget->getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::RVHSA)
+      Subtarget->getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::SS)
     return lowerTrapEndpgm(Op, DAG);
 
   return Subtarget->supportsGetDoorbellID() ? lowerTrapHsa(Op, DAG) :
@@ -6177,7 +6176,7 @@ SDValue RVTargetLowering::lowerTrapHsaQueuePtr(
   SDValue QueuePtr;
   // For code object version 5, QueuePtr is passed through implicit kernarg.
   const Module *M = DAG.getMachineFunction().getFunction().getParent();
-  if (RVGPU::getCodeObjectVersion(*M) >= RVGPU::RVHSA_COV5) {
+  if (RVGPU::getCodeObjectVersion(*M) >= RVGPU::SS_COV5) {
     QueuePtr =
         loadImplicitKernelArgument(DAG, MVT::i64, SL, Align(8), QUEUE_PTR);
   } else {
@@ -6200,7 +6199,7 @@ SDValue RVTargetLowering::lowerTrapHsaQueuePtr(
   SDValue ToReg = DAG.getCopyToReg(Chain, SL, SGPR01,
                                    QueuePtr, SDValue());
 
-  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMRVHSATrap);
+  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMSSTrap);
   SDValue Ops[] = {
     ToReg,
     DAG.getTargetConstant(TrapID, SL, MVT::i16),
@@ -6215,7 +6214,7 @@ SDValue RVTargetLowering::lowerTrapHsa(
   SDLoc SL(Op);
   SDValue Chain = Op.getOperand(0);
 
-  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMRVHSATrap);
+  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMSSTrap);
   SDValue Ops[] = {
     Chain,
     DAG.getTargetConstant(TrapID, SL, MVT::i16)
@@ -6229,7 +6228,7 @@ SDValue RVTargetLowering::lowerDEBUGTRAP(SDValue Op, SelectionDAG &DAG) const {
   MachineFunction &MF = DAG.getMachineFunction();
 
   if (!Subtarget->isTrapHandlerEnabled() ||
-      Subtarget->getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::RVHSA) {
+      Subtarget->getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::SS) {
     DiagnosticInfoUnsupported NoTrap(MF.getFunction(),
                                      "debugtrap handler not supported",
                                      Op.getDebugLoc(),
@@ -6239,7 +6238,7 @@ SDValue RVTargetLowering::lowerDEBUGTRAP(SDValue Op, SelectionDAG &DAG) const {
     return Chain;
   }
 
-  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMRVHSADebugTrap);
+  uint64_t TrapID = static_cast<uint64_t>(RVSubtarget::TrapID::LLVMSSDebugTrap);
   SDValue Ops[] = {
     Chain,
     DAG.getTargetConstant(TrapID, SL, MVT::i16)
@@ -6281,7 +6280,7 @@ SDValue RVTargetLowering::getSegmentAperture(unsigned AS, const SDLoc &DL,
   // For code object version 5, private_base and shared_base are passed through
   // implicit kernargs.
   const Module *M = DAG.getMachineFunction().getFunction().getParent();
-  if (RVGPU::getCodeObjectVersion(*M) >= RVGPU::RVHSA_COV5) {
+  if (RVGPU::getCodeObjectVersion(*M) >= RVGPU::SS_COV5) {
     ImplicitParameter Param =
         (AS == RVGPUAS::LOCAL_ADDRESS) ? SHARED_BASE : PRIVATE_BASE;
     return loadImplicitKernelArgument(DAG, MVT::i32, DL, Align(4), Param);
@@ -7858,7 +7857,7 @@ SDValue RVTargetLowering::LowerINTRINSIC_WO_CHAIN(SDValue Op,
 
   case Intrinsic::rvgpu_groupstaticsize: {
     Triple::OSType OS = getTargetMachine().getTargetTriple().getOS();
-    if (OS == Triple::RVHSA || OS == Triple::RVPAL)
+    if (OS == Triple::SS)
       return Op;
 
     const Module *M = MF.getFunction().getParent();

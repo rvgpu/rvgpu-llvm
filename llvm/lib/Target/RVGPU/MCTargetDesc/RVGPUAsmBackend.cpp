@@ -237,14 +237,11 @@ class ELFRVGPUAsmBackend : public RVGPUAsmBackend {
 public:
   ELFRVGPUAsmBackend(const Target &T, const Triple &TT, uint8_t ABIVersion) :
       RVGPUAsmBackend(T), Is64Bit(TT.getArch() == Triple::rvgpu),
-      HasRelocationAddend(TT.getOS() == Triple::RVHSA),
+      HasRelocationAddend(TT.getOS() == Triple::SS),
       ABIVersion(ABIVersion) {
     switch (TT.getOS()) {
-    case Triple::RVHSA:
+    case Triple::SS:
       OSABI = ELF::ELFOSABI_RVGPU_HSA;
-      break;
-    case Triple::RVPAL:
-      OSABI = ELF::ELFOSABI_RVGPU_PAL;
       break;
     case Triple::Mesa3D:
       OSABI = ELF::ELFOSABI_RVGPU_MESA3D;

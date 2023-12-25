@@ -290,20 +290,20 @@ bool MetadataVerifier::verify(msgpack::DocNode &HSAMetadataRoot) {
   auto &RootMap = HSAMetadataRoot.getMap();
 
   if (!verifyEntry(
-          RootMap, "rvhsa.version", true, [this](msgpack::DocNode &Node) {
+          RootMap, "ss.version", true, [this](msgpack::DocNode &Node) {
             return verifyArray(
                 Node,
                 [this](msgpack::DocNode &Node) { return verifyInteger(Node); }, 2);
           }))
     return false;
   if (!verifyEntry(
-          RootMap, "rvhsa.printf", false, [this](msgpack::DocNode &Node) {
+          RootMap, "ss.printf", false, [this](msgpack::DocNode &Node) {
             return verifyArray(Node, [this](msgpack::DocNode &Node) {
               return verifyScalar(Node, msgpack::Type::String);
             });
           }))
     return false;
-  if (!verifyEntry(RootMap, "rvhsa.kernels", true,
+  if (!verifyEntry(RootMap, "ss.kernels", true,
                    [this](msgpack::DocNode &Node) {
                      return verifyArray(Node, [this](msgpack::DocNode &Node) {
                        return verifyKernel(Node);

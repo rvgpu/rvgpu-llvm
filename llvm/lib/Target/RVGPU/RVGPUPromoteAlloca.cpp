@@ -76,7 +76,7 @@ private:
   unsigned MaxVGPRs;
 
   bool IsRVGPU = false;
-  bool IsRVHSA = false;
+  bool IsSS = false;
 
   std::pair<Value *, Value *> getLocalSizeYZ(IRBuilder<> &Builder);
   Value *getWorkitemID(IRBuilder<> &Builder, unsigned N);
@@ -104,7 +104,7 @@ public:
   RVGPUPromoteAllocaImpl(TargetMachine &TM) : TM(TM) {
     const Triple &TT = TM.getTargetTriple();
     IsRVGPU = TT.getArch() == Triple::rvgpu;
-    IsRVHSA = TT.getOS() == Triple::RVHSA;
+    IsSS = TT.getOS() == Triple::SS;
   }
 
   bool run(Function &F, bool PromoteToLDS);

@@ -188,12 +188,12 @@ void MetadataStreamerMsgPackV4::emitVersion() {
   auto Version = HSAMetadataDoc->getArrayNode();
   Version.push_back(Version.getDocument()->getNode(VersionMajorV4));
   Version.push_back(Version.getDocument()->getNode(VersionMinorV4));
-  getRootMetadata("rvhsa.version") = Version;
+  getRootMetadata("ss.version") = Version;
 }
 
 void MetadataStreamerMsgPackV4::emitTargetID(
     const IsaInfo::RVGPUTargetID &TargetID) {
-  getRootMetadata("rvhsa.target") =
+  getRootMetadata("ss.target") =
       HSAMetadataDoc->getNode(TargetID.toString(), /*Copy=*/true);
 }
 
@@ -207,7 +207,7 @@ void MetadataStreamerMsgPackV4::emitPrintf(const Module &Mod) {
     if (Op->getNumOperands())
       Printf.push_back(Printf.getDocument()->getNode(
           cast<MDString>(Op->getOperand(0))->getString(), /*Copy=*/true));
-  getRootMetadata("rvhsa.printf") = Printf;
+  getRootMetadata("ss.printf") = Printf;
 }
 
 void MetadataStreamerMsgPackV4::emitKernelLanguage(const Function &Func,
@@ -471,11 +471,11 @@ MetadataStreamerMsgPackV4::getHSAKernelProps(const MachineFunction &MF,
       Kern.getDocument()->getNode(ProgramInfo.LDSSize);
   Kern[".private_segment_fixed_size"] =
       Kern.getDocument()->getNode(ProgramInfo.ScratchSize);
-  if (CodeObjectVersion >= RVGPU::RVHSA_COV5)
+  if (CodeObjectVersion >= RVGPU::SS_COV5)
     Kern[".uses_dynamic_stack"] =
         Kern.getDocument()->getNode(ProgramInfo.DynamicCallStack);
 
-  if (CodeObjectVersion >= RVGPU::RVHSA_COV5 && STM.supportsWGP())
+  if (CodeObjectVersion >= RVGPU::SS_COV5 && STM.supportsWGP())
     Kern[".workgroup_processor_mode"] =
         Kern.getDocument()->getNode(ProgramInfo.WgpMode);
 
@@ -511,7 +511,7 @@ void MetadataStreamerMsgPackV4::begin(const Module &Mod,
   emitVersion();
   emitTargetID(TargetID);
   emitPrintf(Mod);
-  getRootMetadata("rvhsa.kernels") = HSAMetadataDoc->getArrayNode();
+  getRootMetadata("ss.kernels") = HSAMetadataDoc->getArrayNode();
 }
 
 void MetadataStreamerMsgPackV4::end() {
@@ -536,7 +536,7 @@ void MetadataStreamerMsgPackV4::emitKernel(const MachineFunction &MF,
   auto Kern = getHSAKernelProps(MF, ProgramInfo, CodeObjectVersion);
 
   auto Kernels =
-      getRootMetadata("rvhsa.kernels").getArray(/*Convert=*/true);
+      getRootMetadata("ss.kernels").getArray(/*Convert=*/true);
 
   {
     Kern[".name"] = Kern.getDocument()->getNode(Func.getName());
@@ -558,7 +558,7 @@ void MetadataStreamerMsgPackV5::emitVersion() {
   auto Version = HSAMetadataDoc->getArrayNode();
   Version.push_back(Version.getDocument()->getNode(VersionMajorV5));
   Version.push_back(Version.getDocument()->getNode(VersionMinorV5));
-  getRootMetadata("rvhsa.version") = Version;
+  getRootMetadata("ss.version") = Version;
 }
 
 void MetadataStreamerMsgPackV5::emitHiddenKernelArgs(

@@ -21,7 +21,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/RVHSAKernelDescriptor.h"
+#include "llvm/Support/SSKernelDescriptor.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/TargetParser/RVTargetParser.h"
 #include <optional>
@@ -31,8 +31,8 @@
 #include "RVGPUGenInstrInfo.inc"
 
 static llvm::cl::opt<unsigned>
-    RvhsaCodeObjectVersion("rvhsa-code-object-version", llvm::cl::Hidden,
-                            llvm::cl::desc("RVHSA Code Object Version"),
+    SsCodeObjectVersion("ss-code-object-version", llvm::cl::Hidden,
+                            llvm::cl::desc("SS Code Object Version"),
                             llvm::cl::init(4));
 
 namespace {
@@ -117,23 +117,23 @@ namespace llvm {
 
 namespace RVGPU {
 
-/// \returns True if \p STI is RVHSA.
+/// \returns True if \p STI is SS.
 bool isHsaAbi(const MCSubtargetInfo &STI) {
-  return STI.getTargetTriple().getOS() == Triple::RVHSA;
+  return STI.getTargetTriple().getOS() == Triple::SS;
 }
 
 std::optional<uint8_t> getHsaAbiVersion(const MCSubtargetInfo *STI) {
-  if (STI && STI->getTargetTriple().getOS() != Triple::RVHSA)
+  if (STI && STI->getTargetTriple().getOS() != Triple::SS)
     return std::nullopt;
 
-  switch (RvhsaCodeObjectVersion) {
+  switch (SsCodeObjectVersion) {
   case 4:
     return ELF::ELFABIVERSION_RVGPU_HSA_V4;
   case 5:
     return ELF::ELFABIVERSION_RVGPU_HSA_V5;
   default:
-    report_fatal_error(Twine("Unsupported RVHSA Code Object Version ") +
-                       Twine(RvhsaCodeObjectVersion));
+    report_fatal_error(Twine("Unsupported SS Code Object Version ") +
+                       Twine(SsCodeObjectVersion));
   }
 }
 
@@ -149,8 +149,8 @@ bool isHsaAbiVersion5(const MCSubtargetInfo *STI) {
   return false;
 }
 
-unsigned getRvhsaCodeObjectVersion() {
-  return RvhsaCodeObjectVersion;
+unsigned getSsCodeObjectVersion() {
+  return SsCodeObjectVersion;
 }
 
 unsigned getCodeObjectVersion(const Module &M) {
@@ -160,14 +160,14 @@ unsigned getCodeObjectVersion(const Module &M) {
   }
 
   // Default code object version.
-  return RVHSA_COV4;
+  return SS_COV4;
 }
 
 unsigned getMultigridSyncArgImplicitArgPosition(unsigned CodeObjectVersion) {
   switch (CodeObjectVersion) {
-  case RVHSA_COV4:
+  case SS_COV4:
     return 48;
-  case RVHSA_COV5:
+  case SS_COV5:
   default:
     return RVGPU::ImplicitArg::MULTIGRID_SYNC_ARG_OFFSET;
   }
@@ -178,9 +178,9 @@ unsigned getMultigridSyncArgImplicitArgPosition(unsigned CodeObjectVersion) {
 // central TD file.
 unsigned getHostcallImplicitArgPosition(unsigned CodeObjectVersion) {
   switch (CodeObjectVersion) {
-  case RVHSA_COV4:
+  case SS_COV4:
     return 24;
-  case RVHSA_COV5:
+  case SS_COV5:
   default:
     return RVGPU::ImplicitArg::HOSTCALL_PTR_OFFSET;
   }
@@ -188,9 +188,9 @@ unsigned getHostcallImplicitArgPosition(unsigned CodeObjectVersion) {
 
 unsigned getDefaultQueueImplicitArgPosition(unsigned CodeObjectVersion) {
   switch (CodeObjectVersion) {
-  case RVHSA_COV4:
+  case SS_COV4:
     return 32;
-  case RVHSA_COV5:
+  case SS_COV5:
   default:
     return RVGPU::ImplicitArg::DEFAULT_QUEUE_OFFSET;
   }
@@ -198,9 +198,9 @@ unsigned getDefaultQueueImplicitArgPosition(unsigned CodeObjectVersion) {
 
 unsigned getCompletionActionImplicitArgPosition(unsigned CodeObjectVersion) {
   switch (CodeObjectVersion) {
-  case RVHSA_COV4:
+  case SS_COV4:
     return 40;
-  case RVHSA_COV5:
+  case SS_COV5:
   default:
     return RVGPU::ImplicitArg::COMPLETION_ACTION_OFFSET;
   }
@@ -777,10 +777,10 @@ std::string RVGPUTargetID::toString() const {
                     .str();
 
   std::string Features;
-  if (STI.getTargetTriple().getOS() == Triple::RVHSA) {
+  if (STI.getTargetTriple().getOS() == Triple::SS) {
     switch (CodeObjectVersion) {
-    case RVGPU::RVHSA_COV4:
-    case RVGPU::RVHSA_COV5:
+    case RVGPU::SS_COV4:
+    case RVGPU::SS_COV5:
       // sramecc.
       if (getSramEccSetting() == TargetIDSetting::Off)
         Features += ":sramecc-";
@@ -1138,31 +1138,31 @@ void initDefaultRVKernelCodeT(rv_kernel_code_t &Header,
   }
 }
 
-rvhsa::kernel_descriptor_t getDefaultRvhsaKernelDescriptor(
+ss::kernel_descriptor_t getDefaultSsKernelDescriptor(
     const MCSubtargetInfo *STI) {
   IsaVersion Version = getIsaVersion(STI->getCPU());
 
-  rvhsa::kernel_descriptor_t KD;
+  ss::kernel_descriptor_t KD;
   memset(&KD, 0, sizeof(KD));
 
-  RVHSA_BITS_SET(KD.compute_pgm_rsrc1,
-                  rvhsa::COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_16_64,
-                  rvhsa::FLOAT_DENORM_MODE_FLUSH_NONE);
-  RVHSA_BITS_SET(KD.compute_pgm_rsrc1,
-                    rvhsa::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP, 1);
-  RVHSA_BITS_SET(KD.compute_pgm_rsrc1,
-                    rvhsa::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE, 1);
-  RVHSA_BITS_SET(KD.compute_pgm_rsrc2,
-                  rvhsa::COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_X, 1);
+  SS_BITS_SET(KD.compute_pgm_rsrc1,
+                  ss::COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_16_64,
+                  ss::FLOAT_DENORM_MODE_FLUSH_NONE);
+  SS_BITS_SET(KD.compute_pgm_rsrc1,
+                    ss::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP, 1);
+  SS_BITS_SET(KD.compute_pgm_rsrc1,
+                    ss::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE, 1);
+  SS_BITS_SET(KD.compute_pgm_rsrc2,
+                  ss::COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_X, 1);
   if (Version.Major >= 10) {
-    RVHSA_BITS_SET(KD.kernel_code_properties,
-                    rvhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32,
+    SS_BITS_SET(KD.kernel_code_properties,
+                    ss::KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32,
                     STI->getFeatureBits().test(FeatureWavefrontSize32) ? 1 : 0);
-    RVHSA_BITS_SET(KD.compute_pgm_rsrc1,
-                    rvhsa::COMPUTE_PGM_RSRC1_GFX10_PLUS_WGP_MODE,
+    SS_BITS_SET(KD.compute_pgm_rsrc1,
+                    ss::COMPUTE_PGM_RSRC1_GFX10_PLUS_WGP_MODE,
                     STI->getFeatureBits().test(FeatureCuMode) ? 0 : 1);
-    RVHSA_BITS_SET(KD.compute_pgm_rsrc1,
-                    rvhsa::COMPUTE_PGM_RSRC1_GFX10_PLUS_MEM_ORDERED, 1);
+    SS_BITS_SET(KD.compute_pgm_rsrc1,
+                    ss::COMPUTE_PGM_RSRC1_GFX10_PLUS_MEM_ORDERED, 1);
   }
   return KD;
 }

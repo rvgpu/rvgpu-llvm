@@ -98,7 +98,7 @@ RVSubtarget::initializeSubtargetDependencies(const Triple &TT,
   // the first rvgpu target that supports flat addressing. Other OSes defaults
   // to the first rvgpu target.
   if (Gen == RVGPUSubtarget::INVALID) {
-     Gen = TT.getOS() == Triple::RVHSA ? RVGPUSubtarget::SEA_ISLANDS
+     Gen = TT.getOS() == Triple::SS ? RVGPUSubtarget::SEA_ISLANDS
                                         : RVGPUSubtarget::SOUTHERN_ISLANDS;
   }
 
@@ -557,7 +557,7 @@ unsigned RVGPUSubtarget::getImplicitArgNumBytes(const Function &F) const {
   // Assume all implicit inputs are used by default
   const Module *M = F.getParent();
   unsigned NBytes =
-      RVGPU::getCodeObjectVersion(*M) >= RVGPU::RVHSA_COV5 ? 256 : 56;
+      RVGPU::getCodeObjectVersion(*M) >= RVGPU::SS_COV5 ? 256 : 56;
   return F.getFnAttributeAsParsedInteger("rvgpu-implicitarg-num-bytes",
                                          NBytes);
 }

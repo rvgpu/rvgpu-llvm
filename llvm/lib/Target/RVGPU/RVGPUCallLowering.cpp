@@ -474,7 +474,7 @@ static void allocateHSAUserSGPRs(CCState &CCInfo,
 
   const Module *M = MF.getFunction().getParent();
   if (UserSGPRInfo.hasQueuePtr() &&
-      RVGPU::getCodeObjectVersion(*M) < RVGPU::RVHSA_COV5) {
+      RVGPU::getCodeObjectVersion(*M) < RVGPU::SS_COV5) {
     Register QueuePtrReg = Info.addQueuePtr(TRI);
     MF.addLiveIn(QueuePtrReg, &RVGPU::SGPR_64RegClass);
     CCInfo.AllocateReg(QueuePtrReg);

@@ -2128,7 +2128,7 @@ Register RVGPULegalizerInfo::getSegmentAperture(
   // For code object version 5, private_base and shared_base are passed through
   // implicit kernargs.
   if (RVGPU::getCodeObjectVersion(*MF.getFunction().getParent()) >=
-      RVGPU::RVHSA_COV5) {
+      RVGPU::SS_COV5) {
     RVGPUTargetLowering::ImplicitParameter Param =
         AS == RVGPUAS::LOCAL_ADDRESS ? RVGPUTargetLowering::SHARED_BASE
                                       : RVGPUTargetLowering::PRIVATE_BASE;
@@ -6490,7 +6490,7 @@ bool RVGPULegalizerInfo::legalizeTrapIntrinsic(MachineInstr &MI,
                                                 MachineRegisterInfo &MRI,
                                                 MachineIRBuilder &B) const {
   if (!ST.isTrapHandlerEnabled() ||
-      ST.getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::RVHSA)
+      ST.getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::SS)
     return legalizeTrapEndpgm(MI, MRI, B);
 
   return ST.supportsGetDoorbellID() ?
@@ -6534,7 +6534,7 @@ bool RVGPULegalizerInfo::legalizeTrapHsaQueuePtr(
   Register SGPR01(RVGPU::SGPR0_SGPR1);
   // For code object version 5, queue_ptr is passed through implicit kernarg.
   if (RVGPU::getCodeObjectVersion(*MF.getFunction().getParent()) >=
-      RVGPU::RVHSA_COV5) {
+      RVGPU::SS_COV5) {
     RVGPUTargetLowering::ImplicitParameter Param =
         RVGPUTargetLowering::QUEUE_PTR;
     uint64_t Offset =
@@ -6564,7 +6564,7 @@ bool RVGPULegalizerInfo::legalizeTrapHsaQueuePtr(
     Register Temp = B.buildLoad(S64, LoadAddr, *MMO).getReg(0);
     B.buildCopy(SGPR01, Temp);
     B.buildInstr(RVGPU::S_TRAP)
-        .addImm(static_cast<unsigned>(RVSubtarget::TrapID::LLVMRVHSATrap))
+        .addImm(static_cast<unsigned>(RVSubtarget::TrapID::LLVMSSTrap))
         .addReg(SGPR01, RegState::Implicit);
     MI.eraseFromParent();
     return true;
@@ -6579,7 +6579,7 @@ bool RVGPULegalizerInfo::legalizeTrapHsaQueuePtr(
 
   B.buildCopy(SGPR01, LiveIn);
   B.buildInstr(RVGPU::S_TRAP)
-      .addImm(static_cast<unsigned>(RVSubtarget::TrapID::LLVMRVHSATrap))
+      .addImm(static_cast<unsigned>(RVSubtarget::TrapID::LLVMSSTrap))
       .addReg(SGPR01, RegState::Implicit);
 
   MI.eraseFromParent();
@@ -6589,7 +6589,7 @@ bool RVGPULegalizerInfo::legalizeTrapHsaQueuePtr(
 bool RVGPULegalizerInfo::legalizeTrapHsa(
     MachineInstr &MI, MachineRegisterInfo &MRI, MachineIRBuilder &B) const {
   B.buildInstr(RVGPU::S_TRAP)
-      .addImm(static_cast<unsigned>(RVSubtarget::TrapID::LLVMRVHSATrap));
+      .addImm(static_cast<unsigned>(RVSubtarget::TrapID::LLVMSSTrap));
   MI.eraseFromParent();
   return true;
 }
@@ -6599,7 +6599,7 @@ bool RVGPULegalizerInfo::legalizeDebugTrapIntrinsic(
   // Is non-HSA path or trap-handler disabled? Then, report a warning
   // accordingly
   if (!ST.isTrapHandlerEnabled() ||
-      ST.getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::RVHSA) {
+      ST.getTrapHandlerAbi() != RVSubtarget::TrapHandlerAbi::SS) {
     DiagnosticInfoUnsupported NoTrap(B.getMF().getFunction(),
                                      "debugtrap handler not supported",
                                      MI.getDebugLoc(), DS_Warning);
@@ -6608,7 +6608,7 @@ bool RVGPULegalizerInfo::legalizeDebugTrapIntrinsic(
   } else {
     // Insert debug-trap instruction
     B.buildInstr(RVGPU::S_TRAP)
-        .addImm(static_cast<unsigned>(RVSubtarget::TrapID::LLVMRVHSADebugTrap));
+        .addImm(static_cast<unsigned>(RVSubtarget::TrapID::LLVMSSDebugTrap));
   }
 
   MI.eraseFromParent();

@@ -323,7 +323,7 @@ static bool processUse(CallInst *CI, bool IsV5OrAbove) {
 // TargetPassConfig for subtarget.
 bool RVGPULowerKernelAttributes::runOnModule(Module &M) {
   bool MadeChange = false;
-  bool IsV5OrAbove = RVGPU::getCodeObjectVersion(M) >= RVGPU::RVHSA_COV5;
+  bool IsV5OrAbove = RVGPU::getCodeObjectVersion(M) >= RVGPU::SS_COV5;
   Function *BasePtr = getBasePtrIntrinsic(M, IsV5OrAbove);
 
   if (!BasePtr) // ImplicitArgPtr/DispatchPtr not used.
@@ -356,7 +356,7 @@ ModulePass *llvm::createRVGPULowerKernelAttributesPass() {
 PreservedAnalyses
 RVGPULowerKernelAttributesPass::run(Function &F, FunctionAnalysisManager &AM) {
   bool IsV5OrAbove =
-      RVGPU::getCodeObjectVersion(*F.getParent()) >= RVGPU::RVHSA_COV5;
+      RVGPU::getCodeObjectVersion(*F.getParent()) >= RVGPU::SS_COV5;
   Function *BasePtr = getBasePtrIntrinsic(*F.getParent(), IsV5OrAbove);
 
   if (!BasePtr) // ImplicitArgPtr/DispatchPtr not used.

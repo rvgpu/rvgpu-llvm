@@ -541,7 +541,7 @@ static StringRef getGPUOrDefault(const Triple &TT, StringRef GPU) {
     return GPU;
 
   // Need to default to a target with flat support for HSA.
-  return TT.getOS() == Triple::RVHSA ? "generic-rvhsa" : "generic";
+  return TT.getOS() == Triple::SS ? "generic-ss" : "generic";
 }
 
 static Reloc::Model getEffectiveRelocModel(std::optional<Reloc::Model> RM) {

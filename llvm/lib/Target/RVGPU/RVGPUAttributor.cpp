@@ -87,7 +87,7 @@ intrinsicToAttrMask(Intrinsic::ID ID, bool &NonKernelOnly, bool &NeedsImplicit,
   // Need queue_ptr anyway. But under V5, we also need implicitarg_ptr to access
   // queue_ptr.
   case Intrinsic::rvgpu_queue_ptr:
-    NeedsImplicit = (CodeObjectVersion >= RVGPU::RVHSA_COV5);
+    NeedsImplicit = (CodeObjectVersion >= RVGPU::SS_COV5);
     return QUEUE_PTR;
   case Intrinsic::rvgpu_is_shared:
   case Intrinsic::rvgpu_is_private:
@@ -96,13 +96,13 @@ intrinsicToAttrMask(Intrinsic::ID ID, bool &NonKernelOnly, bool &NeedsImplicit,
     // Under V5, we need implicitarg_ptr + offsets to access private_base or
     // shared_base. For pre-V5, however, need to access them through queue_ptr +
     // offsets.
-    return CodeObjectVersion >= RVGPU::RVHSA_COV5 ? IMPLICIT_ARG_PTR :
+    return CodeObjectVersion >= RVGPU::SS_COV5 ? IMPLICIT_ARG_PTR :
                                                       QUEUE_PTR;
   case Intrinsic::trap:
     if (SupportsGetDoorBellID) // GetDoorbellID support implemented since V4.
-      return CodeObjectVersion >= RVGPU::RVHSA_COV4 ? NOT_IMPLICIT_INPUT :
+      return CodeObjectVersion >= RVGPU::SS_COV4 ? NOT_IMPLICIT_INPUT :
                                                         QUEUE_PTR;
-    NeedsImplicit = (CodeObjectVersion >= RVGPU::RVHSA_COV5);
+    NeedsImplicit = (CodeObjectVersion >= RVGPU::SS_COV5);
     return QUEUE_PTR;
   default:
     return NOT_IMPLICIT_INPUT;

@@ -1507,7 +1507,7 @@ bool RVGPUInstructionSelector::selectGroupStaticSize(MachineInstr &I) const {
 
   auto MIB = BuildMI(*MBB, &I, DL, TII.get(Mov), DstReg);
 
-  if (OS == Triple::RVHSA || OS == Triple::RVPAL) {
+  if (OS == Triple::SS) {
     const RVMachineFunctionInfo *MFI = MF->getInfo<RVMachineFunctionInfo>();
     MIB.addImm(MFI->getLDSSize());
   } else {

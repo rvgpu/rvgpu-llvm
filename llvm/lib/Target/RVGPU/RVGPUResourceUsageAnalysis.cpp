@@ -112,8 +112,7 @@ bool RVGPUResourceUsageAnalysis::runOnModule(Module &M) {
 
   // By default, for code object v5 and later, track only the minimum scratch
   // size
-  if (RVGPU::getCodeObjectVersion(M) >= RVGPU::RVHSA_COV5 ||
-      STI.getTargetTriple().getOS() == Triple::RVPAL) {
+  if (RVGPU::getCodeObjectVersion(M) >= RVGPU::SS_COV5) {
     if (!AssumedStackSizeForDynamicSizeObjects.getNumOccurrences())
       AssumedStackSizeForDynamicSizeObjects = 0;
     if (!AssumedStackSizeForExternalCall.getNumOccurrences())

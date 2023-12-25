@@ -40,12 +40,12 @@ public:
   //   - https://llvm.org/docs/RVGPUUsage.html#trap-handler-abi
   enum class TrapHandlerAbi {
     NONE   = 0x00,
-    RVHSA = 0x01,
+    SS = 0x01,
   };
 
   enum class TrapID {
-    LLVMRVHSATrap      = 0x02,
-    LLVMRVHSADebugTrap = 0x03,
+    LLVMSSTrap      = 0x02,
+    LLVMSSDebugTrap = 0x03,
   };
 
 private:
@@ -418,7 +418,7 @@ public:
   }
 
   TrapHandlerAbi getTrapHandlerAbi() const {
-    return isRvHsaOS() ? TrapHandlerAbi::RVHSA : TrapHandlerAbi::NONE;
+    return isRvHsaOS() ? TrapHandlerAbi::SS : TrapHandlerAbi::NONE;
   }
 
   bool supportsGetDoorbellID() const {

@@ -34,7 +34,7 @@ class StringRef;
 class Triple;
 class raw_ostream;
 
-namespace rvhsa {
+namespace ss {
 struct kernel_descriptor_t;
 }
 
@@ -42,9 +42,9 @@ namespace RVGPU {
 
 struct IsaVersion;
 
-enum { RVHSA_COV4 = 4, RVHSA_COV5 = 5 };
+enum { SS_COV4 = 4, SS_COV5 = 5 };
 
-/// \returns True if \p STI is RVHSA.
+/// \returns True if \p STI is SS.
 bool isHsaAbi(const MCSubtargetInfo &STI);
 /// \returns HSA OS ABI Version identification.
 std::optional<uint8_t> getHsaAbiVersion(const MCSubtargetInfo *STI);
@@ -65,7 +65,7 @@ unsigned getDefaultQueueImplicitArgPosition(unsigned COV);
 unsigned getCompletionActionImplicitArgPosition(unsigned COV);
 
 /// \returns Code object version.
-unsigned getRvhsaCodeObjectVersion();
+unsigned getSsCodeObjectVersion();
 
 /// \returns Code object version.
 unsigned getCodeObjectVersion(const Module &M);
@@ -799,7 +799,7 @@ unsigned mapWMMA3AddrTo2AddrOpcode(unsigned Opc);
 void initDefaultRVKernelCodeT(rv_kernel_code_t &Header,
                                const MCSubtargetInfo *STI);
 
-rvhsa::kernel_descriptor_t getDefaultRvhsaKernelDescriptor(
+ss::kernel_descriptor_t getDefaultSsKernelDescriptor(
     const MCSubtargetInfo *STI);
 
 bool isGroupSegment(const GlobalValue *GV);

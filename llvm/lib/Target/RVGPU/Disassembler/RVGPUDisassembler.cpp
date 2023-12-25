@@ -32,7 +32,7 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/TargetRegistry.h"
-#include "llvm/Support/RVHSAKernelDescriptor.h"
+#include "llvm/Support/SSKernelDescriptor.h"
 
 using namespace llvm;
 
@@ -1803,7 +1803,7 @@ bool RVGPUDisassembler::hasKernargPreload() const {
 //===----------------------------------------------------------------------===//
 // RVGPU specific symbol handling
 //===----------------------------------------------------------------------===//
-#define GET_FIELD(MASK) (RVHSA_BITS_GET(FourByteBuffer, MASK))
+#define GET_FIELD(MASK) (SS_BITS_GET(FourByteBuffer, MASK))
 #define PRINT_DIRECTIVE(DIRECTIVE, MASK)                                       \
   do {                                                                         \
     KdStream << Indent << DIRECTIVE " " << GET_FIELD(MASK) << '\n';            \
@@ -1817,7 +1817,7 @@ bool RVGPUDisassembler::hasKernargPreload() const {
 // NOLINTNEXTLINE(readability-identifier-naming)
 MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC1(
     uint32_t FourByteBuffer, raw_string_ostream &KdStream) const {
-  using namespace rvhsa;
+  using namespace ss;
   StringRef Indent = "\t";
 
   // We cannot accurately backward compute #VGPRs used from
@@ -1832,14 +1832,14 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC1(
       (GranulatedWorkitemVGPRCount + 1) *
       RVGPU::IsaInfo::getVGPREncodingGranule(&STI, EnableWavefrontSize32);
 
-  KdStream << Indent << ".rvhsa_next_free_vgpr " << NextFreeVGPR << '\n';
+  KdStream << Indent << ".ss_next_free_vgpr " << NextFreeVGPR << '\n';
 
   // We cannot backward compute values used to calculate
   // GRANULATED_WAVEFRONT_SGPR_COUNT. Hence the original values for following
   // directives can't be computed:
-  // .rvhsa_reserve_vcc
-  // .rvhsa_reserve_flat_scratch
-  // .rvhsa_reserve_xnack_mask
+  // .ss_reserve_vcc
+  // .ss_reserve_flat_scratch
+  // .ss_reserve_xnack_mask
   // They take their respective default values if not specified in the assembly.
   //
   // GRANULATED_WAVEFRONT_SGPR_COUNT
@@ -1862,36 +1862,36 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC1(
   uint32_t NextFreeSGPR = (GranulatedWavefrontSGPRCount + 1) *
                           RVGPU::IsaInfo::getSGPREncodingGranule(&STI);
 
-  KdStream << Indent << ".rvhsa_reserve_vcc " << 0 << '\n';
+  KdStream << Indent << ".ss_reserve_vcc " << 0 << '\n';
   if (!hasArchitectedFlatScratch())
-    KdStream << Indent << ".rvhsa_reserve_flat_scratch " << 0 << '\n';
-  KdStream << Indent << ".rvhsa_reserve_xnack_mask " << 0 << '\n';
-  KdStream << Indent << ".rvhsa_next_free_sgpr " << NextFreeSGPR << "\n";
+    KdStream << Indent << ".ss_reserve_flat_scratch " << 0 << '\n';
+  KdStream << Indent << ".ss_reserve_xnack_mask " << 0 << '\n';
+  KdStream << Indent << ".ss_next_free_sgpr " << NextFreeSGPR << "\n";
 
   if (FourByteBuffer & COMPUTE_PGM_RSRC1_PRIORITY)
     return MCDisassembler::Fail;
 
-  PRINT_DIRECTIVE(".rvhsa_float_round_mode_32",
+  PRINT_DIRECTIVE(".ss_float_round_mode_32",
                   COMPUTE_PGM_RSRC1_FLOAT_ROUND_MODE_32);
-  PRINT_DIRECTIVE(".rvhsa_float_round_mode_16_64",
+  PRINT_DIRECTIVE(".ss_float_round_mode_16_64",
                   COMPUTE_PGM_RSRC1_FLOAT_ROUND_MODE_16_64);
-  PRINT_DIRECTIVE(".rvhsa_float_denorm_mode_32",
+  PRINT_DIRECTIVE(".ss_float_denorm_mode_32",
                   COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_32);
-  PRINT_DIRECTIVE(".rvhsa_float_denorm_mode_16_64",
+  PRINT_DIRECTIVE(".ss_float_denorm_mode_16_64",
                   COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_16_64);
 
   if (FourByteBuffer & COMPUTE_PGM_RSRC1_PRIV)
     return MCDisassembler::Fail;
 
   if (!isGFX12Plus())
-    PRINT_DIRECTIVE(".rvhsa_dx10_clamp",
+    PRINT_DIRECTIVE(".ss_dx10_clamp",
                     COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP);
 
   if (FourByteBuffer & COMPUTE_PGM_RSRC1_DEBUG_MODE)
     return MCDisassembler::Fail;
 
   if (!isGFX12Plus())
-    PRINT_DIRECTIVE(".rvhsa_ieee_mode",
+    PRINT_DIRECTIVE(".ss_ieee_mode",
                     COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE);
 
   if (FourByteBuffer & COMPUTE_PGM_RSRC1_BULKY)
@@ -1901,7 +1901,7 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC1(
     return MCDisassembler::Fail;
 
   if (isGFX9Plus())
-    PRINT_DIRECTIVE(".rvhsa_fp16_overflow", COMPUTE_PGM_RSRC1_GFX9_PLUS_FP16_OVFL);
+    PRINT_DIRECTIVE(".ss_fp16_overflow", COMPUTE_PGM_RSRC1_GFX9_PLUS_FP16_OVFL);
 
   if (!isGFX9Plus())
     if (FourByteBuffer & COMPUTE_PGM_RSRC1_GFX6_GFX8_RESERVED0)
@@ -1913,14 +1913,14 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC1(
       return MCDisassembler::Fail;
 
   if (isGFX10Plus()) {
-    PRINT_DIRECTIVE(".rvhsa_workgroup_processor_mode",
+    PRINT_DIRECTIVE(".ss_workgroup_processor_mode",
                     COMPUTE_PGM_RSRC1_GFX10_PLUS_WGP_MODE);
-    PRINT_DIRECTIVE(".rvhsa_memory_ordered", COMPUTE_PGM_RSRC1_GFX10_PLUS_MEM_ORDERED);
-    PRINT_DIRECTIVE(".rvhsa_forward_progress", COMPUTE_PGM_RSRC1_GFX10_PLUS_FWD_PROGRESS);
+    PRINT_DIRECTIVE(".ss_memory_ordered", COMPUTE_PGM_RSRC1_GFX10_PLUS_MEM_ORDERED);
+    PRINT_DIRECTIVE(".ss_forward_progress", COMPUTE_PGM_RSRC1_GFX10_PLUS_FWD_PROGRESS);
   }
 
   if (isGFX12Plus())
-    PRINT_DIRECTIVE(".rvhsa_round_robin_scheduling",
+    PRINT_DIRECTIVE(".ss_round_robin_scheduling",
                     COMPUTE_PGM_RSRC1_GFX12_PLUS_ENABLE_WG_RR_EN);
 
   return MCDisassembler::Success;
@@ -1929,23 +1929,23 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC1(
 // NOLINTNEXTLINE(readability-identifier-naming)
 MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC2(
     uint32_t FourByteBuffer, raw_string_ostream &KdStream) const {
-  using namespace rvhsa;
+  using namespace ss;
   StringRef Indent = "\t";
   if (hasArchitectedFlatScratch())
-    PRINT_DIRECTIVE(".rvhsa_enable_private_segment",
+    PRINT_DIRECTIVE(".ss_enable_private_segment",
                     COMPUTE_PGM_RSRC2_ENABLE_PRIVATE_SEGMENT);
   else
-    PRINT_DIRECTIVE(".rvhsa_system_sgpr_private_segment_wavefront_offset",
+    PRINT_DIRECTIVE(".ss_system_sgpr_private_segment_wavefront_offset",
                     COMPUTE_PGM_RSRC2_ENABLE_PRIVATE_SEGMENT);
-  PRINT_DIRECTIVE(".rvhsa_system_sgpr_workgroup_id_x",
+  PRINT_DIRECTIVE(".ss_system_sgpr_workgroup_id_x",
                   COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_X);
-  PRINT_DIRECTIVE(".rvhsa_system_sgpr_workgroup_id_y",
+  PRINT_DIRECTIVE(".ss_system_sgpr_workgroup_id_y",
                   COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_Y);
-  PRINT_DIRECTIVE(".rvhsa_system_sgpr_workgroup_id_z",
+  PRINT_DIRECTIVE(".ss_system_sgpr_workgroup_id_z",
                   COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_Z);
-  PRINT_DIRECTIVE(".rvhsa_system_sgpr_workgroup_info",
+  PRINT_DIRECTIVE(".ss_system_sgpr_workgroup_info",
                   COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_INFO);
-  PRINT_DIRECTIVE(".rvhsa_system_vgpr_workitem_id",
+  PRINT_DIRECTIVE(".ss_system_vgpr_workitem_id",
                   COMPUTE_PGM_RSRC2_ENABLE_VGPR_WORKITEM_ID);
 
   if (FourByteBuffer & COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_ADDRESS_WATCH)
@@ -1958,20 +1958,20 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC2(
     return MCDisassembler::Fail;
 
   PRINT_DIRECTIVE(
-      ".rvhsa_exception_fp_ieee_invalid_op",
+      ".ss_exception_fp_ieee_invalid_op",
       COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_INVALID_OPERATION);
-  PRINT_DIRECTIVE(".rvhsa_exception_fp_denorm_src",
+  PRINT_DIRECTIVE(".ss_exception_fp_denorm_src",
                   COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_FP_DENORMAL_SOURCE);
   PRINT_DIRECTIVE(
-      ".rvhsa_exception_fp_ieee_div_zero",
+      ".ss_exception_fp_ieee_div_zero",
       COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_DIVISION_BY_ZERO);
-  PRINT_DIRECTIVE(".rvhsa_exception_fp_ieee_overflow",
+  PRINT_DIRECTIVE(".ss_exception_fp_ieee_overflow",
                   COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_OVERFLOW);
-  PRINT_DIRECTIVE(".rvhsa_exception_fp_ieee_underflow",
+  PRINT_DIRECTIVE(".ss_exception_fp_ieee_underflow",
                   COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_UNDERFLOW);
-  PRINT_DIRECTIVE(".rvhsa_exception_fp_ieee_inexact",
+  PRINT_DIRECTIVE(".ss_exception_fp_ieee_inexact",
                   COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_INEXACT);
-  PRINT_DIRECTIVE(".rvhsa_exception_int_div_zero",
+  PRINT_DIRECTIVE(".ss_exception_int_div_zero",
                   COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_INT_DIVIDE_BY_ZERO);
 
   if (FourByteBuffer & COMPUTE_PGM_RSRC2_RESERVED0)
@@ -1983,20 +1983,20 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC2(
 // NOLINTNEXTLINE(readability-identifier-naming)
 MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC3(
     uint32_t FourByteBuffer, raw_string_ostream &KdStream) const {
-  using namespace rvhsa;
+  using namespace ss;
   StringRef Indent = "\t";
   if (isGFX90A()) {
-    KdStream << Indent << ".rvhsa_accum_offset "
+    KdStream << Indent << ".ss_accum_offset "
              << (GET_FIELD(COMPUTE_PGM_RSRC3_GFX90A_ACCUM_OFFSET) + 1) * 4
              << '\n';
     if (FourByteBuffer & COMPUTE_PGM_RSRC3_GFX90A_RESERVED0)
       return MCDisassembler::Fail;
-    PRINT_DIRECTIVE(".rvhsa_tg_split", COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT);
+    PRINT_DIRECTIVE(".ss_tg_split", COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT);
     if (FourByteBuffer & COMPUTE_PGM_RSRC3_GFX90A_RESERVED1)
       return MCDisassembler::Fail;
   } else if (isGFX10Plus()) {
     if (!EnableWavefrontSize32 || !*EnableWavefrontSize32) {
-      PRINT_DIRECTIVE(".rvhsa_shared_vgpr_count",
+      PRINT_DIRECTIVE(".ss_shared_vgpr_count",
                       COMPUTE_PGM_RSRC3_GFX10_PLUS_SHARED_VGPR_COUNT);
     } else {
       PRINT_PSEUDO_DIRECTIVE_COMMENT(
@@ -2054,25 +2054,25 @@ RVGPUDisassembler::decodeKernelDescriptorDirective(
   DataExtractor DE(Bytes, /*IsLittleEndian=*/true, /*AddressSize=*/8);
 
   switch (Cursor.tell()) {
-  case rvhsa::GROUP_SEGMENT_FIXED_SIZE_OFFSET:
+  case ss::GROUP_SEGMENT_FIXED_SIZE_OFFSET:
     FourByteBuffer = DE.getU32(Cursor);
-    KdStream << Indent << ".rvhsa_group_segment_fixed_size " << FourByteBuffer
+    KdStream << Indent << ".ss_group_segment_fixed_size " << FourByteBuffer
              << '\n';
     return MCDisassembler::Success;
 
-  case rvhsa::PRIVATE_SEGMENT_FIXED_SIZE_OFFSET:
+  case ss::PRIVATE_SEGMENT_FIXED_SIZE_OFFSET:
     FourByteBuffer = DE.getU32(Cursor);
-    KdStream << Indent << ".rvhsa_private_segment_fixed_size "
+    KdStream << Indent << ".ss_private_segment_fixed_size "
              << FourByteBuffer << '\n';
     return MCDisassembler::Success;
 
-  case rvhsa::KERNARG_SIZE_OFFSET:
+  case ss::KERNARG_SIZE_OFFSET:
     FourByteBuffer = DE.getU32(Cursor);
-    KdStream << Indent << ".rvhsa_kernarg_size "
+    KdStream << Indent << ".ss_kernarg_size "
              << FourByteBuffer << '\n';
     return MCDisassembler::Success;
 
-  case rvhsa::RESERVED0_OFFSET:
+  case ss::RESERVED0_OFFSET:
     // 4 reserved bytes, must be 0.
     ReservedBytes = DE.getBytes(Cursor, 4);
     for (int I = 0; I < 4; ++I) {
@@ -2082,14 +2082,14 @@ RVGPUDisassembler::decodeKernelDescriptorDirective(
     }
     return MCDisassembler::Success;
 
-  case rvhsa::KERNEL_CODE_ENTRY_BYTE_OFFSET_OFFSET:
+  case ss::KERNEL_CODE_ENTRY_BYTE_OFFSET_OFFSET:
     // KERNEL_CODE_ENTRY_BYTE_OFFSET
     // So far no directive controls this for Code Object V3, so simply skip for
     // disassembly.
     DE.skip(Cursor, 8);
     return MCDisassembler::Success;
 
-  case rvhsa::RESERVED1_OFFSET:
+  case ss::RESERVED1_OFFSET:
     // 20 reserved bytes, must be 0.
     ReservedBytes = DE.getBytes(Cursor, 20);
     for (int I = 0; I < 20; ++I) {
@@ -2099,37 +2099,37 @@ RVGPUDisassembler::decodeKernelDescriptorDirective(
     }
     return MCDisassembler::Success;
 
-  case rvhsa::COMPUTE_PGM_RSRC3_OFFSET:
+  case ss::COMPUTE_PGM_RSRC3_OFFSET:
     FourByteBuffer = DE.getU32(Cursor);
     return decodeCOMPUTE_PGM_RSRC3(FourByteBuffer, KdStream);
 
-  case rvhsa::COMPUTE_PGM_RSRC1_OFFSET:
+  case ss::COMPUTE_PGM_RSRC1_OFFSET:
     FourByteBuffer = DE.getU32(Cursor);
     return decodeCOMPUTE_PGM_RSRC1(FourByteBuffer, KdStream);
 
-  case rvhsa::COMPUTE_PGM_RSRC2_OFFSET:
+  case ss::COMPUTE_PGM_RSRC2_OFFSET:
     FourByteBuffer = DE.getU32(Cursor);
     return decodeCOMPUTE_PGM_RSRC2(FourByteBuffer, KdStream);
 
-  case rvhsa::KERNEL_CODE_PROPERTIES_OFFSET:
-    using namespace rvhsa;
+  case ss::KERNEL_CODE_PROPERTIES_OFFSET:
+    using namespace ss;
     TwoByteBuffer = DE.getU16(Cursor);
 
     if (!hasArchitectedFlatScratch())
-      PRINT_DIRECTIVE(".rvhsa_user_sgpr_private_segment_buffer",
+      PRINT_DIRECTIVE(".ss_user_sgpr_private_segment_buffer",
                       KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER);
-    PRINT_DIRECTIVE(".rvhsa_user_sgpr_dispatch_ptr",
+    PRINT_DIRECTIVE(".ss_user_sgpr_dispatch_ptr",
                     KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_PTR);
-    PRINT_DIRECTIVE(".rvhsa_user_sgpr_queue_ptr",
+    PRINT_DIRECTIVE(".ss_user_sgpr_queue_ptr",
                     KERNEL_CODE_PROPERTY_ENABLE_SGPR_QUEUE_PTR);
-    PRINT_DIRECTIVE(".rvhsa_user_sgpr_kernarg_segment_ptr",
+    PRINT_DIRECTIVE(".ss_user_sgpr_kernarg_segment_ptr",
                     KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR);
-    PRINT_DIRECTIVE(".rvhsa_user_sgpr_dispatch_id",
+    PRINT_DIRECTIVE(".ss_user_sgpr_dispatch_id",
                     KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_ID);
     if (!hasArchitectedFlatScratch())
-      PRINT_DIRECTIVE(".rvhsa_user_sgpr_flat_scratch_init",
+      PRINT_DIRECTIVE(".ss_user_sgpr_flat_scratch_init",
                       KERNEL_CODE_PROPERTY_ENABLE_SGPR_FLAT_SCRATCH_INIT);
-    PRINT_DIRECTIVE(".rvhsa_user_sgpr_private_segment_size",
+    PRINT_DIRECTIVE(".ss_user_sgpr_private_segment_size",
                     KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE);
 
     if (TwoByteBuffer & KERNEL_CODE_PROPERTY_RESERVED0)
@@ -2140,12 +2140,12 @@ RVGPUDisassembler::decodeKernelDescriptorDirective(
         (TwoByteBuffer & KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32)) {
       return MCDisassembler::Fail;
     } else if (isGFX10Plus()) {
-      PRINT_DIRECTIVE(".rvhsa_wavefront_size32",
+      PRINT_DIRECTIVE(".ss_wavefront_size32",
                       KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32);
     }
 
-    if (RVGPU::getRvhsaCodeObjectVersion() >= RVGPU::RVHSA_COV5)
-      PRINT_DIRECTIVE(".rvhsa_uses_dynamic_stack",
+    if (RVGPU::getSsCodeObjectVersion() >= RVGPU::SS_COV5)
+      PRINT_DIRECTIVE(".ss_uses_dynamic_stack",
                       KERNEL_CODE_PROPERTY_USES_DYNAMIC_STACK);
 
     if (TwoByteBuffer & KERNEL_CODE_PROPERTY_RESERVED1)
@@ -2153,21 +2153,21 @@ RVGPUDisassembler::decodeKernelDescriptorDirective(
 
     return MCDisassembler::Success;
 
-  case rvhsa::KERNARG_PRELOAD_OFFSET:
-    using namespace rvhsa;
+  case ss::KERNARG_PRELOAD_OFFSET:
+    using namespace ss;
     TwoByteBuffer = DE.getU16(Cursor);
     if (TwoByteBuffer & KERNARG_PRELOAD_SPEC_LENGTH) {
-      PRINT_DIRECTIVE(".rvhsa_user_sgpr_kernarg_preload_length",
+      PRINT_DIRECTIVE(".ss_user_sgpr_kernarg_preload_length",
                       KERNARG_PRELOAD_SPEC_LENGTH);
     }
 
     if (TwoByteBuffer & KERNARG_PRELOAD_SPEC_OFFSET) {
-      PRINT_DIRECTIVE(".rvhsa_user_sgpr_kernarg_preload_offset",
+      PRINT_DIRECTIVE(".ss_user_sgpr_kernarg_preload_offset",
                       KERNARG_PRELOAD_SPEC_OFFSET);
     }
     return MCDisassembler::Success;
 
-  case rvhsa::RESERVED3_OFFSET:
+  case ss::RESERVED3_OFFSET:
     // 4 bytes from here are reserved, must be 0.
     ReservedBytes = DE.getBytes(Cursor, 4);
     for (int I = 0; I < 4; ++I) {
@@ -2190,22 +2190,22 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeKernelDescriptor(
     return MCDisassembler::Fail;
 
   // FIXME: We can't actually decode "in order" as is done below, as e.g. GFX10
-  // requires us to know the setting of .rvhsa_wavefront_size32 in order to
-  // accurately produce .rvhsa_next_free_vgpr, and they appear in the wrong
-  // order. Workaround this by first looking up .rvhsa_wavefront_size32 here
+  // requires us to know the setting of .ss_wavefront_size32 in order to
+  // accurately produce .ss_next_free_vgpr, and they appear in the wrong
+  // order. Workaround this by first looking up .ss_wavefront_size32 here
   // when required.
   if (isGFX10Plus()) {
     uint16_t KernelCodeProperties =
-        support::endian::read16(&Bytes[rvhsa::KERNEL_CODE_PROPERTIES_OFFSET],
+        support::endian::read16(&Bytes[ss::KERNEL_CODE_PROPERTIES_OFFSET],
                                 llvm::endianness::little);
     EnableWavefrontSize32 =
-        RVHSA_BITS_GET(KernelCodeProperties,
-                        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32);
+        SS_BITS_GET(KernelCodeProperties,
+                        ss::KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32);
   }
 
   std::string Kd;
   raw_string_ostream KdStream(Kd);
-  KdStream << ".rvhsa_kernel " << KdName << '\n';
+  KdStream << ".ss_kernel " << KdName << '\n';
 
   DataExtractor::Cursor C(0);
   while (C && C.tell() < Bytes.size()) {
@@ -2217,7 +2217,7 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeKernelDescriptor(
     if (Status == MCDisassembler::Fail)
       return MCDisassembler::Fail;
   }
-  KdStream << ".end_rvhsa_kernel\n";
+  KdStream << ".end_ss_kernel\n";
   outs() << KdStream.str();
   return MCDisassembler::Success;
 }
