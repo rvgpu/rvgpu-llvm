@@ -165,6 +165,9 @@ def hip_Group : OptionGroup<"<HIP group>">, Group<f_Group>,
                    DocName<"HIP options">,
                    Visibility<[ClangOption, CLOption]>;
 
+def ss_Group : OptionGroup<"<SS group>">, Group<f_Group>,
+                   DocName<"SS options">;
+
 def m_Group : OptionGroup<"<m group>">, Group<CompileOnly_Group>,
               DocName<"Target-dependent compilation options">,
               Visibility<[ClangOption, CLOption]>;
@@ -1276,6 +1279,13 @@ defm cuda_short_ptr : BoolFOption<"cuda-short-ptr",
   PosFlag<SetTrue, [], [ClangOption, CC1Option],
           "Use 32-bit pointers for accessing const/local/shared address spaces">,
   NegFlag<SetFalse>>;
+}
+
+
+//SS options
+let Group = ss_Group in {
+def ss_path_EQ : Joined<["--"], "ss-path=">, Group<i_Group>,
+  HelpText<"SS installation path">;
 }
 
 def emit_static_lib : Flag<["--"], "emit-static-lib">,

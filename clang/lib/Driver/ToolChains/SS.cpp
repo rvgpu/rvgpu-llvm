@@ -145,9 +145,9 @@ SSInstallationDetector::SSInstallationDetector(
   std::initializer_list<const char *> Versions = {"8.0", "7.5", "7.0"};
   auto &FS = D.getVFS();
 
-  if (Args.hasArg(clang::driver::options::OPT_cuda_path_EQ)) {
+  if (Args.hasArg(clang::driver::options::OPT_ss_path_EQ)) {
     Candidates.emplace_back(
-        Args.getLastArgValue(clang::driver::options::OPT_cuda_path_EQ).str());
+        Args.getLastArgValue(clang::driver::options::OPT_ss_path_EQ).str());
   } else if (HostTriple.isOSWindows()) {
     for (const char *Ver : Versions)
       Candidates.emplace_back(
