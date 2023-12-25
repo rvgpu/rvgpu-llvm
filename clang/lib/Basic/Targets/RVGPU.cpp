@@ -258,5 +258,5 @@ void RVGPUTargetInfo::getTargetDefines(const LangOptions &Opts,
 
 ArrayRef<Builtin::Info> RVGPUTargetInfo::getTargetBuiltins() const {
   return llvm::ArrayRef(BuiltinInfo,
-                        clang::NVPTX::LastTSBuiltin - Builtin::FirstTSBuiltin);
+                        clang::RVGPU::LastTSBuiltin - Builtin::FirstTSBuiltin);
 }
