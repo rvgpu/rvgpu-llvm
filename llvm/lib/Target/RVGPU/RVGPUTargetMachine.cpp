@@ -494,7 +494,7 @@ createIterativeILPMachineScheduler(MachineSchedContext *C) {
 }
 
 static MachineSchedRegistry
-SISchedRegistry("si", "Run SI's custom scheduler",
+SISchedRegistry("rv", "Run RV's custom scheduler",
                 createSIMachineScheduler);
 
 static MachineSchedRegistry
