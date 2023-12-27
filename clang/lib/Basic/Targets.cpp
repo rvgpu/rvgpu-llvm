@@ -766,7 +766,6 @@ TargetInfo::CreateTargetInfo(DiagnosticsEngine &Diags,
   // Construct the target
   std::unique_ptr<TargetInfo> Target = AllocateTarget(Triple, *Opts);
   if (!Target) {
-    printf("eeeee 2\n");
     Diags.Report(diag::err_target_unknown_triple) << Triple.str();
     return nullptr;
   }

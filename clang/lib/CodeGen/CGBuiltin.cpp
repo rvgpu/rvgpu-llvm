@@ -48,6 +48,7 @@
 #include "llvm/IR/IntrinsicsPowerPC.h"
 #include "llvm/IR/IntrinsicsR600.h"
 #include "llvm/IR/IntrinsicsRISCV.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/IR/IntrinsicsS390.h"
 #include "llvm/IR/IntrinsicsVE.h"
 #include "llvm/IR/IntrinsicsWebAssembly.h"
@@ -5801,6 +5802,8 @@ static Value *EmitTargetArchBuiltinExpr(CodeGenFunction *CGF,
   case llvm::Triple::riscv32:
   case llvm::Triple::riscv64:
     return CGF->EmitRISCVBuiltinExpr(BuiltinID, E, ReturnValue);
+  case llvm::Triple::rvgpu:
+    return CGF->EmitRVGPUBuiltinExpr(BuiltinID, E);
   default:
     return nullptr;
   }
@@ -20868,4 +20871,17 @@ Value *CodeGenFunction::EmitRISCVBuiltinExpr(unsigned BuiltinID,
 
   llvm::Function *F = CGM.getIntrinsic(ID, IntrinsicTypes);
   return Builder.CreateCall(F, Ops, "");
+}
+
+Value *CodeGenFunction::EmitRVGPUBuiltinExpr(unsigned BuiltinID,
+                                              const CallExpr *E) {
+  llvm::AtomicOrdering AO = llvm::AtomicOrdering::SequentiallyConsistent;
+  llvm::SyncScope::ID SSID;
+  switch (BuiltinID) {
+  // workitem
+  case RVGPU::BI__nvvm_read_ptx_sreg_tid_x:
+    return emitRangedBuiltin(*this, Intrinsic::rvgpu_workitem_id_x, 0, 1024);
+  default:
+    return nullptr;
+  }
 }
