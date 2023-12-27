@@ -85,7 +85,11 @@
 
 // Special Registers
 
-BUILTIN(__nvvm_read_ptx_sreg_tid_x, "i", "nc")
+BUILTIN(__rvgpu_workitem_id_x, "i", "nc")
+BUILTIN(__rvgpu_workitem_id_y, "i", "nc")
+BUILTIN(__rvgpu_workitem_id_z, "i", "nc")
+BUILTIN(__rvgpu_workitem_id_w, "i", "nc")
+
 BUILTIN(__nvvm_read_ptx_sreg_tid_y, "i", "nc")
 BUILTIN(__nvvm_read_ptx_sreg_tid_z, "i", "nc")
 BUILTIN(__nvvm_read_ptx_sreg_tid_w, "i", "nc")

@@ -50,9 +50,9 @@ struct dim3;
   __attribute__((device)) TypeName *operator&() const __DELETE
 
 struct __cuda_builtin_threadIdx_t {
-  __CUDA_DEVICE_BUILTIN(x,__nvvm_read_ptx_sreg_tid_x());
-  __CUDA_DEVICE_BUILTIN(y,__nvvm_read_ptx_sreg_tid_y());
-  __CUDA_DEVICE_BUILTIN(z,__nvvm_read_ptx_sreg_tid_z());
+  __CUDA_DEVICE_BUILTIN(x,__rvgpu_workitem_id_x());
+  __CUDA_DEVICE_BUILTIN(y,__rvgpu_workitem_id_y());
+  __CUDA_DEVICE_BUILTIN(z,__rvgpu_workitem_id_z());
   // threadIdx should be convertible to uint3 (in fact in nvcc, it *is* a
   // uint3).  This function is defined after we pull in vector_types.h.
   __attribute__((device)) operator dim3() const;

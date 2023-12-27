@@ -29,6 +29,12 @@ let TargetPrefix = "rvgpu" in {
 // ABI Special Intrinsics
 //===----------------------------------------------------------------------===//
 
+//class ReadSRegIntrinsic_r32<string name> : ClangBuiltin<"__nvvm_read_ptx_sreg_" # name>;
+//multiclass ReadSRegIntrinsic_v4i32<string regname> {
+//  foreach suffix = ["_x", "_y", "_z", "_w"] in
+//    def suffix : ReadSRegIntrinsic_r32<regname # suffix>;
+//}
+
 multiclass RVGPUReadPreloadRegisterIntrinsic_xyz {
   def _x : RVGPUReadPreloadRegisterIntrinsic;
   def _y : RVGPUReadPreloadRegisterIntrinsic;
@@ -40,7 +46,10 @@ multiclass RVGPUReadPreloadRegisterIntrinsic_xyz_named<string prefix> {
   def _y : RVGPUReadPreloadRegisterIntrinsicNamed<!strconcat(prefix, "_y")>;
   def _z : RVGPUReadPreloadRegisterIntrinsicNamed<!strconcat(prefix, "_z")>;
 }
-defm int_rvgpu_workitem_id : RVGPUReadPreloadRegisterIntrinsic_xyz;
+//defm int_rvgpu_workitem_id : RVGPUReadPreloadRegisterIntrinsic_xyz;
+
+defm int_rvgpu_workitem_id : RVGPUReadPreloadRegisterIntrinsic_xyz_named 
+                              <"__rvgpu_workitem_id">;
 defm int_rvgpu_workgroup_id : RVGPUReadPreloadRegisterIntrinsic_xyz_named
                                <"__builtin_rvgpu_workgroup_id">;
 

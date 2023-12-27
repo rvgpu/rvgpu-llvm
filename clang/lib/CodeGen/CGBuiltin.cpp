@@ -20879,8 +20879,8 @@ Value *CodeGenFunction::EmitRVGPUBuiltinExpr(unsigned BuiltinID,
   llvm::SyncScope::ID SSID;
   switch (BuiltinID) {
   // workitem
-  case RVGPU::BI__nvvm_read_ptx_sreg_tid_x:
-    return emitRangedBuiltin(*this, Intrinsic::rvgpu_workitem_id_x, 0, 1024);
+  //case RVGPU::BI__nvvm_read_ptx_sreg_tid_x:
+  //  return emitRangedBuiltin(*this, Intrinsic::rvgpu_workitem_id_x, 0, 1024);
   default:
     return nullptr;
   }
