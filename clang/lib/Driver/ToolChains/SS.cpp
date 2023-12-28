@@ -955,17 +955,11 @@ SSToolChain::getSystemGPUArchs(const ArgList &Args) const {
   return std::move(GPUArchs);
 }
 
-Tool *RVGPUToolChain::buildAssembler() const {
-  return new tools::RVGPU::Assembler(*this);
-}
 
 Tool *RVGPUToolChain::buildLinker() const {
   return new tools::RVGPU::Linker(*this);
 }
 
-Tool *SSToolChain::buildAssembler() const {
-  return new tools::RVGPU::Assembler(*this);
-}
 
 Tool *SSToolChain::buildLinker() const {
   return new tools::RVGPU::FatBinary(*this);
