@@ -80,20 +80,6 @@ public:
 namespace tools {
 namespace RVGPU {
 
-// Run ptxas, the NVPTX assembler.
-class LLVM_LIBRARY_VISIBILITY Assembler final : public Tool {
-public:
-  //Assembler(const ToolChain &TC) : Tool("NVPTX::Assembler", "ptxas", TC) {}
-  Assembler(const ToolChain &TC) : Tool("RVGPU::Assembler", "clang integrated assembler", TC) {}
-
-  bool hasIntegratedCPP() const override { return false; }
-
-  void ConstructJob(Compilation &C, const JobAction &JA,
-                    const InputInfo &Output, const InputInfoList &Inputs,
-                    const llvm::opt::ArgList &TCArgs,
-                    const char *LinkingOutput) const override;
-};
-
 // Runs fatbinary, which combines GPU object files ("cubin" files) and/or PTX
 // assembly into a single output file.
 class LLVM_LIBRARY_VISIBILITY FatBinary : public Tool {
