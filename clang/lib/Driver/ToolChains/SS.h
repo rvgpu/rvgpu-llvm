@@ -83,7 +83,8 @@ namespace RVGPU {
 // Run ptxas, the NVPTX assembler.
 class LLVM_LIBRARY_VISIBILITY Assembler final : public Tool {
 public:
-  Assembler(const ToolChain &TC) : Tool("NVPTX::Assembler", "ptxas", TC) {}
+  //Assembler(const ToolChain &TC) : Tool("NVPTX::Assembler", "ptxas", TC) {}
+  Assembler(const ToolChain &TC) : Tool("RVGPU::Assembler", "clang integrated assembler", TC) {}
 
   bool hasIntegratedCPP() const override { return false; }
 
@@ -171,7 +172,6 @@ public:
   SSInstallationDetector CudaInstallation;
 
 protected:
-  Tool *buildAssembler() const override; // ptxas.
   Tool *buildLinker() const override;    // nvlink.
 
 private:
@@ -229,7 +229,6 @@ public:
   getSystemGPUArchs(const llvm::opt::ArgList &Args) const override;
 
 protected:
-  Tool *buildAssembler() const override; // ptxas
   Tool *buildLinker() const override;    // fatbinary (ok, not really a linker)
 };
 
