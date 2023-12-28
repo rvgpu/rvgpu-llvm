@@ -84,7 +84,7 @@ namespace RVGPU {
 // assembly into a single output file.
 class LLVM_LIBRARY_VISIBILITY FatBinary : public Tool {
 public:
-  FatBinary(const ToolChain &TC) : Tool("NVPTX::Linker", "fatbinary", TC) {}
+  FatBinary(const ToolChain &TC) : Tool("RVGPU::Linker", "fatbinary", TC) {}
 
   bool hasIntegratedCPP() const override { return false; }
 
@@ -97,7 +97,7 @@ public:
 // Runs nvlink, which links GPU object files ("cubin" files) into a single file.
 class LLVM_LIBRARY_VISIBILITY Linker final : public Tool {
 public:
-  Linker(const ToolChain &TC) : Tool("NVPTX::Linker", "nvlink", TC) {}
+  Linker(const ToolChain &TC) : Tool("RVGPU::Linker", "rvlink", TC) {}
 
   bool hasIntegratedCPP() const override { return false; }
 
