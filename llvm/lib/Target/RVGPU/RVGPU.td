@@ -1085,6 +1085,26 @@ def FeatureGFX11 : RVSubtargetFeatureGeneration<"GFX11",
   ]
 >;
 
+def FeatureR1000 : RVSubtargetFeatureGeneration<"R1000",
+  "r1000",
+  [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
+   FeatureFlatAddressSpace, Feature16BitInsts,
+   FeatureInv2PiInlineImm, FeatureApertureRegs,
+   FeatureCIInsts, FeatureGFX8Insts, FeatureGFX9Insts, FeatureGFX10Insts,
+   FeatureGFX10_AEncoding, FeatureGFX10_BEncoding, FeatureGFX10_3Insts,
+   FeatureGFX11Insts, FeatureVOP3P, FeatureVOPD, FeatureTrue16BitInsts,
+   FeatureMovrel, FeatureFastFMAF32, FeatureDPP, FeatureIntClamp,
+   FeatureFlatInstOffsets, FeatureFlatGlobalInsts, FeatureFlatScratchInsts,
+   FeatureAddNoCarryInsts, FeatureFmaMixInsts,
+   FeatureNoSdstCMPX, FeatureVscnt,
+   FeatureVOP3Literal, FeatureDPP8, FeatureExtendedImageInsts,
+   FeatureNoDataDepHazard, FeaturePkFmacF16Inst,
+   FeatureA16, FeatureFastDenormalF32, FeatureG16,
+   FeatureUnalignedBufferAccess, FeatureUnalignedDSAccess, FeatureGDS,
+   FeatureGWS
+  ]
+>;
+
 def FeatureGFX12 : RVSubtargetFeatureGeneration<"GFX12",
   "gfx12",
   [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
@@ -1402,6 +1422,7 @@ def FeatureISAVersion10_3_0 : FeatureSet<
 
 def FeatureISAVersion11_Common : FeatureSet<
   [FeatureGFX11,
+   FeatureR1000,
    FeatureLDSBankCount32,
    FeatureDLInsts,
    FeatureDot5Insts,

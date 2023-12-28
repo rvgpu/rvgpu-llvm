@@ -101,6 +101,7 @@ RVSubtarget::initializeSubtargetDependencies(const Triple &TT,
      Gen = TT.getOS() == Triple::SS ? RVGPUSubtarget::SEA_ISLANDS
                                         : RVGPUSubtarget::SOUTHERN_ISLANDS;
   }
+  Gen = GFX11;
 
   // We don't support FP64 for EG/NI atm.
   assert(!hasFP64() || (getGeneration() >= RVGPUSubtarget::SOUTHERN_ISLANDS));

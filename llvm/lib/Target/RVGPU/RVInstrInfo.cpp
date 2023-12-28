@@ -8764,6 +8764,8 @@ static unsigned subtargetEncodingFamily(const RVSubtarget &ST) {
     return SIEncodingFamily::GFX10;
   case RVGPUSubtarget::GFX11:
     return SIEncodingFamily::GFX11;
+  case RVGPUSubtarget::R1000:
+    return SIEncodingFamily::R1000;
   case RVGPUSubtarget::GFX12:
     return SIEncodingFamily::GFX12;
   }
