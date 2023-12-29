@@ -6215,7 +6215,7 @@ bool RVGPULegalizerInfo::legalizeImageIntrinsic(
     // SIShrinkInstructions will convert NSA encodings to non-NSA after register
     // allocation when possible.
     //
-    // Partial NSA is allowed on GFX11+ where the final register is a contiguous
+    // Partial NSA is allowed on R1000+ where the final register is a contiguous
     // set of the remaining addresses.
     const bool UseNSA = ST.hasNSAEncoding() &&
                         CorrectedNumVAddrs >= ST.getNSAThreshold(MF) &&
@@ -6639,14 +6639,14 @@ bool RVGPULegalizerInfo::legalizeBVHIntrinsic(MachineInstr &MI,
     return false;
   }
 
-  const bool IsGFX11 = RVGPU::isGFX11(ST);
-  const bool IsGFX11Plus = RVGPU::isGFX11Plus(ST);
+  const bool IsR1000 = RVGPU::isR1000(ST);
+  const bool IsR1000Plus = RVGPU::isR1000Plus(ST);
   const bool IsGFX12Plus = RVGPU::isGFX12Plus(ST);
   const bool IsA16 = MRI.getType(RayDir).getElementType().getSizeInBits() == 16;
   const bool Is64 = MRI.getType(NodePtr).getSizeInBits() == 64;
   const unsigned NumVDataDwords = 4;
   const unsigned NumVAddrDwords = IsA16 ? (Is64 ? 9 : 8) : (Is64 ? 12 : 11);
-  const unsigned NumVAddrs = IsGFX11Plus ? (IsA16 ? 4 : 5) : NumVAddrDwords;
+  const unsigned NumVAddrs = IsR1000Plus ? (IsA16 ? 4 : 5) : NumVAddrDwords;
   const bool UseNSA =
       IsGFX12Plus || (ST.hasNSAEncoding() && NumVAddrs <= ST.getNSAMaxSize());
 
@@ -6658,20 +6658,20 @@ bool RVGPULegalizerInfo::legalizeBVHIntrinsic(MachineInstr &MI,
   if (UseNSA) {
     Opcode = RVGPU::getMIMGOpcode(BaseOpcodes[Is64][IsA16],
                                    IsGFX12Plus ? RVGPU::MIMGEncGfx12
-                                   : IsGFX11   ? RVGPU::MIMGEncGfx11NSA
+                                   : IsR1000   ? RVGPU::MIMGEncR1000NSA
                                                : RVGPU::MIMGEncGfx10NSA,
                                    NumVDataDwords, NumVAddrDwords);
   } else {
     assert(!IsGFX12Plus);
     Opcode = RVGPU::getMIMGOpcode(BaseOpcodes[Is64][IsA16],
-                                   IsGFX11 ? RVGPU::MIMGEncGfx11Default
+                                   IsR1000 ? RVGPU::MIMGEncR1000Default
                                            : RVGPU::MIMGEncGfx10Default,
                                    NumVDataDwords, NumVAddrDwords);
   }
   assert(Opcode != -1);
 
   SmallVector<Register, 12> Ops;
-  if (UseNSA && IsGFX11Plus) {
+  if (UseNSA && IsR1000Plus) {
     auto packLanes = [&Ops, &S32, &V3S32, &B](Register Src) {
       auto Unmerge = B.buildUnmerge({S32, S32, S32}, Src);
       auto Merged = B.buildMergeLikeInstr(

@@ -7164,7 +7164,7 @@ SDValue RVTargetLowering::lowerImage(SDValue Op,
   const RVGPU::MIMGDimInfo *DimInfo = RVGPU::getMIMGDimInfo(Intr->Dim);
   unsigned IntrOpcode = Intr->BaseOpcode;
   bool IsGFX10Plus = RVGPU::isGFX10Plus(*Subtarget);
-  bool IsGFX11Plus = RVGPU::isGFX11Plus(*Subtarget);
+  bool IsR1000Plus = RVGPU::isR1000Plus(*Subtarget);
   bool IsGFX12Plus = RVGPU::isGFX12Plus(*Subtarget);
 
   SmallVector<EVT, 3> ResultTypes(Op->values());
@@ -7345,7 +7345,7 @@ SDValue RVTargetLowering::lowerImage(SDValue Op,
   // SIShrinkInstructions will convert NSA encodings to non-NSA after register
   // allocation when possible.
   //
-  // Partial NSA is allowed on GFX11+ where the final register is a contiguous
+  // Partial NSA is allowed on R1000+ where the final register is a contiguous
   // set of the remaining addresses.
   const unsigned NSAMaxSize = ST->getNSAMaxSize(BaseOpcode->Sampler);
   const bool HasPartialNSAEncoding = ST->hasPartialNSAEncoding();
@@ -7472,10 +7472,10 @@ SDValue RVTargetLowering::lowerImage(SDValue Op,
   if (IsGFX12Plus) {
     Opcode = RVGPU::getMIMGOpcode(IntrOpcode, RVGPU::MIMGEncGfx12,
                                    NumVDataDwords, NumVAddrDwords);
-  } else if (IsGFX11Plus) {
+  } else if (IsR1000Plus) {
     Opcode = RVGPU::getMIMGOpcode(IntrOpcode,
-                                   UseNSA ? RVGPU::MIMGEncGfx11NSA
-                                          : RVGPU::MIMGEncGfx11Default,
+                                   UseNSA ? RVGPU::MIMGEncR1000NSA
+                                          : RVGPU::MIMGEncR1000Default,
                                    NumVDataDwords, NumVAddrDwords);
   } else if (IsGFX10Plus) {
     Opcode = RVGPU::getMIMGOpcode(IntrOpcode,
@@ -8022,7 +8022,7 @@ SDValue RVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
     if (Subtarget->getGeneration() >= RVGPUSubtarget::GFX10)
       Offset1 |= (CountDw - 1) << 6;
 
-    if (Subtarget->getGeneration() < RVGPUSubtarget::GFX11)
+    if (Subtarget->getGeneration() < RVGPUSubtarget::R1000)
       Offset1 |= ShaderType << 2;
 
     unsigned Offset = Offset0 | (Offset1 << 8);
@@ -8502,14 +8502,14 @@ SDValue RVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
       return SDValue();
     }
 
-    const bool IsGFX11 = RVGPU::isGFX11(*Subtarget);
-    const bool IsGFX11Plus = RVGPU::isGFX11Plus(*Subtarget);
+    const bool IsR1000 = RVGPU::isR1000(*Subtarget);
+    const bool IsR1000Plus = RVGPU::isR1000Plus(*Subtarget);
     const bool IsGFX12Plus = RVGPU::isGFX12Plus(*Subtarget);
     const bool IsA16 = RayDir.getValueType().getVectorElementType() == MVT::f16;
     const bool Is64 = NodePtr.getValueType() == MVT::i64;
     const unsigned NumVDataDwords = 4;
     const unsigned NumVAddrDwords = IsA16 ? (Is64 ? 9 : 8) : (Is64 ? 12 : 11);
-    const unsigned NumVAddrs = IsGFX11Plus ? (IsA16 ? 4 : 5) : NumVAddrDwords;
+    const unsigned NumVAddrs = IsR1000Plus ? (IsA16 ? 4 : 5) : NumVAddrDwords;
     const bool UseNSA = (Subtarget->hasNSAEncoding() &&
                          NumVAddrs <= Subtarget->getNSAMaxSize()) ||
                         IsGFX12Plus;
@@ -8521,13 +8521,13 @@ SDValue RVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
     if (UseNSA) {
       Opcode = RVGPU::getMIMGOpcode(BaseOpcodes[Is64][IsA16],
                                      IsGFX12Plus ? RVGPU::MIMGEncGfx12
-                                     : IsGFX11   ? RVGPU::MIMGEncGfx11NSA
+                                     : IsR1000   ? RVGPU::MIMGEncR1000NSA
                                                  : RVGPU::MIMGEncGfx10NSA,
                                      NumVDataDwords, NumVAddrDwords);
     } else {
       assert(!IsGFX12Plus);
       Opcode = RVGPU::getMIMGOpcode(BaseOpcodes[Is64][IsA16],
-                                     IsGFX11 ? RVGPU::MIMGEncGfx11Default
+                                     IsR1000 ? RVGPU::MIMGEncR1000Default
                                              : RVGPU::MIMGEncGfx10Default,
                                      NumVDataDwords, NumVAddrDwords);
     }
@@ -8562,7 +8562,7 @@ SDValue RVTargetLowering::LowerINTRINSIC_W_CHAIN(SDValue Op,
       }
     };
 
-    if (UseNSA && IsGFX11Plus) {
+    if (UseNSA && IsR1000Plus) {
       Ops.push_back(NodePtr);
       Ops.push_back(DAG.getBitcast(MVT::i32, RayExtent));
       Ops.push_back(RayOrigin);
@@ -15343,15 +15343,15 @@ RVTargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *RMW) const {
         return AtomicExpansionKind::CmpXChg;
 
       if (AS == RVGPUAS::GLOBAL_ADDRESS && Ty->isFloatTy()) {
-        // global atomic fadd f32 no-rtn: gfx908, gfx90a, gfx940, gfx11+.
+        // global atomic fadd f32 no-rtn: gfx908, gfx90a, gfx940, r1000+.
         if (RMW->use_empty() && Subtarget->hasAtomicFaddNoRtnInsts())
           return ReportUnsafeHWInst(AtomicExpansionKind::None);
-        // global atomic fadd f32 rtn: gfx90a, gfx940, gfx11+.
+        // global atomic fadd f32 rtn: gfx90a, gfx940, r1000+.
         if (!RMW->use_empty() && Subtarget->hasAtomicFaddRtnInsts())
           return ReportUnsafeHWInst(AtomicExpansionKind::None);
       }
 
-      // flat atomic fadd f32: gfx940, gfx11+.
+      // flat atomic fadd f32: gfx940, r1000+.
       if (AS == RVGPUAS::FLAT_ADDRESS && Ty->isFloatTy() &&
           Subtarget->hasFlatAtomicFaddF32Inst())
         return ReportUnsafeHWInst(AtomicExpansionKind::None);

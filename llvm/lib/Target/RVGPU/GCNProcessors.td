@@ -65,34 +65,11 @@ def : ProcessorModel<"gfx1036", GFX10SpeedModel,
 >;
 
 //===----------------------------------------------------------------------===//
-// GCN GFX11.
+// GCN R1000.
 //===----------------------------------------------------------------------===//
 
-def : ProcessorModel<"gfx1100", GFX11SpeedModel,
+def : ProcessorModel<"r1000", R1000SpeedModel,
   FeatureISAVersion11_0_0.Features
->;
-def : ProcessorModel<"r1000", GFX11SpeedModel,
-  FeatureISAVersion11_0_0.Features
->;
-
-def : ProcessorModel<"gfx1101", GFX11SpeedModel,
-  FeatureISAVersion11_0_1.Features
->;
-
-def : ProcessorModel<"gfx1102", GFX11SpeedModel,
-  FeatureISAVersion11_0_2.Features
->;
-
-def : ProcessorModel<"gfx1103", GFX11SpeedModel,
-  FeatureISAVersion11_0_3.Features
->;
-
-def : ProcessorModel<"gfx1150", GFX11SpeedModel,
-  FeatureISAVersion11_5_0.Features
->;
-
-def : ProcessorModel<"gfx1151", GFX11SpeedModel,
-  FeatureISAVersion11_5_1.Features
 >;
 
 //===----------------------------------------------------------------------===//

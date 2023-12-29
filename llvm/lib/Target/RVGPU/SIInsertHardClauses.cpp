@@ -44,7 +44,7 @@ using namespace llvm;
 namespace {
 
 // A clause length of 64 instructions could be encoded in the s_clause
-// instruction, but the hardware documentation (at least for GFX11) says that
+// instruction, but the hardware documentation (at least for R1000) says that
 // 63 is the maximum allowed.
 constexpr unsigned MaxInstructionsInClause = 63;
 
@@ -56,7 +56,7 @@ enum HardClauseType {
   // Flat (not global or scratch) memory instructions.
   HARDCLAUSE_FLAT,
 
-  // For GFX11:
+  // For R1000:
 
   // Texture memory instructions.
   HARDCLAUSE_MIMG_LOAD,
@@ -120,7 +120,7 @@ public:
         if (RVInstrInfo::isFLAT(MI))
           return HARDCLAUSE_FLAT;
       } else {
-        assert(ST->getGeneration() >= RVGPUSubtarget::GFX11);
+        assert(ST->getGeneration() >= RVGPUSubtarget::R1000);
         if (RVInstrInfo::isMIMG(MI)) {
           const RVGPU::MIMGInfo *Info = RVGPU::getMIMGInfo(MI.getOpcode());
           const RVGPU::MIMGBaseOpcodeInfo *BaseInfo =

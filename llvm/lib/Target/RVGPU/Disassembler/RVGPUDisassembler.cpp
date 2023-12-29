@@ -494,10 +494,10 @@ DecodeStatus RVGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
 
     // Try to decode DPP and SDWA first to solve conflict with VOP1 and VOP2
     // encodings
-    if (isGFX11Plus() && Bytes.size() >= 12 ) {
+    if (isR1000Plus() && Bytes.size() >= 12 ) {
       DecoderUInt128 DecW = eat12Bytes(Bytes);
       Res =
-          tryDecodeInst(DecoderTableDPP8GFX1196, DecoderTableDPP8GFX11_FAKE1696,
+          tryDecodeInst(DecoderTableDPP8R100096, DecoderTableDPP8R1000_FAKE1696,
                         MI, DecW, Address, CS);
       if (Res && convertDPP8Inst(MI) == MCDisassembler::Success)
         break;
@@ -519,7 +519,7 @@ DecodeStatus RVGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
           convertVOP3DPPInst(MI); // Regular VOP3 case
         }
       };
-      Res = tryDecodeInst(DecoderTableDPPGFX1196, DecoderTableDPPGFX11_FAKE1696,
+      Res = tryDecodeInst(DecoderTableDPPR100096, DecoderTableDPPR1000_FAKE1696,
                           MI, DecW, Address, CS);
       if (Res) {
         convertVOPDPP();
@@ -531,7 +531,7 @@ DecodeStatus RVGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
         convertVOPDPP();
         break;
       }
-      Res = tryDecodeInst(DecoderTableGFX1196, MI, DecW, Address, CS);
+      Res = tryDecodeInst(DecoderTableR100096, MI, DecW, Address, CS);
       if (Res)
         break;
 
@@ -562,8 +562,8 @@ DecodeStatus RVGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
         break;
       MI = MCInst(); // clear
 
-      Res = tryDecodeInst(DecoderTableDPP8GFX1164,
-                          DecoderTableDPP8GFX11_FAKE1664, MI, QW, Address, CS);
+      Res = tryDecodeInst(DecoderTableDPP8R100064,
+                          DecoderTableDPP8R1000_FAKE1664, MI, QW, Address, CS);
       if (Res && convertDPP8Inst(MI) == MCDisassembler::Success)
         break;
       MI = MCInst(); // clear
@@ -577,7 +577,7 @@ DecodeStatus RVGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
       Res = tryDecodeInst(DecoderTableDPP64, MI, QW, Address, CS);
       if (Res) break;
 
-      Res = tryDecodeInst(DecoderTableDPPGFX1164, DecoderTableDPPGFX11_FAKE1664,
+      Res = tryDecodeInst(DecoderTableDPPR100064, DecoderTableDPPR1000_FAKE1664,
                           MI, QW, Address, CS);
       if (Res) {
         if (MCII->get(MI.getOpcode()).TSFlags & SIInstrFlags::VOPC)
@@ -647,7 +647,7 @@ DecodeStatus RVGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     Res = tryDecodeInst(DecoderTableGFX1032, MI, DW, Address, CS);
     if (Res) break;
 
-    Res = tryDecodeInst(DecoderTableGFX1132, DecoderTableGFX11_FAKE1632, MI, DW,
+    Res = tryDecodeInst(DecoderTableR100032, DecoderTableR1000_FAKE1632, MI, DW,
                         Address, CS);
     if (Res) break;
 
@@ -688,12 +688,12 @@ DecodeStatus RVGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
     if (Res)
       break;
 
-    Res = tryDecodeInst(DecoderTableGFX1164, DecoderTableGFX11_FAKE1664, MI, QW,
+    Res = tryDecodeInst(DecoderTableR100064, DecoderTableR1000_FAKE1664, MI, QW,
                         Address, CS);
     if (Res)
       break;
 
-    Res = tryDecodeInst(DecoderTableWMMAGFX1164, MI, QW, Address, CS);
+    Res = tryDecodeInst(DecoderTableWMMAR100064, MI, QW, Address, CS);
   } while (false);
 
   if (Res && RVGPU::isMAC(MI.getOpcode())) {
@@ -812,9 +812,9 @@ DecodeStatus RVGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
 }
 
 DecodeStatus RVGPUDisassembler::convertEXPInst(MCInst &MI) const {
-  if (STI.hasFeature(RVGPU::FeatureGFX11Insts)) {
+  if (STI.hasFeature(RVGPU::FeatureR1000Insts)) {
     // The MCInst still has these fields even though they are no longer encoded
-    // in the GFX11 instruction.
+    // in the R1000 instruction.
     insertNamedMCOperand(MI, MCOperand::createImm(0), RVGPU::OpName::vm);
     insertNamedMCOperand(MI, MCOperand::createImm(0), RVGPU::OpName::compr);
   }
@@ -822,13 +822,13 @@ DecodeStatus RVGPUDisassembler::convertEXPInst(MCInst &MI) const {
 }
 
 DecodeStatus RVGPUDisassembler::convertVINTERPInst(MCInst &MI) const {
-  if (MI.getOpcode() == RVGPU::V_INTERP_P10_F16_F32_inreg_gfx11 ||
+  if (MI.getOpcode() == RVGPU::V_INTERP_P10_F16_F32_inreg_r1000 ||
       MI.getOpcode() == RVGPU::V_INTERP_P10_F16_F32_inreg_gfx12 ||
-      MI.getOpcode() == RVGPU::V_INTERP_P10_RTZ_F16_F32_inreg_gfx11 ||
+      MI.getOpcode() == RVGPU::V_INTERP_P10_RTZ_F16_F32_inreg_r1000 ||
       MI.getOpcode() == RVGPU::V_INTERP_P10_RTZ_F16_F32_inreg_gfx12 ||
-      MI.getOpcode() == RVGPU::V_INTERP_P2_F16_F32_inreg_gfx11 ||
+      MI.getOpcode() == RVGPU::V_INTERP_P2_F16_F32_inreg_r1000 ||
       MI.getOpcode() == RVGPU::V_INTERP_P2_F16_F32_inreg_gfx12 ||
-      MI.getOpcode() == RVGPU::V_INTERP_P2_RTZ_F16_F32_inreg_gfx11 ||
+      MI.getOpcode() == RVGPU::V_INTERP_P2_RTZ_F16_F32_inreg_r1000 ||
       MI.getOpcode() == RVGPU::V_INTERP_P2_RTZ_F16_F32_inreg_gfx12) {
     // The MCInst has this field that is not directly encoded in the
     // instruction.
@@ -1030,7 +1030,7 @@ DecodeStatus RVGPUDisassembler::convertMIMGInst(MCInst &MI) const {
     // VSAMPLE insts that do not use vaddr3 behave the same as NSA forms.
     // VIMAGE insts other than BVH never use vaddr4.
     IsNSA = Info->MIMGEncoding == RVGPU::MIMGEncGfx10NSA ||
-            Info->MIMGEncoding == RVGPU::MIMGEncGfx11NSA ||
+            Info->MIMGEncoding == RVGPU::MIMGEncR1000NSA ||
             Info->MIMGEncoding == RVGPU::MIMGEncGfx12;
     if (!IsNSA) {
       if (!IsVSample && AddrSize > 12)
@@ -1086,7 +1086,7 @@ DecodeStatus RVGPUDisassembler::convertMIMGInst(MCInst &MI) const {
   }
 
   // If not using NSA on GFX10+, widen vaddr0 address register to correct size.
-  // If using partial NSA on GFX11+ widen last address register.
+  // If using partial NSA on R1000+ widen last address register.
   int VAddrSAIdx = IsPartialNSA ? (RsrcIdx - 1) : VAddr0Idx;
   unsigned NewVAddrSA = RVGPU::NoRegister;
   if (STI.hasFeature(RVGPU::FeatureNSAEncoding) && (!IsNSA || IsPartialNSA) &&
@@ -1624,9 +1624,9 @@ MCOperand RVGPUDisassembler::decodeSpecialReg32(unsigned Val) const {
   case 110: return createRegOperand(TMA_LO);
   case 111: return createRegOperand(TMA_HI);
   case 124:
-    return isGFX11Plus() ? createRegOperand(SGPR_NULL) : createRegOperand(M0);
+    return isR1000Plus() ? createRegOperand(SGPR_NULL) : createRegOperand(M0);
   case 125:
-    return isGFX11Plus() ? createRegOperand(M0) : createRegOperand(SGPR_NULL);
+    return isR1000Plus() ? createRegOperand(M0) : createRegOperand(SGPR_NULL);
   case 126: return createRegOperand(EXEC_LO);
   case 127: return createRegOperand(EXEC_HI);
   case 235: return createRegOperand(SRC_SHARED_BASE_LO);
@@ -1654,11 +1654,11 @@ MCOperand RVGPUDisassembler::decodeSpecialReg64(unsigned Val) const {
   case 108: return createRegOperand(TBA);
   case 110: return createRegOperand(TMA);
   case 124:
-    if (isGFX11Plus())
+    if (isR1000Plus())
       return createRegOperand(SGPR_NULL);
     break;
   case 125:
-    if (!isGFX11Plus())
+    if (!isR1000Plus())
       return createRegOperand(SGPR_NULL);
     break;
   case 126: return createRegOperand(EXEC);
@@ -1780,12 +1780,12 @@ bool RVGPUDisassembler::isGFX10Plus() const {
   return RVGPU::isGFX10Plus(STI);
 }
 
-bool RVGPUDisassembler::isGFX11() const {
-  return STI.hasFeature(RVGPU::FeatureGFX11);
+bool RVGPUDisassembler::isR1000() const {
+  return STI.hasFeature(RVGPU::FeatureR1000);
 }
 
-bool RVGPUDisassembler::isGFX11Plus() const {
-  return RVGPU::isGFX11Plus(STI);
+bool RVGPUDisassembler::isR1000Plus() const {
+  return RVGPU::isR1000Plus(STI);
 }
 
 bool RVGPUDisassembler::isGFX12Plus() const {
@@ -1885,14 +1885,14 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC1(
 
   if (!isGFX12Plus())
     PRINT_DIRECTIVE(".ss_dx10_clamp",
-                    COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP);
+                    COMPUTE_PGM_RSRC1_GFX6_R1000_ENABLE_DX10_CLAMP);
 
   if (FourByteBuffer & COMPUTE_PGM_RSRC1_DEBUG_MODE)
     return MCDisassembler::Fail;
 
   if (!isGFX12Plus())
     PRINT_DIRECTIVE(".ss_ieee_mode",
-                    COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE);
+                    COMPUTE_PGM_RSRC1_GFX6_R1000_ENABLE_IEEE_MODE);
 
   if (FourByteBuffer & COMPUTE_PGM_RSRC1_BULKY)
     return MCDisassembler::Fail;
@@ -2003,13 +2003,13 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC3(
           "SHARED_VGPR_COUNT", COMPUTE_PGM_RSRC3_GFX10_PLUS_SHARED_VGPR_COUNT);
     }
 
-    if (isGFX11Plus()) {
+    if (isR1000Plus()) {
       PRINT_PSEUDO_DIRECTIVE_COMMENT("INST_PREF_SIZE",
-                                     COMPUTE_PGM_RSRC3_GFX11_PLUS_INST_PREF_SIZE);
+                                     COMPUTE_PGM_RSRC3_R1000_PLUS_INST_PREF_SIZE);
       PRINT_PSEUDO_DIRECTIVE_COMMENT("TRAP_ON_START",
-                                     COMPUTE_PGM_RSRC3_GFX11_PLUS_TRAP_ON_START);
+                                     COMPUTE_PGM_RSRC3_R1000_PLUS_TRAP_ON_START);
       PRINT_PSEUDO_DIRECTIVE_COMMENT("TRAP_ON_END",
-                                     COMPUTE_PGM_RSRC3_GFX11_PLUS_TRAP_ON_END);
+                                     COMPUTE_PGM_RSRC3_R1000_PLUS_TRAP_ON_END);
     } else {
       if (FourByteBuffer & COMPUTE_PGM_RSRC3_GFX10_RESERVED0)
         return MCDisassembler::Fail;
@@ -2018,9 +2018,9 @@ MCDisassembler::DecodeStatus RVGPUDisassembler::decodeCOMPUTE_PGM_RSRC3(
     if (FourByteBuffer & COMPUTE_PGM_RSRC3_GFX10_PLUS_RESERVED1)
       return MCDisassembler::Fail;
 
-    if (isGFX11Plus()) {
+    if (isR1000Plus()) {
       PRINT_PSEUDO_DIRECTIVE_COMMENT("IMAGE_OP",
-                                     COMPUTE_PGM_RSRC3_GFX11_PLUS_TRAP_ON_START);
+                                     COMPUTE_PGM_RSRC3_R1000_PLUS_TRAP_ON_START);
     } else {
       if (FourByteBuffer & COMPUTE_PGM_RSRC3_GFX10_RESERVED2)
         return MCDisassembler::Fail;

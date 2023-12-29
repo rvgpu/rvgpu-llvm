@@ -93,7 +93,7 @@ void GCNSchedStrategy::initialize(ScheduleDAGMI *DAG) {
   } else {
     // This is similar to ST.getMaxNumVGPRs(TargetOccupancy) result except
     // returns a reasonably small number for targets with lots of VGPRs, such
-    // as GFX10 and GFX11.
+    // as GFX10 and R1000.
     LLVM_DEBUG(dbgs() << "Region is known to spill, use alternative "
                          "VGPRCriticalLimit calculation method.\n");
 

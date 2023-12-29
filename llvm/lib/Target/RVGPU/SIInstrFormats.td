@@ -397,7 +397,7 @@ class MIMGe_gfx10 <bits<8> op> : MIMGe_gfxpre11 {
   let Inst{62} = a16;
 }
 
-class MIMGe_gfx11 <bits<8> op> : Enc64 {
+class MIMGe_r1000 <bits<8> op> : Enc64 {
   bits<8> vdata;
   bits<4> dmask;
   bits<1> unorm;

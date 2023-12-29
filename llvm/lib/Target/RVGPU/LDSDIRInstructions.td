@@ -102,15 +102,15 @@ def : GCNPat <
 >;
 
 //===----------------------------------------------------------------------===//
-// GFX11+
+// R1000+
 //===----------------------------------------------------------------------===//
 
-multiclass LDSDIR_Real_gfx11<bits<2> op, LDSDIR_Pseudo lds = !cast<LDSDIR_Pseudo>(NAME)> {
-  def _gfx11 : LDSDIR_Real<op, lds, SIEncodingFamily.GFX11> {
-    let AssemblerPredicate = isGFX11Plus;
-    let DecoderNamespace = "GFX11";
+multiclass LDSDIR_Real_r1000<bits<2> op, LDSDIR_Pseudo lds = !cast<LDSDIR_Pseudo>(NAME)> {
+  def _r1000 : LDSDIR_Real<op, lds, SIEncodingFamily.R1000> {
+    let AssemblerPredicate = isR1000Plus;
+    let DecoderNamespace = "R1000";
   }
 }
 
-defm LDS_PARAM_LOAD : LDSDIR_Real_gfx11<0x0>;
-defm LDS_DIRECT_LOAD : LDSDIR_Real_gfx11<0x1>;
+defm LDS_PARAM_LOAD : LDSDIR_Real_r1000<0x0>;
+defm LDS_DIRECT_LOAD : LDSDIR_Real_r1000<0x1>;

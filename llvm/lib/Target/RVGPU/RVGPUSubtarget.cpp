@@ -101,7 +101,7 @@ RVSubtarget::initializeSubtargetDependencies(const Triple &TT,
      Gen = TT.getOS() == Triple::SS ? RVGPUSubtarget::SEA_ISLANDS
                                         : RVGPUSubtarget::SOUTHERN_ISLANDS;
   }
-  Gen = GFX11;
+  Gen = R1000;
 
   // We don't support FP64 for EG/NI atm.
   assert(!hasFP64() || (getGeneration() >= RVGPUSubtarget::SOUTHERN_ISLANDS));
@@ -199,18 +199,18 @@ unsigned RVSubtarget::getConstantBusLimit(unsigned Opcode) const {
   switch (Opcode) {
   case RVGPU::V_LSHLREV_B64_e64:
   case RVGPU::V_LSHLREV_B64_gfx10:
-  case RVGPU::V_LSHLREV_B64_e64_gfx11:
+  case RVGPU::V_LSHLREV_B64_e64_r1000:
   case RVGPU::V_LSHLREV_B64_e32_gfx12:
   case RVGPU::V_LSHLREV_B64_e64_gfx12:
   case RVGPU::V_LSHL_B64_e64:
   case RVGPU::V_LSHRREV_B64_e64:
   case RVGPU::V_LSHRREV_B64_gfx10:
-  case RVGPU::V_LSHRREV_B64_e64_gfx11:
+  case RVGPU::V_LSHRREV_B64_e64_r1000:
   case RVGPU::V_LSHRREV_B64_e64_gfx12:
   case RVGPU::V_LSHR_B64_e64:
   case RVGPU::V_ASHRREV_I64_e64:
   case RVGPU::V_ASHRREV_I64_gfx10:
-  case RVGPU::V_ASHRREV_I64_e64_gfx11:
+  case RVGPU::V_ASHRREV_I64_e64_r1000:
   case RVGPU::V_ASHRREV_I64_e64_gfx12:
   case RVGPU::V_ASHR_I64_e64:
     return 1;

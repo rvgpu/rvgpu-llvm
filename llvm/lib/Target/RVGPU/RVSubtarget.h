@@ -106,7 +106,7 @@ protected:
   bool GFX90AInsts = false;
   bool GFX940Insts = false;
   bool GFX10Insts = false;
-  bool GFX11Insts = false;
+  bool R1000Insts = false;
   bool GFX12Insts = false;
   bool GFX10_3Insts = false;
   bool GFX7GFX8GFX9Insts = false;
@@ -214,7 +214,7 @@ protected:
   bool HasImageStoreD16Bug = false;
   bool HasImageGather4D16Bug = false;
   bool HasMSAALoadDstSelBug = false;
-  bool HasGFX11FullVGPRs = false;
+  bool HasR1000FullVGPRs = false;
   bool HasMADIntraFwdBug = false;
   bool HasVOPDInsts = false;
   bool HasVALUTransUseHazard = false;
@@ -1113,17 +1113,17 @@ public:
   bool needsAlignedVGPRs() const { return GFX90AInsts; }
 
   /// Return true if the target has the S_PACK_HL_B32_B16 instruction.
-  bool hasSPackHL() const { return GFX11Insts; }
+  bool hasSPackHL() const { return R1000Insts; }
 
   /// Return true if the target's EXP instruction has the COMPR flag, which
   /// affects the meaning of the EN (enable) bits.
-  bool hasCompressedExport() const { return !GFX11Insts; }
+  bool hasCompressedExport() const { return !R1000Insts; }
 
   /// Return true if the target's EXP instruction supports the NULL export
   /// target.
-  bool hasNullExportTarget() const { return !GFX11Insts; }
+  bool hasNullExportTarget() const { return !R1000Insts; }
 
-  bool hasGFX11FullVGPRs() const { return HasGFX11FullVGPRs; }
+  bool hasR1000FullVGPRs() const { return HasR1000FullVGPRs; }
   
   bool hasGFX10_AEncoding() const {
     return GFX10_AEncoding;
@@ -1144,7 +1144,7 @@ public:
   bool hasFlatScratchSVSSwizzleBug() const { return true; }
 
   /// Return true if the target has the S_DELAY_ALU instruction.
-  bool hasDelayAlu() const { return GFX11Insts; }
+  bool hasDelayAlu() const { return R1000Insts; }
 
   bool hasPackedTID() const { return HasPackedTID; }
 

@@ -880,7 +880,7 @@ void RVGPUAsmPrinter::getRVProgramInfo(RVProgramInfo &ProgInfo,
 
   // Scratch is allocated in 64-dword or 256-dword blocks.
   unsigned ScratchAlignShift =
-      STM.getGeneration() >= RVGPUSubtarget::GFX11 ? 8 : 10;
+      STM.getGeneration() >= RVGPUSubtarget::R1000 ? 8 : 10;
   // We need to program the hardware with the amount of scratch memory that
   // is used by the entire wave.  ProgInfo.ScratchSize is the amount of
   // scratch memory used per thread.
@@ -974,9 +974,9 @@ void RVGPUAsmPrinter::EmitProgramInfoSI(const MachineFunction &MF,
 
     OutStreamer->emitInt32(R_00B860_COMPUTE_TMPRING_SIZE);
     OutStreamer->emitInt32(
-        STM.getGeneration() >= RVGPUSubtarget::GFX11
-            ? S_00B860_WAVESIZE_GFX11Plus(CurrentProgramInfo.ScratchBlocks)
-            : S_00B860_WAVESIZE_PreGFX11(CurrentProgramInfo.ScratchBlocks));
+        STM.getGeneration() >= RVGPUSubtarget::R1000
+            ? S_00B860_WAVESIZE_R1000Plus(CurrentProgramInfo.ScratchBlocks)
+            : S_00B860_WAVESIZE_PreR1000(CurrentProgramInfo.ScratchBlocks));
 
     // TODO: Should probably note flat usage somewhere. SC emits a "FlatPtr32 =
     // 0" comment but I don't see a corresponding field in the register spec.
@@ -986,14 +986,14 @@ void RVGPUAsmPrinter::EmitProgramInfoSI(const MachineFunction &MF,
                               S_00B028_SGPRS(CurrentProgramInfo.SGPRBlocks), 4);
     OutStreamer->emitInt32(R_0286E8_SPI_TMPRING_SIZE);
     OutStreamer->emitInt32(
-        STM.getGeneration() >= RVGPUSubtarget::GFX11
-            ? S_0286E8_WAVESIZE_GFX11Plus(CurrentProgramInfo.ScratchBlocks)
-            : S_0286E8_WAVESIZE_PreGFX11(CurrentProgramInfo.ScratchBlocks));
+        STM.getGeneration() >= RVGPUSubtarget::R1000
+            ? S_0286E8_WAVESIZE_R1000Plus(CurrentProgramInfo.ScratchBlocks)
+            : S_0286E8_WAVESIZE_PreR1000(CurrentProgramInfo.ScratchBlocks));
   }
 
   if (MF.getFunction().getCallingConv() == CallingConv::RVGPU_PS) {
     OutStreamer->emitInt32(R_00B02C_SPI_SHADER_PGM_RSRC2_PS);
-    unsigned ExtraLDSSize = STM.getGeneration() >= RVGPUSubtarget::GFX11
+    unsigned ExtraLDSSize = STM.getGeneration() >= RVGPUSubtarget::R1000
                                 ? divideCeil(CurrentProgramInfo.LDSBlocks, 2)
                                 : CurrentProgramInfo.LDSBlocks;
     OutStreamer->emitInt32(S_00B02C_EXTRA_LDS_SIZE(ExtraLDSSize));
@@ -1063,7 +1063,7 @@ void RVGPUAsmPrinter::EmitPALMetadata(const MachineFunction &MF,
   // ScratchSize is in bytes, 16 aligned.
   MD->setScratchSize(CC, alignTo(CurrentProgramInfo.ScratchSize, 16));
   if (MF.getFunction().getCallingConv() == CallingConv::RVGPU_PS) {
-    unsigned ExtraLDSSize = STM.getGeneration() >= RVGPUSubtarget::GFX11
+    unsigned ExtraLDSSize = STM.getGeneration() >= RVGPUSubtarget::R1000
                                 ? divideCeil(CurrentProgramInfo.LDSBlocks, 2)
                                 : CurrentProgramInfo.LDSBlocks;
     if (MD->getPALMajorVersion() < 3) {
@@ -1073,7 +1073,7 @@ void RVGPUAsmPrinter::EmitPALMetadata(const MachineFunction &MF,
     } else {
       // Graphics registers
       const unsigned ExtraLdsDwGranularity =
-          STM.getGeneration() >= RVGPUSubtarget::GFX11 ? 256 : 128;
+          STM.getGeneration() >= RVGPUSubtarget::R1000 ? 256 : 128;
       MD->setGraphicsRegisters(
           ".ps_extra_lds_size",
           (unsigned)(ExtraLDSSize * ExtraLdsDwGranularity * sizeof(uint32_t)));

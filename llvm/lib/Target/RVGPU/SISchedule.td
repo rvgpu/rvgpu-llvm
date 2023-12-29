@@ -91,7 +91,7 @@ class SISchedMachineModel : SchedMachineModel {
 }
 
 def GFX10SpeedModel : SISchedMachineModel;
-def GFX11SpeedModel : SISchedMachineModel;
+def R1000SpeedModel : SISchedMachineModel;
 def GFX12SpeedModel : SISchedMachineModel;
 
 // XXX: Are the resource counts correct?
@@ -228,7 +228,7 @@ def : InstRW<[WriteCopy], (instrs COPY)>;
 
 }  // End SchedModel = GFX10SpeedModel
 
-let SchedModel = GFX11SpeedModel in {
+let SchedModel = R1000SpeedModel in {
 
 // The latency values are 1 / (operations / cycle).
 // Add 1 stall cycle for VGPR read.
@@ -259,7 +259,7 @@ def : UnsupportedWriteRes<WritePseudoScalarTrans>;
 
 def : InstRW<[WriteCopy], (instrs COPY)>;
 
-}  // End SchedModel = GFX11SpeedModel
+}  // End SchedModel = R1000SpeedModel
 
 let SchedModel = GFX12SpeedModel in {
 

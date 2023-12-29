@@ -136,10 +136,10 @@ multiclass VOP1Inst <string opName, VOPProfile P,
   if P.HasExtDPP then
     def _dpp : VOP1_DPP_Pseudo <opName, P>;
 
-  let SubtargetPredicate = isGFX11Plus in {
+  let SubtargetPredicate = isR1000Plus in {
     if P.HasExtVOP3DPP then
       def _e64_dpp  : VOP3_DPP_Pseudo <opName, P>;
-  } // End SubtargetPredicate = isGFX11Plus
+  } // End SubtargetPredicate = isR1000Plus
 
   def : MnemonicAlias<opName#"_e32", opName>, LetDummies;
   def : MnemonicAlias<opName#"_e64", opName>, LetDummies;
@@ -656,7 +656,7 @@ def V_ACCVGPR_MOV_B32 : VOP1_Pseudo<"v_accvgpr_mov_b32", VOPProfileAccMov, [], 1
   let isAsCheapAsAMove = 1;
 }
 
-let SubtargetPredicate = isGFX11Plus in {
+let SubtargetPredicate = isR1000Plus in {
   // Restrict src0 to be VGPR
   def V_PERMLANE64_B32 : VOP1_Pseudo<"v_permlane64_b32", VOP_MOVRELS,
                                       getVOP1Pat64<int_rvgpu_permlane64,
@@ -666,7 +666,7 @@ let SubtargetPredicate = isGFX11Plus in {
   defm V_NOT_B16        : VOP1Inst_t16<"v_not_b16", VOP_I16_I16>;
   defm V_CVT_I32_I16    : VOP1Inst_t16<"v_cvt_i32_i16", VOP_I32_I16>;
   defm V_CVT_U32_U16    : VOP1Inst_t16<"v_cvt_u32_u16", VOP_I32_I16>;
-} // End SubtargetPredicate = isGFX11Plus
+} // End SubtargetPredicate = isR1000Plus
 
 //===----------------------------------------------------------------------===//
 // Target-specific instruction encodings.
@@ -722,7 +722,7 @@ class VOP1_DPP8_Gen<bits<8> op, VOP1_Pseudo ps, GFXGen Gen, VOPProfile p = ps.Pf
 }
 
 //===----------------------------------------------------------------------===//
-// GFX11, GFX12
+// R1000, GFX12
 //===----------------------------------------------------------------------===//
 
 multiclass VOP1Only_Real<GFXGen Gen, bits<9> op> {
@@ -750,7 +750,7 @@ multiclass VOP1_Real_e32_with_name<GFXGen Gen, bits<9> op, string opName,
 multiclass VOP1_Real_e64<GFXGen Gen, bits<9> op> {
   def _e64#Gen.Suffix :
     VOP3_Real_Gen<!cast<VOP3_Pseudo>(NAME#"_e64"), Gen>,
-    VOP3e_gfx11_gfx12<{0, 1, 1, op{6-0}}, !cast<VOP3_Pseudo>(NAME#"_e64").Pfl>;
+    VOP3e_r1000_gfx12<{0, 1, 1, op{6-0}}, !cast<VOP3_Pseudo>(NAME#"_e64").Pfl>;
 }
 
 multiclass VOP1_Real_dpp<GFXGen Gen, bits<9> op, string opName = NAME> {
@@ -793,14 +793,14 @@ multiclass VOP1_Real_FULL<GFXGen Gen, bits<9> op> :
   VOP1_Real_e32<Gen, op>, VOP1_Realtriple_e64<Gen, op>,
   VOP1_Real_dpp<Gen, op>, VOP1_Real_dpp8<Gen, op>;
 
-multiclass VOP1_Real_NO_VOP3_with_name_gfx11<bits<9> op, string opName,
+multiclass VOP1_Real_NO_VOP3_with_name_r1000<bits<9> op, string opName,
                                              string asmName> {
-  defm NAME : VOP1_Real_e32_with_name<GFX11Gen, op, opName, asmName>,
-              VOP1_Real_dpp_with_name<GFX11Gen, op, opName, asmName>,
-              VOP1_Real_dpp8_with_name<GFX11Gen, op, opName, asmName>;
+  defm NAME : VOP1_Real_e32_with_name<R1000Gen, op, opName, asmName>,
+              VOP1_Real_dpp_with_name<R1000Gen, op, opName, asmName>,
+              VOP1_Real_dpp8_with_name<R1000Gen, op, opName, asmName>;
   defvar ps = !cast<VOP1_Pseudo>(opName#"_e32");
-  def gfx11_alias : MnemonicAlias<ps.Mnemonic, asmName>,
-                    Requires<[isGFX11Plus]>;
+  def r1000_alias : MnemonicAlias<ps.Mnemonic, asmName>,
+                    Requires<[isR1000Plus]>;
 }
 
 multiclass VOP1_Real_NO_VOP3_with_name_gfx12<bits<9> op, string opName,
@@ -820,21 +820,21 @@ multiclass VOP1_Real_FULL_with_name<GFXGen Gen, bits<9> op, string opName,
 multiclass VOP1_Real_NO_DPP<GFXGen Gen, bits<9> op> :
   VOP1_Real_e32<Gen, op>, VOP1_Real_e64<Gen, op>;
 
-multiclass VOP1_Real_FULL_t16_gfx11_gfx12<bits<9> op, string asmName,
+multiclass VOP1_Real_FULL_t16_r1000_gfx12<bits<9> op, string asmName,
                                           string opName = NAME> :
-  VOP1_Real_FULL_with_name<GFX11Gen, op, opName, asmName>,
+  VOP1_Real_FULL_with_name<R1000Gen, op, opName, asmName>,
   VOP1_Real_FULL_with_name<GFX12Gen, op, opName, asmName>;
 
-multiclass VOP1_Real_FULL_with_name_gfx11_gfx12<bits<9> op, string opName,
+multiclass VOP1_Real_FULL_with_name_r1000_gfx12<bits<9> op, string opName,
                                                 string asmName> :
-  VOP1_Real_FULL_with_name<GFX11Gen, op, opName, asmName>,
+  VOP1_Real_FULL_with_name<R1000Gen, op, opName, asmName>,
   VOP1_Real_FULL_with_name<GFX12Gen, op, opName, asmName>;
 
-multiclass VOP1Only_Real_gfx11_gfx12<bits<9> op> :
-  VOP1Only_Real<GFX11Gen, op>, VOP1Only_Real<GFX12Gen, op>;
+multiclass VOP1Only_Real_r1000_gfx12<bits<9> op> :
+  VOP1Only_Real<R1000Gen, op>, VOP1Only_Real<GFX12Gen, op>;
 
-multiclass VOP1_Real_FULL_gfx11_gfx12<bits<9> op> :
-  VOP1_Real_FULL<GFX11Gen, op>, VOP1_Real_FULL<GFX12Gen, op>;
+multiclass VOP1_Real_FULL_r1000_gfx12<bits<9> op> :
+  VOP1_Real_FULL<R1000Gen, op>, VOP1_Real_FULL<GFX12Gen, op>;
 
 multiclass VOP1_Real_NO_DPP_OP_SEL_with_name<GFXGen Gen, bits<9> op,
                                              string opName, string asmName> :
@@ -842,46 +842,46 @@ multiclass VOP1_Real_NO_DPP_OP_SEL_with_name<GFXGen Gen, bits<9> op,
   VOP3_Real_with_name<Gen, {0, 1, 1, op{6-0}}, opName, asmName>;
 
 
-defm V_CVT_NEAREST_I32_F32 : VOP1_Real_FULL_with_name_gfx11_gfx12<0x00c,
+defm V_CVT_NEAREST_I32_F32 : VOP1_Real_FULL_with_name_r1000_gfx12<0x00c,
   "V_CVT_RPI_I32_F32", "v_cvt_nearest_i32_f32">;
-defm V_CVT_FLOOR_I32_F32   : VOP1_Real_FULL_with_name_gfx11_gfx12<0x00d,
+defm V_CVT_FLOOR_I32_F32   : VOP1_Real_FULL_with_name_r1000_gfx12<0x00d,
   "V_CVT_FLR_I32_F32", "v_cvt_floor_i32_f32">;
-defm V_CLZ_I32_U32         : VOP1_Real_FULL_with_name_gfx11_gfx12<0x039,
+defm V_CLZ_I32_U32         : VOP1_Real_FULL_with_name_r1000_gfx12<0x039,
   "V_FFBH_U32", "v_clz_i32_u32">;
-defm V_CTZ_I32_B32         : VOP1_Real_FULL_with_name_gfx11_gfx12<0x03a,
+defm V_CTZ_I32_B32         : VOP1_Real_FULL_with_name_r1000_gfx12<0x03a,
   "V_FFBL_B32", "v_ctz_i32_b32">;
-defm V_CLS_I32             : VOP1_Real_FULL_with_name_gfx11_gfx12<0x03b,
+defm V_CLS_I32             : VOP1_Real_FULL_with_name_r1000_gfx12<0x03b,
   "V_FFBH_I32", "v_cls_i32">;
-defm V_PERMLANE64_B32      : VOP1Only_Real_gfx11_gfx12<0x067>;
-defm V_MOV_B16_t16           : VOP1_Real_FULL_t16_gfx11_gfx12<0x01c, "v_mov_b16">;
-defm V_NOT_B16_t16           : VOP1_Real_FULL_t16_gfx11_gfx12<0x069, "v_not_b16">;
-defm V_CVT_I32_I16_t16       : VOP1_Real_FULL_t16_gfx11_gfx12<0x06a, "v_cvt_i32_i16">;
-defm V_CVT_U32_U16_t16       : VOP1_Real_FULL_t16_gfx11_gfx12<0x06b, "v_cvt_u32_u16">;
+defm V_PERMLANE64_B32      : VOP1Only_Real_r1000_gfx12<0x067>;
+defm V_MOV_B16_t16           : VOP1_Real_FULL_t16_r1000_gfx12<0x01c, "v_mov_b16">;
+defm V_NOT_B16_t16           : VOP1_Real_FULL_t16_r1000_gfx12<0x069, "v_not_b16">;
+defm V_CVT_I32_I16_t16       : VOP1_Real_FULL_t16_r1000_gfx12<0x06a, "v_cvt_i32_i16">;
+defm V_CVT_U32_U16_t16       : VOP1_Real_FULL_t16_r1000_gfx12<0x06b, "v_cvt_u32_u16">;
 
-defm V_CVT_F16_U16_t16       : VOP1_Real_FULL_t16_gfx11_gfx12<0x050, "v_cvt_f16_u16">;
-defm V_CVT_F16_I16_t16       : VOP1_Real_FULL_t16_gfx11_gfx12<0x051, "v_cvt_f16_i16">;
-defm V_CVT_U16_F16_t16       : VOP1_Real_FULL_t16_gfx11_gfx12<0x052, "v_cvt_u16_f16">;
-defm V_CVT_I16_F16_t16       : VOP1_Real_FULL_t16_gfx11_gfx12<0x053, "v_cvt_i16_f16">;
-defm V_RCP_F16_t16           : VOP1_Real_FULL_t16_gfx11_gfx12<0x054, "v_rcp_f16">;
-defm V_SQRT_F16_t16          : VOP1_Real_FULL_t16_gfx11_gfx12<0x055, "v_sqrt_f16">;
-defm V_RSQ_F16_t16           : VOP1_Real_FULL_t16_gfx11_gfx12<0x056, "v_rsq_f16">;
-defm V_LOG_F16_t16           : VOP1_Real_FULL_t16_gfx11_gfx12<0x057, "v_log_f16">;
-defm V_EXP_F16_t16           : VOP1_Real_FULL_t16_gfx11_gfx12<0x058, "v_exp_f16">;
-defm V_FREXP_MANT_F16_t16    : VOP1_Real_FULL_t16_gfx11_gfx12<0x059, "v_frexp_mant_f16">;
-defm V_FREXP_EXP_I16_F16_t16 : VOP1_Real_FULL_t16_gfx11_gfx12<0x05a, "v_frexp_exp_i16_f16">;
-defm V_FLOOR_F16_t16         : VOP1_Real_FULL_t16_gfx11_gfx12<0x05b, "v_floor_f16">;
-defm V_CEIL_F16_t16          : VOP1_Real_FULL_t16_gfx11_gfx12<0x05c, "v_ceil_f16">;
-defm V_TRUNC_F16_t16         : VOP1_Real_FULL_t16_gfx11_gfx12<0x05d, "v_trunc_f16">;
-defm V_RNDNE_F16_t16         : VOP1_Real_FULL_t16_gfx11_gfx12<0x05e, "v_rndne_f16">;
-defm V_FRACT_F16_t16         : VOP1_Real_FULL_t16_gfx11_gfx12<0x05f, "v_fract_f16">;
-defm V_SIN_F16_t16           : VOP1_Real_FULL_t16_gfx11_gfx12<0x060, "v_sin_f16">;
-defm V_COS_F16_t16           : VOP1_Real_FULL_t16_gfx11_gfx12<0x061, "v_cos_f16">;
-defm V_SAT_PK_U8_I16_t16     : VOP1_Real_FULL_t16_gfx11_gfx12<0x062, "v_sat_pk_u8_i16">;
-defm V_CVT_NORM_I16_F16_t16  : VOP1_Real_FULL_t16_gfx11_gfx12<0x063, "v_cvt_norm_i16_f16">;
-defm V_CVT_NORM_U16_F16_t16  : VOP1_Real_FULL_t16_gfx11_gfx12<0x064, "v_cvt_norm_u16_f16">;
+defm V_CVT_F16_U16_t16       : VOP1_Real_FULL_t16_r1000_gfx12<0x050, "v_cvt_f16_u16">;
+defm V_CVT_F16_I16_t16       : VOP1_Real_FULL_t16_r1000_gfx12<0x051, "v_cvt_f16_i16">;
+defm V_CVT_U16_F16_t16       : VOP1_Real_FULL_t16_r1000_gfx12<0x052, "v_cvt_u16_f16">;
+defm V_CVT_I16_F16_t16       : VOP1_Real_FULL_t16_r1000_gfx12<0x053, "v_cvt_i16_f16">;
+defm V_RCP_F16_t16           : VOP1_Real_FULL_t16_r1000_gfx12<0x054, "v_rcp_f16">;
+defm V_SQRT_F16_t16          : VOP1_Real_FULL_t16_r1000_gfx12<0x055, "v_sqrt_f16">;
+defm V_RSQ_F16_t16           : VOP1_Real_FULL_t16_r1000_gfx12<0x056, "v_rsq_f16">;
+defm V_LOG_F16_t16           : VOP1_Real_FULL_t16_r1000_gfx12<0x057, "v_log_f16">;
+defm V_EXP_F16_t16           : VOP1_Real_FULL_t16_r1000_gfx12<0x058, "v_exp_f16">;
+defm V_FREXP_MANT_F16_t16    : VOP1_Real_FULL_t16_r1000_gfx12<0x059, "v_frexp_mant_f16">;
+defm V_FREXP_EXP_I16_F16_t16 : VOP1_Real_FULL_t16_r1000_gfx12<0x05a, "v_frexp_exp_i16_f16">;
+defm V_FLOOR_F16_t16         : VOP1_Real_FULL_t16_r1000_gfx12<0x05b, "v_floor_f16">;
+defm V_CEIL_F16_t16          : VOP1_Real_FULL_t16_r1000_gfx12<0x05c, "v_ceil_f16">;
+defm V_TRUNC_F16_t16         : VOP1_Real_FULL_t16_r1000_gfx12<0x05d, "v_trunc_f16">;
+defm V_RNDNE_F16_t16         : VOP1_Real_FULL_t16_r1000_gfx12<0x05e, "v_rndne_f16">;
+defm V_FRACT_F16_t16         : VOP1_Real_FULL_t16_r1000_gfx12<0x05f, "v_fract_f16">;
+defm V_SIN_F16_t16           : VOP1_Real_FULL_t16_r1000_gfx12<0x060, "v_sin_f16">;
+defm V_COS_F16_t16           : VOP1_Real_FULL_t16_r1000_gfx12<0x061, "v_cos_f16">;
+defm V_SAT_PK_U8_I16_t16     : VOP1_Real_FULL_t16_r1000_gfx12<0x062, "v_sat_pk_u8_i16">;
+defm V_CVT_NORM_I16_F16_t16  : VOP1_Real_FULL_t16_r1000_gfx12<0x063, "v_cvt_norm_i16_f16">;
+defm V_CVT_NORM_U16_F16_t16  : VOP1_Real_FULL_t16_r1000_gfx12<0x064, "v_cvt_norm_u16_f16">;
 
-defm V_CVT_F16_F32_t16       : VOP1_Real_FULL_t16_gfx11_gfx12<0x00a, "v_cvt_f16_f32">;
-defm V_CVT_F32_F16_t16       : VOP1_Real_FULL_t16_gfx11_gfx12<0x00b, "v_cvt_f32_f16">;
+defm V_CVT_F16_F32_t16       : VOP1_Real_FULL_t16_r1000_gfx12<0x00a, "v_cvt_f16_f32">;
+defm V_CVT_F32_F16_t16       : VOP1_Real_FULL_t16_r1000_gfx12<0x00b, "v_cvt_f32_f16">;
 
 //===----------------------------------------------------------------------===//
 // GFX10.
@@ -930,23 +930,23 @@ multiclass VOP1_Real_gfx10<bits<9> op> :
   VOP1_Real_sdwa_gfx10<op>, VOP1_Real_dpp_gfx10<op>,
   VOP1_Real_dpp8_gfx10<op>;
 
-multiclass VOP1_Real_gfx10_FULL_gfx11_gfx12<bits<9> op> :
+multiclass VOP1_Real_gfx10_FULL_r1000_gfx12<bits<9> op> :
   VOP1_Real_gfx10<op>,
-  VOP1_Real_FULL<GFX11Gen, op>,
+  VOP1_Real_FULL<R1000Gen, op>,
   VOP1_Real_FULL<GFX12Gen, op>;
 
-multiclass VOP1_Real_gfx10_NO_DPP_gfx11_gfx12<bits<9> op> :
+multiclass VOP1_Real_gfx10_NO_DPP_r1000_gfx12<bits<9> op> :
   VOP1_Real_gfx10<op>,
-  VOP1_Real_NO_DPP<GFX11Gen, op>,
+  VOP1_Real_NO_DPP<R1000Gen, op>,
   VOP1_Real_NO_DPP<GFX12Gen, op>;
 
-multiclass VOP1Only_Real_gfx10_gfx11_gfx12<bits<9> op> :
+multiclass VOP1Only_Real_gfx10_r1000_gfx12<bits<9> op> :
   VOP1Only_Real_gfx10<op>,
-  VOP1Only_Real<GFX11Gen, op>,
+  VOP1Only_Real<R1000Gen, op>,
   VOP1Only_Real<GFX12Gen, op>;
 
-defm V_PIPEFLUSH         : VOP1_Real_gfx10_NO_DPP_gfx11_gfx12<0x01b>;
-defm V_MOVRELSD_2_B32    : VOP1_Real_gfx10_FULL_gfx11_gfx12<0x048>;
+defm V_PIPEFLUSH         : VOP1_Real_gfx10_NO_DPP_r1000_gfx12<0x01b>;
+defm V_MOVRELSD_2_B32    : VOP1_Real_gfx10_FULL_r1000_gfx12<0x048>;
 defm V_CVT_F16_U16       : VOP1_Real_gfx10<0x050>;
 defm V_CVT_F16_I16       : VOP1_Real_gfx10<0x051>;
 defm V_CVT_U16_F16       : VOP1_Real_gfx10<0x052>;
@@ -969,11 +969,11 @@ defm V_SAT_PK_U8_I16     : VOP1_Real_gfx10<0x062>;
 defm V_CVT_NORM_I16_F16  : VOP1_Real_gfx10<0x063>;
 defm V_CVT_NORM_U16_F16  : VOP1_Real_gfx10<0x064>;
 
-defm V_SWAP_B32          : VOP1Only_Real_gfx10_gfx11_gfx12<0x065>;
-defm V_SWAPREL_B32       : VOP1Only_Real_gfx10_gfx11_gfx12<0x068>;
+defm V_SWAP_B32          : VOP1Only_Real_gfx10_r1000_gfx12<0x065>;
+defm V_SWAPREL_B32       : VOP1Only_Real_gfx10_r1000_gfx12<0x068>;
 
 //===----------------------------------------------------------------------===//
-// GFX7, GFX10, GFX11, GFX12
+// GFX7, GFX10, R1000, GFX12
 //===----------------------------------------------------------------------===//
 
 let AssemblerPredicate = isGFX7Only, DecoderNamespace = "GFX7" in {
@@ -992,20 +992,20 @@ let AssemblerPredicate = isGFX7Only, DecoderNamespace = "GFX7" in {
 multiclass VOP1_Real_gfx7<bits<9> op> :
   VOP1_Real_e32_gfx7<op>, VOP1_Real_e64_gfx7<op>;
 
-multiclass VOP1_Real_gfx7_gfx10_NO_DPP_gfx11_gfx12<bits<9> op> :
-  VOP1_Real_gfx7<op>, VOP1_Real_gfx10<op>, VOP1_Real_NO_DPP<GFX11Gen, op>,
+multiclass VOP1_Real_gfx7_gfx10_NO_DPP_r1000_gfx12<bits<9> op> :
+  VOP1_Real_gfx7<op>, VOP1_Real_gfx10<op>, VOP1_Real_NO_DPP<R1000Gen, op>,
   VOP1_Real_NO_DPP<GFX12Gen, op>;
 
 defm V_LOG_LEGACY_F32 : VOP1_Real_gfx7<0x045>;
 defm V_EXP_LEGACY_F32 : VOP1_Real_gfx7<0x046>;
 
-defm V_TRUNC_F64      : VOP1_Real_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x017>;
-defm V_CEIL_F64       : VOP1_Real_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x018>;
-defm V_RNDNE_F64      : VOP1_Real_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x019>;
-defm V_FLOOR_F64      : VOP1_Real_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x01a>;
+defm V_TRUNC_F64      : VOP1_Real_gfx7_gfx10_NO_DPP_r1000_gfx12<0x017>;
+defm V_CEIL_F64       : VOP1_Real_gfx7_gfx10_NO_DPP_r1000_gfx12<0x018>;
+defm V_RNDNE_F64      : VOP1_Real_gfx7_gfx10_NO_DPP_r1000_gfx12<0x019>;
+defm V_FLOOR_F64      : VOP1_Real_gfx7_gfx10_NO_DPP_r1000_gfx12<0x01a>;
 
 //===----------------------------------------------------------------------===//
-// GFX6, GFX7, GFX10, GFX11, GFX12
+// GFX6, GFX7, GFX10, R1000, GFX12
 //===----------------------------------------------------------------------===//
 
 let AssemblerPredicate = isGFX6GFX7, DecoderNamespace = "GFX6GFX7" in {
@@ -1027,12 +1027,12 @@ multiclass VOP1_Real_gfx6_gfx7<bits<9> op> :
 multiclass VOP1_Real_gfx6_gfx7_gfx10<bits<9> op> :
   VOP1_Real_gfx6_gfx7<op>, VOP1_Real_gfx10<op>;
 
-multiclass VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<bits<9> op> :
-  VOP1_Real_gfx6_gfx7_gfx10<op>, VOP1_Real_FULL<GFX11Gen, op>,
+multiclass VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<bits<9> op> :
+  VOP1_Real_gfx6_gfx7_gfx10<op>, VOP1_Real_FULL<R1000Gen, op>,
   VOP1_Real_FULL<GFX12Gen, op>;
 
-multiclass VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<bits<9> op> :
-  VOP1_Real_gfx6_gfx7_gfx10<op>, VOP1_Real_NO_DPP<GFX11Gen, op>,
+multiclass VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<bits<9> op> :
+  VOP1_Real_gfx6_gfx7_gfx10<op>, VOP1_Real_NO_DPP<R1000Gen, op>,
   VOP1_Real_NO_DPP<GFX12Gen, op>;
 
 defm V_LOG_CLAMP_F32     : VOP1_Real_gfx6_gfx7<0x026>;
@@ -1043,57 +1043,57 @@ defm V_RSQ_LEGACY_F32    : VOP1_Real_gfx6_gfx7<0x02d>;
 defm V_RCP_CLAMP_F64     : VOP1_Real_gfx6_gfx7<0x030>;
 defm V_RSQ_CLAMP_F64     : VOP1_Real_gfx6_gfx7<0x032>;
 
-defm V_NOP               : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x000>;
-defm V_MOV_B32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x001>;
-defm V_CVT_I32_F64       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x003>;
-defm V_CVT_F64_I32       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x004>;
-defm V_CVT_F32_I32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x005>;
-defm V_CVT_F32_U32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x006>;
-defm V_CVT_U32_F32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x007>;
-defm V_CVT_I32_F32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x008>;
+defm V_NOP               : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x000>;
+defm V_MOV_B32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x001>;
+defm V_CVT_I32_F64       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x003>;
+defm V_CVT_F64_I32       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x004>;
+defm V_CVT_F32_I32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x005>;
+defm V_CVT_F32_U32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x006>;
+defm V_CVT_U32_F32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x007>;
+defm V_CVT_I32_F32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x008>;
 defm V_CVT_F16_F32       : VOP1_Real_gfx6_gfx7_gfx10<0x00a>;
 defm V_CVT_F32_F16       : VOP1_Real_gfx6_gfx7_gfx10<0x00b>;
 defm V_CVT_RPI_I32_F32   : VOP1_Real_gfx6_gfx7_gfx10<0x00c>;
 defm V_CVT_FLR_I32_F32   : VOP1_Real_gfx6_gfx7_gfx10<0x00d>;
-defm V_CVT_OFF_F32_I4    : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x00e>;
-defm V_CVT_F32_F64       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x00f>;
-defm V_CVT_F64_F32       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x010>;
-defm V_CVT_F32_UBYTE0    : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x011>;
-defm V_CVT_F32_UBYTE1    : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x012>;
-defm V_CVT_F32_UBYTE2    : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x013>;
-defm V_CVT_F32_UBYTE3    : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x014>;
-defm V_CVT_U32_F64       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x015>;
-defm V_CVT_F64_U32       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x016>;
-defm V_FRACT_F32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x020>;
-defm V_TRUNC_F32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x021>;
-defm V_CEIL_F32          : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x022>;
-defm V_RNDNE_F32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x023>;
-defm V_FLOOR_F32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x024>;
-defm V_EXP_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x025>;
-defm V_LOG_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x027>;
-defm V_RCP_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x02a>;
-defm V_RCP_IFLAG_F32     : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x02b>;
-defm V_RSQ_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x02e>;
-defm V_RCP_F64           : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x02f>;
-defm V_RSQ_F64           : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x031>;
-defm V_SQRT_F32          : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x033>;
-defm V_SQRT_F64          : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x034>;
-defm V_SIN_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x035>;
-defm V_COS_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x036>;
-defm V_NOT_B32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x037>;
-defm V_BFREV_B32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x038>;
+defm V_CVT_OFF_F32_I4    : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x00e>;
+defm V_CVT_F32_F64       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x00f>;
+defm V_CVT_F64_F32       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x010>;
+defm V_CVT_F32_UBYTE0    : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x011>;
+defm V_CVT_F32_UBYTE1    : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x012>;
+defm V_CVT_F32_UBYTE2    : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x013>;
+defm V_CVT_F32_UBYTE3    : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x014>;
+defm V_CVT_U32_F64       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x015>;
+defm V_CVT_F64_U32       : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x016>;
+defm V_FRACT_F32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x020>;
+defm V_TRUNC_F32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x021>;
+defm V_CEIL_F32          : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x022>;
+defm V_RNDNE_F32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x023>;
+defm V_FLOOR_F32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x024>;
+defm V_EXP_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x025>;
+defm V_LOG_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x027>;
+defm V_RCP_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x02a>;
+defm V_RCP_IFLAG_F32     : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x02b>;
+defm V_RSQ_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x02e>;
+defm V_RCP_F64           : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x02f>;
+defm V_RSQ_F64           : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x031>;
+defm V_SQRT_F32          : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x033>;
+defm V_SQRT_F64          : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x034>;
+defm V_SIN_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x035>;
+defm V_COS_F32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x036>;
+defm V_NOT_B32           : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x037>;
+defm V_BFREV_B32         : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x038>;
 defm V_FFBH_U32          : VOP1_Real_gfx6_gfx7_gfx10<0x039>;
 defm V_FFBL_B32          : VOP1_Real_gfx6_gfx7_gfx10<0x03a>;
 defm V_FFBH_I32          : VOP1_Real_gfx6_gfx7_gfx10<0x03b>;
-defm V_FREXP_EXP_I32_F64 : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x03c>;
-defm V_FREXP_MANT_F64    : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x03d>;
-defm V_FRACT_F64         : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_gfx11_gfx12<0x03e>;
-defm V_FREXP_EXP_I32_F32 : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x03f>;
-defm V_FREXP_MANT_F32    : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x040>;
+defm V_FREXP_EXP_I32_F64 : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x03c>;
+defm V_FREXP_MANT_F64    : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x03d>;
+defm V_FRACT_F64         : VOP1_Real_gfx6_gfx7_gfx10_NO_DPP_r1000_gfx12<0x03e>;
+defm V_FREXP_EXP_I32_F32 : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x03f>;
+defm V_FREXP_MANT_F32    : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x040>;
 defm V_CLREXCP           : VOP1_Real_gfx6_gfx7_gfx10<0x041>;
-defm V_MOVRELD_B32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x042>;
-defm V_MOVRELS_B32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x043>;
-defm V_MOVRELSD_B32      : VOP1_Real_gfx6_gfx7_gfx10_FULL_gfx11_gfx12<0x044>;
+defm V_MOVRELD_B32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x042>;
+defm V_MOVRELS_B32       : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x043>;
+defm V_MOVRELSD_B32      : VOP1_Real_gfx6_gfx7_gfx10_FULL_r1000_gfx12<0x044>;
 
 //===----------------------------------------------------------------------===//
 // GFX8, GFX9 (VI).
@@ -1364,16 +1364,16 @@ def : GCNPat <
 } // End OtherPredicates = [isGFX10Only]
 
 //===----------------------------------------------------------------------===//
-// GFX11
+// R1000
 //===----------------------------------------------------------------------===//
 
-let OtherPredicates = [isGFX11Only] in {
+let OtherPredicates = [isR1000Only] in {
 def : GCNPat <
   (i32 (int_rvgpu_mov_dpp8 i32:$src, timm:$dpp8)),
-  (V_MOV_B32_dpp8_gfx11 VGPR_32:$src, VGPR_32:$src,
+  (V_MOV_B32_dpp8_r1000 VGPR_32:$src, VGPR_32:$src,
                         (as_i32timm $dpp8), (i32 DPP8Mode.FI_0))
 >;
-} // End OtherPredicates = [isGFX11Only]
+} // End OtherPredicates = [isR1000Only]
 
 //===----------------------------------------------------------------------===//
 // GFX12

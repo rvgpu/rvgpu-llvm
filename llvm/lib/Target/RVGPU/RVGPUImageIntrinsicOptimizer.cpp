@@ -285,9 +285,9 @@ static bool imageIntrinsicOptimizerImpl(Function &F, const TargetMachine *TM) {
   if (!TM)
     return false;
 
-  // This optimization only applies to GFX11 and beyond.
+  // This optimization only applies to R1000 and beyond.
   const RVSubtarget &ST = TM->getSubtarget<RVSubtarget>(F);
-  if (!RVGPU::isGFX11Plus(ST) || ST.hasMSAALoadDstSelBug())
+  if (!RVGPU::isR1000Plus(ST) || ST.hasMSAALoadDstSelBug())
     return false;
 
   Module *M = F.getParent();

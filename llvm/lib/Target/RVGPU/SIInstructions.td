@@ -3120,7 +3120,7 @@ def : GCNPat <
 
 // With multiple uses of the shift, this will duplicate the shift and
 // increase register pressure.
-let SubtargetPredicate = isGFX11Plus in
+let SubtargetPredicate = isR1000Plus in
 def : GCNPat <
   (v2i16 (build_vector (i16 (trunc (srl_oneuse SReg_32:$src0, (i32 16)))), (i16 SReg_32:$src1))),
   (v2i16 (S_PACK_HL_B32_B16 SReg_32:$src0, SReg_32:$src1))
@@ -3424,7 +3424,7 @@ FPMinMaxPat<Instruction minmaxInst, ValueType vt, SDPatternOperator min_or_max,
               DSTCLAMP.NONE, DSTOMOD.NONE)
 >;
 
-let OtherPredicates = [isGFX11Plus] in {
+let OtherPredicates = [isR1000Plus] in {
 def : IntMinMaxPat<V_MAXMIN_I32_e64, smin, smax_oneuse>;
 def : IntMinMaxPat<V_MINMAX_I32_e64, smax, smin_oneuse>;
 def : IntMinMaxPat<V_MAXMIN_U32_e64, umin, umax_oneuse>;

@@ -1206,46 +1206,46 @@ def SMInfoTable : GenericTable {
 }
 
 //===----------------------------------------------------------------------===//
-// GFX11.
+// R1000.
 //===----------------------------------------------------------------------===//
 
-class SMEM_Real_gfx11<bits<8> op, SM_Pseudo ps, string opName = ps.Mnemonic> :
-    SMEM_Real_10Plus_common<op, ps, opName, SIEncodingFamily.GFX11,
-                            SGPR_NULL_gfx11plus> {
-  let AssemblerPredicate = isGFX11Only;
-  let DecoderNamespace = "GFX11";
+class SMEM_Real_r1000<bits<8> op, SM_Pseudo ps, string opName = ps.Mnemonic> :
+    SMEM_Real_10Plus_common<op, ps, opName, SIEncodingFamily.R1000,
+                            SGPR_NULL_r1000plus> {
+  let AssemblerPredicate = isR1000Only;
+  let DecoderNamespace = "R1000";
   let Inst{13}    = !if(ps.has_dlc, cpol{CPolBit.DLC}, 0);
   let Inst{14}    = !if(ps.has_glc, cpol{CPolBit.GLC}, 0);
 }
 
-class SMEM_Real_Load_gfx11<bits<8> op, string ps, string opName> :
-    SMEM_Real_gfx11<op, !cast<SM_Pseudo>(ps), opName>;
+class SMEM_Real_Load_r1000<bits<8> op, string ps, string opName> :
+    SMEM_Real_r1000<op, !cast<SM_Pseudo>(ps), opName>;
 
-multiclass SM_Real_Loads_gfx11<bits<8> op, string ps> {
+multiclass SM_Real_Loads_r1000<bits<8> op, string ps> {
   defvar opName = !tolower(NAME);
-  def _IMM_gfx11 : SMEM_Real_Load_gfx11<op, ps#"_IMM", opName>;
-  def _SGPR_gfx11 : SMEM_Real_Load_gfx11<op, ps#"_SGPR", opName>;
-  def _SGPR_IMM_gfx11 : SMEM_Real_Load_gfx11<op, ps#"_SGPR_IMM", opName>;
+  def _IMM_r1000 : SMEM_Real_Load_r1000<op, ps#"_IMM", opName>;
+  def _SGPR_r1000 : SMEM_Real_Load_r1000<op, ps#"_SGPR", opName>;
+  def _SGPR_IMM_r1000 : SMEM_Real_Load_r1000<op, ps#"_SGPR_IMM", opName>;
   def : MnemonicAlias<!cast<SM_Pseudo>(ps#"_IMM").Mnemonic, opName>,
-                      Requires<[isGFX11Plus]>;
+                      Requires<[isR1000Plus]>;
 }
 
-defm S_LOAD_B32  : SM_Real_Loads_gfx11<0x000, "S_LOAD_DWORD">;
-defm S_LOAD_B64  : SM_Real_Loads_gfx11<0x001, "S_LOAD_DWORDX2">;
-defm S_LOAD_B128 : SM_Real_Loads_gfx11<0x002, "S_LOAD_DWORDX4">;
-defm S_LOAD_B256 : SM_Real_Loads_gfx11<0x003, "S_LOAD_DWORDX8">;
-defm S_LOAD_B512 : SM_Real_Loads_gfx11<0x004, "S_LOAD_DWORDX16">;
+defm S_LOAD_B32  : SM_Real_Loads_r1000<0x000, "S_LOAD_DWORD">;
+defm S_LOAD_B64  : SM_Real_Loads_r1000<0x001, "S_LOAD_DWORDX2">;
+defm S_LOAD_B128 : SM_Real_Loads_r1000<0x002, "S_LOAD_DWORDX4">;
+defm S_LOAD_B256 : SM_Real_Loads_r1000<0x003, "S_LOAD_DWORDX8">;
+defm S_LOAD_B512 : SM_Real_Loads_r1000<0x004, "S_LOAD_DWORDX16">;
 
-defm S_BUFFER_LOAD_B32  : SM_Real_Loads_gfx11<0x008, "S_BUFFER_LOAD_DWORD">;
-defm S_BUFFER_LOAD_B64  : SM_Real_Loads_gfx11<0x009, "S_BUFFER_LOAD_DWORDX2">;
-defm S_BUFFER_LOAD_B128 : SM_Real_Loads_gfx11<0x00a, "S_BUFFER_LOAD_DWORDX4">;
-defm S_BUFFER_LOAD_B256 : SM_Real_Loads_gfx11<0x00b, "S_BUFFER_LOAD_DWORDX8">;
-defm S_BUFFER_LOAD_B512 : SM_Real_Loads_gfx11<0x00c, "S_BUFFER_LOAD_DWORDX16">;
+defm S_BUFFER_LOAD_B32  : SM_Real_Loads_r1000<0x008, "S_BUFFER_LOAD_DWORD">;
+defm S_BUFFER_LOAD_B64  : SM_Real_Loads_r1000<0x009, "S_BUFFER_LOAD_DWORDX2">;
+defm S_BUFFER_LOAD_B128 : SM_Real_Loads_r1000<0x00a, "S_BUFFER_LOAD_DWORDX4">;
+defm S_BUFFER_LOAD_B256 : SM_Real_Loads_r1000<0x00b, "S_BUFFER_LOAD_DWORDX8">;
+defm S_BUFFER_LOAD_B512 : SM_Real_Loads_r1000<0x00c, "S_BUFFER_LOAD_DWORDX16">;
 
-def S_GL1_INV_gfx11    : SMEM_Real_gfx11<0x020, S_GL1_INV>;
-def S_DCACHE_INV_gfx11 : SMEM_Real_gfx11<0x021, S_DCACHE_INV>;
+def S_GL1_INV_r1000    : SMEM_Real_r1000<0x020, S_GL1_INV>;
+def S_DCACHE_INV_r1000 : SMEM_Real_r1000<0x021, S_DCACHE_INV>;
 
-class SMEM_Real_Store_gfx11 <bits<8> op, SM_Pseudo ps> : SMEM_Real_gfx11<op, ps> {
+class SMEM_Real_Store_r1000 <bits<8> op, SM_Pseudo ps> : SMEM_Real_r1000<op, ps> {
   // encoding
   bits<7> sdata;
 
@@ -1253,16 +1253,16 @@ class SMEM_Real_Store_gfx11 <bits<8> op, SM_Pseudo ps> : SMEM_Real_gfx11<op, ps>
   let Inst{12-6}  = !if(ps.has_sdst, sdata{6-0}, ?);
 }
 
-multiclass SM_Real_Probe_gfx11<bits<8> op> {
+multiclass SM_Real_Probe_r1000<bits<8> op> {
   defvar ps = NAME;
-  def _IMM_gfx11  : SMEM_Real_Store_gfx11 <op, !cast<SM_Probe_Pseudo>(ps#_IMM)>;
-  def _SGPR_gfx11 : SMEM_Real_Store_gfx11 <op, !cast<SM_Probe_Pseudo>(ps#_SGPR)>;
-  def _SGPR_IMM_gfx11
-    : SMEM_Real_Store_gfx11 <op, !cast<SM_Probe_Pseudo>(ps#_SGPR_IMM)>;
+  def _IMM_r1000  : SMEM_Real_Store_r1000 <op, !cast<SM_Probe_Pseudo>(ps#_IMM)>;
+  def _SGPR_r1000 : SMEM_Real_Store_r1000 <op, !cast<SM_Probe_Pseudo>(ps#_SGPR)>;
+  def _SGPR_IMM_r1000
+    : SMEM_Real_Store_r1000 <op, !cast<SM_Probe_Pseudo>(ps#_SGPR_IMM)>;
 }
 
-defm S_ATC_PROBE        : SM_Real_Probe_gfx11 <0x22>;
-defm S_ATC_PROBE_BUFFER : SM_Real_Probe_gfx11 <0x23>;
+defm S_ATC_PROBE        : SM_Real_Probe_r1000 <0x22>;
+defm S_ATC_PROBE_BUFFER : SM_Real_Probe_r1000 <0x23>;
 
 //===----------------------------------------------------------------------===//
 // GFX12.
@@ -1282,7 +1282,7 @@ class SMEM_Real_gfx12Plus<bits<6> op, SM_Pseudo ps, string opName,
 
 class SMEM_Real_gfx12<bits<6> op, SM_Pseudo ps, string opName = ps.Mnemonic> :
     SMEM_Real_gfx12Plus<op, ps, opName, SIEncodingFamily.GFX12,
-                        SGPR_NULL_gfx11plus> {
+                        SGPR_NULL_r1000plus> {
   let AssemblerPredicate = isGFX12Plus;
   let DecoderNamespace = "GFX12";
 

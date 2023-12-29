@@ -564,9 +564,9 @@ public:
                      Position Pos) const override;
 };
 
-class SIGfx11CacheControl : public SIGfx10CacheControl {
+class SIR1000CacheControl : public SIGfx10CacheControl {
 public:
-  SIGfx11CacheControl(const RVSubtarget &ST) : SIGfx10CacheControl(ST) {}
+  SIR1000CacheControl(const RVSubtarget &ST) : SIGfx10CacheControl(ST) {}
 
   bool enableLoadCacheBypass(const MachineBasicBlock::iterator &MI,
                              SIAtomicScope Scope,
@@ -855,9 +855,9 @@ std::unique_ptr<SICacheControl> SICacheControl::create(const RVSubtarget &ST) {
     return std::make_unique<SIGfx6CacheControl>(ST);
   if (Generation < RVGPUSubtarget::GFX10)
     return std::make_unique<SIGfx7CacheControl>(ST);
-  if (Generation < RVGPUSubtarget::GFX11)
+  if (Generation < RVGPUSubtarget::R1000)
     return std::make_unique<SIGfx10CacheControl>(ST);
-  return std::make_unique<SIGfx11CacheControl>(ST);
+  return std::make_unique<SIR1000CacheControl>(ST);
 }
 
 bool SIGfx6CacheControl::enableLoadCacheBypass(
@@ -2037,7 +2037,7 @@ bool SIGfx10CacheControl::insertAcquire(MachineBasicBlock::iterator &MI,
   return Changed;
 }
 
-bool SIGfx11CacheControl::enableLoadCacheBypass(
+bool SIR1000CacheControl::enableLoadCacheBypass(
     const MachineBasicBlock::iterator &MI, SIAtomicScope Scope,
     SIAtomicAddrSpace AddrSpace) const {
   assert(MI->mayLoad() && !MI->mayStore());
@@ -2078,7 +2078,7 @@ bool SIGfx11CacheControl::enableLoadCacheBypass(
   return Changed;
 }
 
-bool SIGfx11CacheControl::enableVolatileAndOrNonTemporal(
+bool SIR1000CacheControl::enableVolatileAndOrNonTemporal(
     MachineBasicBlock::iterator &MI, SIAtomicAddrSpace AddrSpace, SIMemOp Op,
     bool IsVolatile, bool IsNonTemporal) const {
 

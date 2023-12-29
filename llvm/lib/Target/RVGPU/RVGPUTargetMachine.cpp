@@ -283,19 +283,19 @@ static cl::opt<bool> EnableSIModeRegisterPass(
   cl::init(true),
   cl::Hidden);
 
-// Enable GFX11.5+ s_singleuse_vdst insertion
+// Enable R1000.5+ s_singleuse_vdst insertion
 static cl::opt<bool>
     EnableInsertSingleUseVDST("rvgpu-enable-single-use-vdst",
                               cl::desc("Enable s_singleuse_vdst insertion"),
                               cl::init(false), cl::Hidden);
 
-// Enable GFX11+ s_delay_alu insertion
+// Enable R1000+ s_delay_alu insertion
 static cl::opt<bool>
     EnableInsertDelayAlu("rvgpu-enable-delay-alu",
                          cl::desc("Enable s_delay_alu insertion"),
                          cl::init(true), cl::Hidden);
 
-// Enable GFX11+ VOPD
+// Enable R1000+ VOPD
 static cl::opt<bool>
     EnableVOPD("rvgpu-enable-vopd",
                cl::desc("Enable VOPD, dual issue of VALU in wave32"),

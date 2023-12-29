@@ -89,7 +89,7 @@ const SubtargetSubTypeKV *getGPUInfo(const RVSubtarget &ST,
   return nullptr;
 }
 
-constexpr unsigned FeaturesToCheck[] = {RVGPU::FeatureGFX11Insts,
+constexpr unsigned FeaturesToCheck[] = {RVGPU::FeatureR1000Insts,
                                         RVGPU::FeatureGFX10Insts,
                                         RVGPU::FeatureGFX9Insts,
                                         RVGPU::FeatureGFX8Insts,

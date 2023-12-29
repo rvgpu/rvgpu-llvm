@@ -898,12 +898,12 @@ unsigned decodeLgkmcnt(const IsaVersion &Version, unsigned Waitcnt);
 /// \details \p Vmcnt, \p Expcnt and \p Lgkmcnt are decoded as follows:
 ///     \p Vmcnt = \p Waitcnt[3:0]        (pre-gfx9)
 ///     \p Vmcnt = \p Waitcnt[15:14,3:0]  (gfx9,10)
-///     \p Vmcnt = \p Waitcnt[15:10]      (gfx11+)
-///     \p Expcnt = \p Waitcnt[6:4]       (pre-gfx11)
-///     \p Expcnt = \p Waitcnt[2:0]       (gfx11+)
+///     \p Vmcnt = \p Waitcnt[15:10]      (r1000+)
+///     \p Expcnt = \p Waitcnt[6:4]       (pre-r1000)
+///     \p Expcnt = \p Waitcnt[2:0]       (r1000+)
 ///     \p Lgkmcnt = \p Waitcnt[11:8]     (pre-gfx10)
 ///     \p Lgkmcnt = \p Waitcnt[13:8]     (gfx10)
-///     \p Lgkmcnt = \p Waitcnt[9:4]      (gfx11+)
+///     \p Lgkmcnt = \p Waitcnt[9:4]      (r1000+)
 void decodeWaitcnt(const IsaVersion &Version, unsigned Waitcnt,
                    unsigned &Vmcnt, unsigned &Expcnt, unsigned &Lgkmcnt);
 
@@ -925,14 +925,14 @@ unsigned encodeLgkmcnt(const IsaVersion &Version, unsigned Waitcnt,
 /// \p Version.
 ///
 /// \details \p Vmcnt, \p Expcnt and \p Lgkmcnt are encoded as follows:
-///     Waitcnt[2:0]   = \p Expcnt      (gfx11+)
+///     Waitcnt[2:0]   = \p Expcnt      (r1000+)
 ///     Waitcnt[3:0]   = \p Vmcnt       (pre-gfx9)
 ///     Waitcnt[3:0]   = \p Vmcnt[3:0]  (gfx9,10)
-///     Waitcnt[6:4]   = \p Expcnt      (pre-gfx11)
-///     Waitcnt[9:4]   = \p Lgkmcnt     (gfx11+)
+///     Waitcnt[6:4]   = \p Expcnt      (pre-r1000)
+///     Waitcnt[9:4]   = \p Lgkmcnt     (r1000+)
 ///     Waitcnt[11:8]  = \p Lgkmcnt     (pre-gfx10)
 ///     Waitcnt[13:8]  = \p Lgkmcnt     (gfx10)
-///     Waitcnt[15:10] = \p Vmcnt       (gfx11+)
+///     Waitcnt[15:10] = \p Vmcnt       (r1000+)
 ///     Waitcnt[15:14] = \p Vmcnt[5:4]  (gfx9,10)
 ///
 /// \returns Waitcnt with encoded \p Vmcnt, \p Expcnt and \p Lgkmcnt for given
@@ -1152,26 +1152,26 @@ bool isCI(const MCSubtargetInfo &STI);
 bool isVI(const MCSubtargetInfo &STI);
 bool isGFX9(const MCSubtargetInfo &STI);
 bool isGFX9_GFX10(const MCSubtargetInfo &STI);
-bool isGFX9_GFX10_GFX11(const MCSubtargetInfo &STI);
+bool isGFX9_GFX10_R1000(const MCSubtargetInfo &STI);
 bool isGFX8_GFX9_GFX10(const MCSubtargetInfo &STI);
 bool isGFX8Plus(const MCSubtargetInfo &STI);
 bool isGFX9Plus(const MCSubtargetInfo &STI);
 bool isGFX10(const MCSubtargetInfo &STI);
-bool isGFX10_GFX11(const MCSubtargetInfo &STI);
+bool isGFX10_R1000(const MCSubtargetInfo &STI);
 bool isGFX10Plus(const MCSubtargetInfo &STI);
 bool isNotGFX10Plus(const MCSubtargetInfo &STI);
 bool isGFX10Before1030(const MCSubtargetInfo &STI);
-bool isGFX11(const MCSubtargetInfo &STI);
-bool isGFX11Plus(const MCSubtargetInfo &STI);
+bool isR1000(const MCSubtargetInfo &STI);
+bool isR1000Plus(const MCSubtargetInfo &STI);
 bool isGFX12(const MCSubtargetInfo &STI);
 bool isGFX12Plus(const MCSubtargetInfo &STI);
 bool isNotGFX12Plus(const MCSubtargetInfo &STI);
-bool isNotGFX11Plus(const MCSubtargetInfo &STI);
+bool isNotR1000Plus(const MCSubtargetInfo &STI);
 bool isGCN3Encoding(const MCSubtargetInfo &STI);
 bool isGFX10_AEncoding(const MCSubtargetInfo &STI);
 bool isGFX10_BEncoding(const MCSubtargetInfo &STI);
 bool hasGFX10_3Insts(const MCSubtargetInfo &STI);
-bool isGFX10_3_GFX11(const MCSubtargetInfo &STI);
+bool isGFX10_3_R1000(const MCSubtargetInfo &STI);
 bool isGFX90A(const MCSubtargetInfo &STI);
 bool isGFX940(const MCSubtargetInfo &STI);
 bool hasArchitectedFlatScratch(const MCSubtargetInfo &STI);

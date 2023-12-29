@@ -1453,12 +1453,12 @@ public:
 
   bool isGFX10Plus() const { return RVGPU::isGFX10Plus(getSTI()); }
 
-  bool isGFX11() const {
-    return RVGPU::isGFX11(getSTI());
+  bool isR1000() const {
+    return RVGPU::isR1000(getSTI());
   }
 
-  bool isGFX11Plus() const {
-    return RVGPU::isGFX11Plus(getSTI());
+  bool isR1000Plus() const {
+    return RVGPU::isR1000Plus(getSTI());
   }
 
   bool isGFX12() const { return RVGPU::isGFX12(getSTI()); }
@@ -3415,16 +3415,16 @@ unsigned RVGPUAsmParser::getConstantBusLimit(unsigned Opcode) const {
   // 64-bit shift instructions can use only one scalar value input
   case RVGPU::V_LSHLREV_B64_e64:
   case RVGPU::V_LSHLREV_B64_gfx10:
-  case RVGPU::V_LSHLREV_B64_e64_gfx11:
+  case RVGPU::V_LSHLREV_B64_e64_r1000:
   case RVGPU::V_LSHLREV_B64_e32_gfx12:
   case RVGPU::V_LSHLREV_B64_e64_gfx12:
   case RVGPU::V_LSHRREV_B64_e64:
   case RVGPU::V_LSHRREV_B64_gfx10:
-  case RVGPU::V_LSHRREV_B64_e64_gfx11:
+  case RVGPU::V_LSHRREV_B64_e64_r1000:
   case RVGPU::V_LSHRREV_B64_e64_gfx12:
   case RVGPU::V_ASHRREV_I64_e64:
   case RVGPU::V_ASHRREV_I64_gfx10:
-  case RVGPU::V_ASHRREV_I64_e64_gfx11:
+  case RVGPU::V_ASHRREV_I64_e64_r1000:
   case RVGPU::V_ASHRREV_I64_e64_gfx12:
   case RVGPU::V_LSHL_B64_e64:
   case RVGPU::V_LSHR_B64_e64:
@@ -4121,7 +4121,7 @@ RVGPUAsmParser::validateLdsDirect(const MCInst &Inst) {
     const auto &Src = Inst.getOperand(SrcIdx);
     if (Src.isReg() && Src.getReg() == LDS_DIRECT) {
 
-      if (isGFX90A() || isGFX11Plus())
+      if (isGFX90A() || isR1000Plus())
         return StringRef("lds_direct is not supported on this GPU");
 
       if (IsRevOpcode(Opcode) || (Desc.TSFlags & SIInstrFlags::SDWA))
@@ -4316,7 +4316,7 @@ bool RVGPUAsmParser::validateOpSel(const MCInst &Inst) {
   }
 
   // op_sel[0:1] must be 0 for v_dot2_bf16_bf16 and v_dot2_f16_f16 (VOP3 Dot).
-  if (isGFX11Plus() && (TSFlags & SIInstrFlags::IsDOT) &&
+  if (isR1000Plus() && (TSFlags & SIInstrFlags::IsDOT) &&
       (TSFlags & SIInstrFlags::VOP3) && !(TSFlags & SIInstrFlags::VOP3P)) {
     int OpSelIdx = RVGPU::getNamedOperandIdx(Opc, RVGPU::OpName::op_sel);
     unsigned OpSel = Inst.getOperand(OpSelIdx).getImm();
@@ -4552,14 +4552,14 @@ bool RVGPUAsmParser::validateBLGP(const MCInst &Inst,
 
 bool RVGPUAsmParser::validateWaitCnt(const MCInst &Inst,
                                       const OperandVector &Operands) {
-  if (!isGFX11Plus())
+  if (!isR1000Plus())
     return true;
 
   unsigned Opc = Inst.getOpcode();
-  if (Opc != RVGPU::S_WAITCNT_EXPCNT_gfx11 &&
-      Opc != RVGPU::S_WAITCNT_LGKMCNT_gfx11 &&
-      Opc != RVGPU::S_WAITCNT_VMCNT_gfx11 &&
-      Opc != RVGPU::S_WAITCNT_VSCNT_gfx11)
+  if (Opc != RVGPU::S_WAITCNT_EXPCNT_r1000 &&
+      Opc != RVGPU::S_WAITCNT_LGKMCNT_r1000 &&
+      Opc != RVGPU::S_WAITCNT_VMCNT_r1000 &&
+      Opc != RVGPU::S_WAITCNT_VSCNT_r1000)
     return true;
 
   int Src0Idx = RVGPU::getNamedOperandIdx(Opc, RVGPU::OpName::sdst);
@@ -4743,7 +4743,7 @@ bool RVGPUAsmParser::validateTHAndScopeBits(const MCInst &Inst,
 }
 
 bool RVGPUAsmParser::validateExeczVcczOperands(const OperandVector &Operands) {
-  if (!isGFX11Plus())
+  if (!isR1000Plus())
     return true;
   for (auto &Operand : Operands) {
     if (!Operand->isReg())
@@ -5382,13 +5382,13 @@ bool RVGPUAsmParser::ParseDirectiveSSKernel() {
       if (IVersion.Major >= 12)
         return Error(IDRange.Start, "directive unsupported on gfx12+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
-                       COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP, Val,
+                       COMPUTE_PGM_RSRC1_GFX6_R1000_ENABLE_DX10_CLAMP, Val,
                        ValRange);
     } else if (ID == ".ss_ieee_mode") {
       if (IVersion.Major >= 12)
         return Error(IDRange.Start, "directive unsupported on gfx12+", IDRange);
       PARSE_BITS_ENTRY(KD.compute_pgm_rsrc1,
-                       COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE, Val,
+                       COMPUTE_PGM_RSRC1_GFX6_R1000_ENABLE_IEEE_MODE, Val,
                        ValRange);
     } else if (ID == ".ss_fp16_overflow") {
       if (IVersion.Major < 9)
@@ -5915,7 +5915,7 @@ bool RVGPUAsmParser::subtargetHasRegister(const MCRegisterInfo &MRI,
   case RVGPU::SRC_PRIVATE_LIMIT:
     return isGFX9Plus();
   case RVGPU::SRC_POPS_EXITING_WAVE_ID:
-    return isGFX9Plus() && !isGFX11Plus();
+    return isGFX9Plus() && !isR1000Plus();
   case RVGPU::TBA:
   case RVGPU::TBA_LO:
   case RVGPU::TBA_HI:
@@ -8016,12 +8016,12 @@ static bool ConvertOmodDiv(int64_t &Div) {
   return false;
 }
 
-// For pre-gfx11 targets, both bound_ctrl:0 and bound_ctrl:1 are encoded as 1.
+// For pre-r1000 targets, both bound_ctrl:0 and bound_ctrl:1 are encoded as 1.
 // This is intentional and ensures compatibility with sp3.
 // See bug 35397 for details.
 bool RVGPUAsmParser::convertDppBoundCtrl(int64_t &BoundCtrl) {
   if (BoundCtrl == 0 || BoundCtrl == 1) {
-    if (!isGFX11Plus())
+    if (!isR1000Plus())
       BoundCtrl = 1;
     return true;
   }

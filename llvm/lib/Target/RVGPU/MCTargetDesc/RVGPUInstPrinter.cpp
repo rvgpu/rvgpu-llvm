@@ -415,15 +415,15 @@ void RVGPUInstPrinter::printVOPDst(const MCInst *MI, unsigned OpNo,
   case RVGPU::V_ADD_CO_CI_U32_dpp8_gfx10:
   case RVGPU::V_SUB_CO_CI_U32_dpp8_gfx10:
   case RVGPU::V_SUBREV_CO_CI_U32_dpp8_gfx10:
-  case RVGPU::V_ADD_CO_CI_U32_e32_gfx11:
-  case RVGPU::V_SUB_CO_CI_U32_e32_gfx11:
-  case RVGPU::V_SUBREV_CO_CI_U32_e32_gfx11:
-  case RVGPU::V_ADD_CO_CI_U32_dpp_gfx11:
-  case RVGPU::V_SUB_CO_CI_U32_dpp_gfx11:
-  case RVGPU::V_SUBREV_CO_CI_U32_dpp_gfx11:
-  case RVGPU::V_ADD_CO_CI_U32_dpp8_gfx11:
-  case RVGPU::V_SUB_CO_CI_U32_dpp8_gfx11:
-  case RVGPU::V_SUBREV_CO_CI_U32_dpp8_gfx11:
+  case RVGPU::V_ADD_CO_CI_U32_e32_r1000:
+  case RVGPU::V_SUB_CO_CI_U32_e32_r1000:
+  case RVGPU::V_SUBREV_CO_CI_U32_e32_r1000:
+  case RVGPU::V_ADD_CO_CI_U32_dpp_r1000:
+  case RVGPU::V_SUB_CO_CI_U32_dpp_r1000:
+  case RVGPU::V_SUBREV_CO_CI_U32_dpp_r1000:
+  case RVGPU::V_ADD_CO_CI_U32_dpp8_r1000:
+  case RVGPU::V_SUB_CO_CI_U32_dpp8_r1000:
+  case RVGPU::V_SUBREV_CO_CI_U32_dpp8_r1000:
   case RVGPU::V_ADD_CO_CI_U32_e32_gfx12:
   case RVGPU::V_SUB_CO_CI_U32_e32_gfx12:
   case RVGPU::V_SUBREV_CO_CI_U32_e32_gfx12:
@@ -814,17 +814,17 @@ void RVGPUInstPrinter::printRegularOperand(const MCInst *MI, unsigned OpNo,
   case RVGPU::V_ADD_CO_CI_U32_dpp8_gfx10:
   case RVGPU::V_SUB_CO_CI_U32_dpp8_gfx10:
   case RVGPU::V_SUBREV_CO_CI_U32_dpp8_gfx10:
-  case RVGPU::V_CNDMASK_B32_e32_gfx11:
-  case RVGPU::V_ADD_CO_CI_U32_e32_gfx11:
-  case RVGPU::V_SUB_CO_CI_U32_e32_gfx11:
-  case RVGPU::V_SUBREV_CO_CI_U32_e32_gfx11:
-  case RVGPU::V_ADD_CO_CI_U32_dpp_gfx11:
-  case RVGPU::V_SUB_CO_CI_U32_dpp_gfx11:
-  case RVGPU::V_SUBREV_CO_CI_U32_dpp_gfx11:
-  case RVGPU::V_CNDMASK_B32_dpp8_gfx11:
-  case RVGPU::V_ADD_CO_CI_U32_dpp8_gfx11:
-  case RVGPU::V_SUB_CO_CI_U32_dpp8_gfx11:
-  case RVGPU::V_SUBREV_CO_CI_U32_dpp8_gfx11:
+  case RVGPU::V_CNDMASK_B32_e32_r1000:
+  case RVGPU::V_ADD_CO_CI_U32_e32_r1000:
+  case RVGPU::V_SUB_CO_CI_U32_e32_r1000:
+  case RVGPU::V_SUBREV_CO_CI_U32_e32_r1000:
+  case RVGPU::V_ADD_CO_CI_U32_dpp_r1000:
+  case RVGPU::V_SUB_CO_CI_U32_dpp_r1000:
+  case RVGPU::V_SUBREV_CO_CI_U32_dpp_r1000:
+  case RVGPU::V_CNDMASK_B32_dpp8_r1000:
+  case RVGPU::V_ADD_CO_CI_U32_dpp8_r1000:
+  case RVGPU::V_SUB_CO_CI_U32_dpp8_r1000:
+  case RVGPU::V_SUBREV_CO_CI_U32_dpp8_r1000:
   case RVGPU::V_CNDMASK_B32_e32_gfx12:
   case RVGPU::V_ADD_CO_CI_U32_e32_gfx12:
   case RVGPU::V_SUB_CO_CI_U32_e32_gfx12:
@@ -900,7 +900,7 @@ void RVGPUInstPrinter::printOperandAndFPInputMods(const MCInst *MI,
 
   case RVGPU::V_CNDMASK_B32_sdwa_gfx10:
   case RVGPU::V_CNDMASK_B32_dpp_gfx10:
-  case RVGPU::V_CNDMASK_B32_dpp_gfx11:
+  case RVGPU::V_CNDMASK_B32_dpp_r1000:
     if ((int)OpNo + 1 ==
         RVGPU::getNamedOperandIdx(MI->getOpcode(), RVGPU::OpName::src1))
       printDefaultVccOperand(OpNo == 0, STI, O);

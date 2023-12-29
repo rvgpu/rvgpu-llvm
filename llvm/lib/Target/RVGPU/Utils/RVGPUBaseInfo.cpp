@@ -446,8 +446,8 @@ bool getMAIIsGFX940XDL(unsigned Opc) {
 unsigned getVOPDEncodingFamily(const MCSubtargetInfo &ST) {
   if (ST.hasFeature(RVGPU::FeatureGFX12Insts))
     return SIEncodingFamily::GFX12;
-  if (ST.hasFeature(RVGPU::FeatureGFX11Insts))
-    return SIEncodingFamily::GFX11;
+  if (ST.hasFeature(RVGPU::FeatureR1000Insts))
+    return SIEncodingFamily::R1000;
   llvm_unreachable("Subtarget generation does not support VOPD!");
 }
 
@@ -477,13 +477,13 @@ bool isMAC(unsigned Opc) {
          Opc == RVGPU::V_MAC_F16_e64_vi ||
          Opc == RVGPU::V_FMAC_F64_e64_gfx90a ||
          Opc == RVGPU::V_FMAC_F32_e64_gfx10 ||
-         Opc == RVGPU::V_FMAC_F32_e64_gfx11 ||
+         Opc == RVGPU::V_FMAC_F32_e64_r1000 ||
          Opc == RVGPU::V_FMAC_F32_e64_gfx12 ||
          Opc == RVGPU::V_FMAC_F32_e64_vi ||
          Opc == RVGPU::V_FMAC_LEGACY_F32_e64_gfx10 ||
-         Opc == RVGPU::V_FMAC_DX9_ZERO_F32_e64_gfx11 ||
+         Opc == RVGPU::V_FMAC_DX9_ZERO_F32_e64_r1000 ||
          Opc == RVGPU::V_FMAC_F16_e64_gfx10 ||
-         Opc == RVGPU::V_FMAC_F16_t16_e64_gfx11 ||
+         Opc == RVGPU::V_FMAC_F16_t16_e64_r1000 ||
          Opc == RVGPU::V_FMAC_F16_t16_e64_gfx12 ||
          Opc == RVGPU::V_DOT2C_F32_F16_e64_vi ||
          Opc == RVGPU::V_DOT2C_I32_I16_e64_vi ||
@@ -494,8 +494,8 @@ bool isMAC(unsigned Opc) {
 bool isPermlane16(unsigned Opc) {
   return Opc == RVGPU::V_PERMLANE16_B32_gfx10 ||
          Opc == RVGPU::V_PERMLANEX16_B32_gfx10 ||
-         Opc == RVGPU::V_PERMLANE16_B32_e64_gfx11 ||
-         Opc == RVGPU::V_PERMLANEX16_B32_e64_gfx11 ||
+         Opc == RVGPU::V_PERMLANE16_B32_e64_r1000 ||
+         Opc == RVGPU::V_PERMLANEX16_B32_e64_r1000 ||
          Opc == RVGPU::V_PERMLANE16_B32_e64_gfx12 ||
          Opc == RVGPU::V_PERMLANEX16_B32_e64_gfx12 ||
          Opc == RVGPU::V_PERMLANE16_VAR_B32_e64_gfx12 ||
@@ -1011,7 +1011,7 @@ unsigned getVGPRAllocGranule(const MCSubtargetInfo *STI,
       *EnableWavefrontSize32 :
       STI->getFeatureBits().test(FeatureWavefrontSize32);
 
-  if (STI->getFeatureBits().test(FeatureGFX11FullVGPRs))
+  if (STI->getFeatureBits().test(FeatureR1000FullVGPRs))
     return IsWave32 ? 24 : 12;
 
   if (hasGFX10_3Insts(*STI))
@@ -1038,7 +1038,7 @@ unsigned getTotalNumVGPRs(const MCSubtargetInfo *STI) {
   if (!isGFX10Plus(*STI))
     return 256;
   bool IsWave32 = STI->getFeatureBits().test(FeatureWavefrontSize32);
-  if (STI->getFeatureBits().test(FeatureGFX11FullVGPRs))
+  if (STI->getFeatureBits().test(FeatureR1000FullVGPRs))
     return IsWave32 ? 1536 : 768;
   return IsWave32 ? 1024 : 512;
 }
@@ -1149,9 +1149,9 @@ ss::kernel_descriptor_t getDefaultSsKernelDescriptor(
                   ss::COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_16_64,
                   ss::FLOAT_DENORM_MODE_FLUSH_NONE);
   SS_BITS_SET(KD.compute_pgm_rsrc1,
-                    ss::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP, 1);
+                    ss::COMPUTE_PGM_RSRC1_GFX6_R1000_ENABLE_DX10_CLAMP, 1);
   SS_BITS_SET(KD.compute_pgm_rsrc1,
-                    ss::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE, 1);
+                    ss::COMPUTE_PGM_RSRC1_GFX6_R1000_ENABLE_IEEE_MODE, 1);
   SS_BITS_SET(KD.compute_pgm_rsrc2,
                   ss::COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_X, 1);
   if (Version.Major >= 10) {
@@ -1610,16 +1610,16 @@ unsigned getTgtId(const StringRef Name) {
 bool isSupportedTgtId(unsigned Id, const MCSubtargetInfo &STI) {
   switch (Id) {
   case ET_NULL:
-    return !isGFX11Plus(STI);
+    return !isR1000Plus(STI);
   case ET_POS4:
   case ET_PRIM:
     return isGFX10Plus(STI);
   case ET_DUAL_SRC_BLEND0:
   case ET_DUAL_SRC_BLEND1:
-    return isGFX11Plus(STI);
+    return isR1000Plus(STI);
   default:
     if (Id >= ET_PARAM0 && Id <= ET_PARAM31)
-      return !isGFX11Plus(STI);
+      return !isR1000Plus(STI);
     return true;
   }
 }
@@ -1688,9 +1688,9 @@ void decodeDfmtNfmt(unsigned Format, unsigned &Dfmt, unsigned &Nfmt) {
 }
 
 int64_t getUnifiedFormat(const StringRef Name, const MCSubtargetInfo &STI) {
-  if (isGFX11Plus(STI)) {
-    for (int Id = UfmtGFX11::UFMT_FIRST; Id <= UfmtGFX11::UFMT_LAST; ++Id) {
-      if (Name == UfmtSymbolicGFX11[Id])
+  if (isR1000Plus(STI)) {
+    for (int Id = UfmtR1000::UFMT_FIRST; Id <= UfmtR1000::UFMT_LAST; ++Id) {
+      if (Name == UfmtSymbolicR1000[Id])
         return Id;
     }
   } else {
@@ -1704,20 +1704,20 @@ int64_t getUnifiedFormat(const StringRef Name, const MCSubtargetInfo &STI) {
 
 StringRef getUnifiedFormatName(unsigned Id, const MCSubtargetInfo &STI) {
   if(isValidUnifiedFormat(Id, STI))
-    return isGFX10(STI) ? UfmtSymbolicGFX10[Id] : UfmtSymbolicGFX11[Id];
+    return isGFX10(STI) ? UfmtSymbolicGFX10[Id] : UfmtSymbolicR1000[Id];
   return "";
 }
 
 bool isValidUnifiedFormat(unsigned Id, const MCSubtargetInfo &STI) {
-  return isGFX10(STI) ? Id <= UfmtGFX10::UFMT_LAST : Id <= UfmtGFX11::UFMT_LAST;
+  return isGFX10(STI) ? Id <= UfmtGFX10::UFMT_LAST : Id <= UfmtR1000::UFMT_LAST;
 }
 
 int64_t convertDfmtNfmt2Ufmt(unsigned Dfmt, unsigned Nfmt,
                              const MCSubtargetInfo &STI) {
   int64_t Fmt = encodeDfmtNfmt(Dfmt, Nfmt);
-  if (isGFX11Plus(STI)) {
-    for (int Id = UfmtGFX11::UFMT_FIRST; Id <= UfmtGFX11::UFMT_LAST; ++Id) {
-      if (Fmt == DfmtNfmt2UFmtGFX11[Id])
+  if (isR1000Plus(STI)) {
+    for (int Id = UfmtR1000::UFMT_FIRST; Id <= UfmtR1000::UFMT_LAST; ++Id) {
+      if (Fmt == DfmtNfmt2UFmtR1000[Id])
         return Id;
     }
   } else {
@@ -1748,7 +1748,7 @@ unsigned getDefaultFormatEncoding(const MCSubtargetInfo &STI) {
 namespace SendMsg {
 
 static uint64_t getMsgIdMask(const MCSubtargetInfo &STI) {
-  return isGFX11Plus(STI) ? ID_MASK_GFX11Plus_ : ID_MASK_PreGFX11_;
+  return isR1000Plus(STI) ? ID_MASK_R1000Plus_ : ID_MASK_PreR1000_;
 }
 
 int64_t getMsgId(const StringRef Name, const MCSubtargetInfo &STI) {
@@ -1786,11 +1786,11 @@ bool isValidMsgOp(int64_t MsgId, int64_t OpId, const MCSubtargetInfo &STI,
 
   if (MsgId == ID_SYSMSG)
     return OP_SYS_FIRST_ <= OpId && OpId < OP_SYS_LAST_;
-  if (!isGFX11Plus(STI)) {
+  if (!isR1000Plus(STI)) {
     switch (MsgId) {
-    case ID_GS_PreGFX11:
+    case ID_GS_PreR1000:
       return (OP_GS_FIRST_ <= OpId && OpId < OP_GS_LAST_) && OpId != OP_GS_NOP;
-    case ID_GS_DONE_PreGFX11:
+    case ID_GS_DONE_PreR1000:
       return OP_GS_FIRST_ <= OpId && OpId < OP_GS_LAST_;
     }
   }
@@ -1810,11 +1810,11 @@ bool isValidMsgStream(int64_t MsgId, int64_t OpId, int64_t StreamId,
   if (!Strict)
     return 0 <= StreamId && isUInt<STREAM_ID_WIDTH_>(StreamId);
 
-  if (!isGFX11Plus(STI)) {
+  if (!isR1000Plus(STI)) {
     switch (MsgId) {
-    case ID_GS_PreGFX11:
+    case ID_GS_PreR1000:
       return STREAM_ID_FIRST_ <= StreamId && StreamId < STREAM_ID_LAST_;
-    case ID_GS_DONE_PreGFX11:
+    case ID_GS_DONE_PreR1000:
       return (OpId == OP_GS_NOP) ?
           (StreamId == STREAM_ID_NONE_) :
           (STREAM_ID_FIRST_ <= StreamId && StreamId < STREAM_ID_LAST_);
@@ -1825,21 +1825,21 @@ bool isValidMsgStream(int64_t MsgId, int64_t OpId, int64_t StreamId,
 
 bool msgRequiresOp(int64_t MsgId, const MCSubtargetInfo &STI) {
   return MsgId == ID_SYSMSG ||
-      (!isGFX11Plus(STI) &&
-       (MsgId == ID_GS_PreGFX11 || MsgId == ID_GS_DONE_PreGFX11));
+      (!isR1000Plus(STI) &&
+       (MsgId == ID_GS_PreR1000 || MsgId == ID_GS_DONE_PreR1000));
 }
 
 bool msgSupportsStream(int64_t MsgId, int64_t OpId,
                        const MCSubtargetInfo &STI) {
-  return !isGFX11Plus(STI) &&
-      (MsgId == ID_GS_PreGFX11 || MsgId == ID_GS_DONE_PreGFX11) &&
+  return !isR1000Plus(STI) &&
+      (MsgId == ID_GS_PreR1000 || MsgId == ID_GS_DONE_PreR1000) &&
       OpId != OP_GS_NOP;
 }
 
 void decodeMsg(unsigned Val, uint16_t &MsgId, uint16_t &OpId,
                uint16_t &StreamId, const MCSubtargetInfo &STI) {
   MsgId = Val & getMsgIdMask(STI);
-  if (isGFX11Plus(STI)) {
+  if (isR1000Plus(STI)) {
     OpId = 0;
     StreamId = 0;
   } else {
@@ -2002,8 +2002,8 @@ bool isGFX9_GFX10(const MCSubtargetInfo &STI) {
   return isGFX9(STI) || isGFX10(STI);
 }
 
-bool isGFX9_GFX10_GFX11(const MCSubtargetInfo &STI) {
-  return isGFX9(STI) || isGFX10(STI) || isGFX11(STI);
+bool isGFX9_GFX10_R1000(const MCSubtargetInfo &STI) {
+  return isGFX9(STI) || isGFX10(STI) || isR1000(STI);
 }
 
 bool isGFX8_GFX9_GFX10(const MCSubtargetInfo &STI) {
@@ -2022,20 +2022,20 @@ bool isGFX10(const MCSubtargetInfo &STI) {
   return STI.hasFeature(RVGPU::FeatureGFX10);
 }
 
-bool isGFX10_GFX11(const MCSubtargetInfo &STI) {
-  return isGFX10(STI) || isGFX11(STI);
+bool isGFX10_R1000(const MCSubtargetInfo &STI) {
+  return isGFX10(STI) || isR1000(STI);
 }
 
 bool isGFX10Plus(const MCSubtargetInfo &STI) {
-  return isGFX10(STI) || isGFX11Plus(STI);
+  return isGFX10(STI) || isR1000Plus(STI);
 }
 
-bool isGFX11(const MCSubtargetInfo &STI) {
-  return STI.hasFeature(RVGPU::FeatureGFX11);
+bool isR1000(const MCSubtargetInfo &STI) {
+  return STI.hasFeature(RVGPU::FeatureR1000);
 }
 
-bool isGFX11Plus(const MCSubtargetInfo &STI) {
-  return isGFX11(STI) || isGFX12Plus(STI);
+bool isR1000Plus(const MCSubtargetInfo &STI) {
+  return isR1000(STI) || isGFX12Plus(STI);
 }
 
 bool isGFX12(const MCSubtargetInfo &STI) {
@@ -2046,8 +2046,8 @@ bool isGFX12Plus(const MCSubtargetInfo &STI) { return isGFX12(STI); }
 
 bool isNotGFX12Plus(const MCSubtargetInfo &STI) { return !isGFX12Plus(STI); }
 
-bool isNotGFX11Plus(const MCSubtargetInfo &STI) {
-  return !isGFX11Plus(STI);
+bool isNotR1000Plus(const MCSubtargetInfo &STI) {
+  return !isR1000Plus(STI);
 }
 
 bool isNotGFX10Plus(const MCSubtargetInfo &STI) {
@@ -2074,7 +2074,7 @@ bool hasGFX10_3Insts(const MCSubtargetInfo &STI) {
   return STI.hasFeature(RVGPU::FeatureGFX10_3Insts);
 }
 
-bool isGFX10_3_GFX11(const MCSubtargetInfo &STI) {
+bool isGFX10_3_R1000(const MCSubtargetInfo &STI) {
   return isGFX10_BEncoding(STI) && !isGFX12Plus(STI);
 }
 
@@ -2163,9 +2163,9 @@ bool isHi(unsigned Reg, const MCRegisterInfo &MRI) {
   CASE_VI_GFX9PLUS(TTMP4_TTMP5_TTMP6_TTMP7_TTMP8_TTMP9_TTMP10_TTMP11) \
   CASE_VI_GFX9PLUS(TTMP8_TTMP9_TTMP10_TTMP11_TTMP12_TTMP13_TTMP14_TTMP15) \
   CASE_VI_GFX9PLUS(TTMP0_TTMP1_TTMP2_TTMP3_TTMP4_TTMP5_TTMP6_TTMP7_TTMP8_TTMP9_TTMP10_TTMP11_TTMP12_TTMP13_TTMP14_TTMP15) \
-  CASE_GFXPRE11_GFX11PLUS(M0) \
-  CASE_GFXPRE11_GFX11PLUS(SGPR_NULL) \
-  CASE_GFXPRE11_GFX11PLUS_TO(SGPR_NULL64, SGPR_NULL) \
+  CASE_GFXPRE11_R1000PLUS(M0) \
+  CASE_GFXPRE11_R1000PLUS(SGPR_NULL) \
+  CASE_GFXPRE11_R1000PLUS_TO(SGPR_NULL64, SGPR_NULL) \
   }
 
 #define CASE_CI_VI(node) \
@@ -2175,11 +2175,11 @@ bool isHi(unsigned Reg, const MCRegisterInfo &MRI) {
 #define CASE_VI_GFX9PLUS(node) \
   case node: return isGFX9Plus(STI) ? node##_gfx9plus : node##_vi;
 
-#define CASE_GFXPRE11_GFX11PLUS(node) \
-  case node: return isGFX11Plus(STI) ? node##_gfx11plus : node##_gfxpre11;
+#define CASE_GFXPRE11_R1000PLUS(node) \
+  case node: return isR1000Plus(STI) ? node##_r1000plus : node##_gfxpre11;
 
-#define CASE_GFXPRE11_GFX11PLUS_TO(node, result) \
-  case node: return isGFX11Plus(STI) ? result##_gfx11plus : result##_gfxpre11;
+#define CASE_GFXPRE11_R1000PLUS_TO(node, result) \
+  case node: return isR1000Plus(STI) ? result##_r1000plus : result##_gfxpre11;
 
 unsigned getMCReg(unsigned Reg, const MCSubtargetInfo &STI) {
   MAP_REG2REG
@@ -2187,13 +2187,13 @@ unsigned getMCReg(unsigned Reg, const MCSubtargetInfo &STI) {
 
 #undef CASE_CI_VI
 #undef CASE_VI_GFX9PLUS
-#undef CASE_GFXPRE11_GFX11PLUS
-#undef CASE_GFXPRE11_GFX11PLUS_TO
+#undef CASE_GFXPRE11_R1000PLUS
+#undef CASE_GFXPRE11_R1000PLUS_TO
 
 #define CASE_CI_VI(node)   case node##_ci: case node##_vi:   return node;
 #define CASE_VI_GFX9PLUS(node) case node##_vi: case node##_gfx9plus: return node;
-#define CASE_GFXPRE11_GFX11PLUS(node) case node##_gfx11plus: case node##_gfxpre11: return node;
-#define CASE_GFXPRE11_GFX11PLUS_TO(node, result)
+#define CASE_GFXPRE11_R1000PLUS(node) case node##_r1000plus: case node##_gfxpre11: return node;
+#define CASE_GFXPRE11_R1000PLUS_TO(node, result)
 
 unsigned mc2PseudoReg(unsigned Reg) {
   MAP_REG2REG
@@ -2224,8 +2224,8 @@ bool isInlineValue(unsigned Reg) {
 
 #undef CASE_CI_VI
 #undef CASE_VI_GFX9PLUS
-#undef CASE_GFXPRE11_GFX11PLUS
-#undef CASE_GFXPRE11_GFX11PLUS_TO
+#undef CASE_GFXPRE11_R1000PLUS
+#undef CASE_GFXPRE11_R1000PLUS_TO
 #undef MAP_REG2REG
 
 bool isSISrcOperand(const MCInstrDesc &Desc, unsigned OpNo) {
@@ -2702,7 +2702,7 @@ const AlwaysUniform *lookupAlwaysUniform(unsigned Intr);
 #define GET_UniformIntrinsics_IMPL
 #define GET_Gfx9BufferFormat_IMPL
 #define GET_Gfx10BufferFormat_IMPL
-#define GET_Gfx11PlusBufferFormat_IMPL
+#define GET_R1000PlusBufferFormat_IMPL
 #include "RVGPUGenSearchableTables.inc"
 
 } // end anonymous namespace
@@ -2719,8 +2719,8 @@ const GcnBufferFormatInfo *getGcnBufferFormatInfo(uint8_t BitsPerComp,
                                                   uint8_t NumComponents,
                                                   uint8_t NumFormat,
                                                   const MCSubtargetInfo &STI) {
-  return isGFX11Plus(STI)
-             ? getGfx11PlusBufferFormatInfo(BitsPerComp, NumComponents,
+  return isR1000Plus(STI)
+             ? getR1000PlusBufferFormatInfo(BitsPerComp, NumComponents,
                                             NumFormat)
              : isGFX10(STI) ? getGfx10BufferFormatInfo(BitsPerComp,
                                                        NumComponents, NumFormat)
@@ -2730,7 +2730,7 @@ const GcnBufferFormatInfo *getGcnBufferFormatInfo(uint8_t BitsPerComp,
 
 const GcnBufferFormatInfo *getGcnBufferFormatInfo(uint8_t Format,
                                                   const MCSubtargetInfo &STI) {
-  return isGFX11Plus(STI) ? getGfx11PlusBufferFormatInfo(Format)
+  return isR1000Plus(STI) ? getR1000PlusBufferFormatInfo(Format)
                           : isGFX10(STI) ? getGfx10BufferFormatInfo(Format)
                                          : getGfx9BufferFormatInfo(Format);
 }

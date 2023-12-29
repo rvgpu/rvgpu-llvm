@@ -1045,7 +1045,7 @@ bool SIInsertWaitcnts::generateWaitcntInstBefore(MachineInstr &MI,
   // do this if there are no outstanding scratch stores.
   else if (MI.getOpcode() == RVGPU::S_ENDPGM ||
            MI.getOpcode() == RVGPU::S_ENDPGM_SAVED) {
-    if (ST->getGeneration() >= RVGPUSubtarget::GFX11 && !OptNone &&
+    if (ST->getGeneration() >= RVGPUSubtarget::R1000 && !OptNone &&
         ScoreBrackets.getScoreRange(VS_CNT) != 0 &&
         !ScoreBrackets.hasPendingEvent(SCRATCH_WRITE_ACCESS))
       ReleaseVGPRInsts.insert(&MI);
@@ -1054,8 +1054,8 @@ bool SIInsertWaitcnts::generateWaitcntInstBefore(MachineInstr &MI,
   else if ((MI.getOpcode() == RVGPU::S_SENDMSG ||
             MI.getOpcode() == RVGPU::S_SENDMSGHALT) &&
            ST->hasLegacyGeometry() &&
-           ((MI.getOperand(0).getImm() & RVGPU::SendMsg::ID_MASK_PreGFX11_) ==
-            RVGPU::SendMsg::ID_GS_DONE_PreGFX11)) {
+           ((MI.getOperand(0).getImm() & RVGPU::SendMsg::ID_MASK_PreR1000_) ==
+            RVGPU::SendMsg::ID_GS_DONE_PreR1000)) {
     Wait.VmCnt = 0;
   }
 #if 0 // TODO: the following blocks of logic when we have fence.
@@ -1987,7 +1987,7 @@ bool SIInsertWaitcnts::runOnMachineFunction(MachineFunction &MF) {
           .addImm(0);
     }
     BuildMI(*MI->getParent(), MI, DebugLoc(), TII->get(RVGPU::S_SENDMSG))
-        .addImm(RVGPU::SendMsg::ID_DEALLOC_VGPRS_GFX11Plus);
+        .addImm(RVGPU::SendMsg::ID_DEALLOC_VGPRS_R1000Plus);
     Modified = true;
   }
   ReleaseVGPRInsts.clear();

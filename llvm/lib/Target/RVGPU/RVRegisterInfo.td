@@ -222,11 +222,11 @@ def SCC : SIReg<"scc">;
 // Encoding changes between subtarget generations.
 // See also Utils/RVGPUBaseInfo.cpp MAP_REG2REG.
 defm M0_gfxpre11 : SIRegLoHi16 <"m0", 124>;
-defm M0_gfx11plus : SIRegLoHi16 <"m0", 125>;
+defm M0_r1000plus : SIRegLoHi16 <"m0", 125>;
 defm M0 : SIRegLoHi16 <"m0", 0>;
 
 defm SGPR_NULL_gfxpre11 : SIRegLoHi16 <"null", 125>;
-defm SGPR_NULL_gfx11plus : SIRegLoHi16 <"null", 124>;
+defm SGPR_NULL_r1000plus : SIRegLoHi16 <"null", 124>;
 let isConstant = true in {
 defm SGPR_NULL : SIRegLoHi16 <"null", 0>;
 defm SGPR_NULL_HI : SIRegLoHi16 <"", 0>;

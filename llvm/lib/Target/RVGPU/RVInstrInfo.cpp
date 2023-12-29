@@ -802,7 +802,7 @@ void RVInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   unsigned SrcSize = RI.getRegSizeInBits(*SrcRC);
 
   // The rest of copyPhysReg assumes Src and Dst size are the same size.
-  // TODO-GFX11_16BIT If all true 16 bit instruction patterns are completed can
+  // TODO-R1000_16BIT If all true 16 bit instruction patterns are completed can
   // we remove Fix16BitCopies and this code block?
   if (Fix16BitCopies) {
     if (((Size == 16) != (SrcSize == 16))) {
@@ -8139,8 +8139,8 @@ MachineOperand *RVInstrInfo::getNamedOperand(MachineInstr &MI,
 
 uint64_t RVInstrInfo::getDefaultRsrcDataFormat() const {
   if (ST.getGeneration() >= RVGPUSubtarget::GFX10) {
-    int64_t Format = ST.getGeneration() >= RVGPUSubtarget::GFX11
-                         ? (int64_t)RVGPU::UfmtGFX11::UFMT_32_FLOAT
+    int64_t Format = ST.getGeneration() >= RVGPUSubtarget::R1000
+                         ? (int64_t)RVGPU::UfmtR1000::UFMT_32_FLOAT
                          : (int64_t)RVGPU::UfmtGFX10::UFMT_32_FLOAT;
     return (Format << 44) |
            (1ULL << 56) | // RESOURCE_LEVEL = 1
@@ -8762,8 +8762,6 @@ static unsigned subtargetEncodingFamily(const RVSubtarget &ST) {
     return SIEncodingFamily::VI;
   case RVGPUSubtarget::GFX10:
     return SIEncodingFamily::GFX10;
-  case RVGPUSubtarget::GFX11:
-    return SIEncodingFamily::GFX11;
   case RVGPUSubtarget::R1000:
     return SIEncodingFamily::R1000;
   case RVGPUSubtarget::GFX12:
@@ -8834,7 +8832,7 @@ int RVInstrInfo::pseudoToMCOpcode(int Opcode) const {
   // Hack to allow some GFX12 codegen tests to run before all the encodings are
   // implemented.
   if (MCOp == (uint16_t)-1 && Gen == SIEncodingFamily::GFX12)
-    MCOp = RVGPU::getMCOpcode(Opcode, SIEncodingFamily::GFX11);
+    MCOp = RVGPU::getMCOpcode(Opcode, SIEncodingFamily::R1000);
 
   // -1 means that Opcode is already a native instruction.
   if (MCOp == -1)

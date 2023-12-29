@@ -339,10 +339,10 @@ def FeatureGFX10Insts : SubtargetFeature<"gfx10-insts",
   "Additional instructions for GFX10+"
 >;
 
-def FeatureGFX11Insts : SubtargetFeature<"gfx11-insts",
-  "GFX11Insts",
+def FeatureR1000Insts : SubtargetFeature<"r1000-insts",
+  "R1000Insts",
   "true",
-  "Additional instructions for GFX11+"
+  "Additional instructions for R1000+"
 >;
 
 def FeatureGFX12Insts : SubtargetFeature<"gfx12-insts",
@@ -785,10 +785,10 @@ def FeatureNoDataDepHazard : SubtargetFeature<"no-data-dep-hazard",
   "Does not need SW waitstates"
 >;
 
-def FeatureGFX11FullVGPRs : SubtargetFeature<"gfx11-full-vgprs",
-  "HasGFX11FullVGPRs",
+def FeatureR1000FullVGPRs : SubtargetFeature<"r1000-full-vgprs",
+  "HasR1000FullVGPRs",
   "true",
-  "GFX11 with 50% more physical VGPRs and 50% larger allocation granule than GFX10"
+  "R1000 with 50% more physical VGPRs and 50% larger allocation granule than GFX10"
 >;
 
 
@@ -1065,26 +1065,6 @@ def FeatureGFX10 : RVSubtargetFeatureGeneration<"GFX10",
   ]
 >;
 
-def FeatureGFX11 : RVSubtargetFeatureGeneration<"GFX11",
-  "gfx11",
-  [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
-   FeatureFlatAddressSpace, Feature16BitInsts,
-   FeatureInv2PiInlineImm, FeatureApertureRegs,
-   FeatureCIInsts, FeatureGFX8Insts, FeatureGFX9Insts, FeatureGFX10Insts,
-   FeatureGFX10_AEncoding, FeatureGFX10_BEncoding, FeatureGFX10_3Insts,
-   FeatureGFX11Insts, FeatureVOP3P, FeatureVOPD, FeatureTrue16BitInsts,
-   FeatureMovrel, FeatureFastFMAF32, FeatureDPP, FeatureIntClamp,
-   FeatureFlatInstOffsets, FeatureFlatGlobalInsts, FeatureFlatScratchInsts,
-   FeatureAddNoCarryInsts, FeatureFmaMixInsts,
-   FeatureNoSdstCMPX, FeatureVscnt,
-   FeatureVOP3Literal, FeatureDPP8, FeatureExtendedImageInsts,
-   FeatureNoDataDepHazard, FeaturePkFmacF16Inst,
-   FeatureA16, FeatureFastDenormalF32, FeatureG16,
-   FeatureUnalignedBufferAccess, FeatureUnalignedDSAccess, FeatureGDS,
-   FeatureGWS
-  ]
->;
-
 def FeatureR1000 : RVSubtargetFeatureGeneration<"R1000",
   "r1000",
   [FeatureFP64, FeatureLocalMemorySize65536, FeatureMIMG_R128,
@@ -1092,7 +1072,7 @@ def FeatureR1000 : RVSubtargetFeatureGeneration<"R1000",
    FeatureInv2PiInlineImm, FeatureApertureRegs,
    FeatureCIInsts, FeatureGFX8Insts, FeatureGFX9Insts, FeatureGFX10Insts,
    FeatureGFX10_AEncoding, FeatureGFX10_BEncoding, FeatureGFX10_3Insts,
-   FeatureGFX11Insts, FeatureVOP3P, FeatureVOPD, FeatureTrue16BitInsts,
+   FeatureR1000Insts, FeatureVOP3P, FeatureVOPD, FeatureTrue16BitInsts,
    FeatureMovrel, FeatureFastFMAF32, FeatureDPP, FeatureIntClamp,
    FeatureFlatInstOffsets, FeatureFlatGlobalInsts, FeatureFlatScratchInsts,
    FeatureAddNoCarryInsts, FeatureFmaMixInsts,
@@ -1112,7 +1092,7 @@ def FeatureGFX12 : RVSubtargetFeatureGeneration<"GFX12",
    FeatureInv2PiInlineImm, FeatureApertureRegs,
    FeatureCIInsts, FeatureGFX8Insts, FeatureGFX9Insts, FeatureGFX10Insts,
    FeatureGFX10_AEncoding, FeatureGFX10_BEncoding, FeatureGFX10_3Insts,
-   FeatureGFX11Insts, FeatureGFX12Insts, FeatureVOP3P, FeatureVOPD,
+   FeatureR1000Insts, FeatureGFX12Insts, FeatureVOP3P, FeatureVOPD,
    FeatureMovrel, FeatureFastFMAF32, FeatureDPP, FeatureIntClamp,
    FeatureFlatInstOffsets, FeatureFlatGlobalInsts, FeatureFlatScratchInsts,
    FeatureAddNoCarryInsts, FeatureFmaMixInsts,
@@ -1421,7 +1401,7 @@ def FeatureISAVersion10_3_0 : FeatureSet<
      FeatureShaderCyclesRegister])>;
 
 def FeatureISAVersion11_Common : FeatureSet<
-  [FeatureGFX11,
+  [FeatureR1000,
    FeatureR1000,
    FeatureLDSBankCount32,
    FeatureDLInsts,
@@ -1450,12 +1430,12 @@ def FeatureISAVersion11_0_Common : FeatureSet<
 
 def FeatureISAVersion11_0_0 : FeatureSet<
   !listconcat(FeatureISAVersion11_0_Common.Features,
-    [FeatureGFX11FullVGPRs,
+    [FeatureR1000FullVGPRs,
      FeatureUserSGPRInit16Bug])>;
 
 def FeatureISAVersion11_0_1 : FeatureSet<
   !listconcat(FeatureISAVersion11_0_Common.Features,
-    [FeatureGFX11FullVGPRs])>;
+    [FeatureR1000FullVGPRs])>;
 
 def FeatureISAVersion11_0_2 : FeatureSet<
   !listconcat(FeatureISAVersion11_0_Common.Features,
@@ -1476,7 +1456,7 @@ def FeatureISAVersion11_5_1 : FeatureSet<
     [FeatureSALUFloatInsts,
      FeatureDPPSrc1SGPR,
      FeatureVGPRSingleUseHintInsts,
-     FeatureGFX11FullVGPRs])>;
+     FeatureR1000FullVGPRs])>;
 
 def FeatureISAVersion12 : FeatureSet<
   [FeatureGFX12,
@@ -1608,7 +1588,7 @@ def isGFX6GFX7GFX10 :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::SOUTHERN_ISLANDS ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::SEA_ISLANDS ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX10">,
-  AssemblerPredicate<(all_of (not FeatureGCN3Encoding), (not FeatureGFX11Insts))>;
+  AssemblerPredicate<(all_of (not FeatureGCN3Encoding), (not FeatureR1000Insts))>;
 
 def isGFX6GFX7GFX10Plus :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::SOUTHERN_ISLANDS ||"
@@ -1623,12 +1603,12 @@ def isGFX7Only :
 def isGFX7GFX10 :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::SEA_ISLANDS ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX10">,
-  AssemblerPredicate<(all_of (not FeatureGCN3Encoding), FeatureCIInsts, (not FeatureGFX11Insts))>;
+  AssemblerPredicate<(all_of (not FeatureGCN3Encoding), FeatureCIInsts, (not FeatureR1000Insts))>;
 
-def isGFX7GFX10GFX11 :
+def isGFX7GFX10R1000 :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::SEA_ISLANDS ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX10 ||"
-            "Subtarget->getGeneration() == RVGPUSubtarget::GFX11">,
+            "Subtarget->getGeneration() == RVGPUSubtarget::R1000">,
   AssemblerPredicate<(all_of (not FeatureGCN3Encoding), FeatureCIInsts)>;
 
 def isGFX7GFX8GFX9 :
@@ -1658,10 +1638,10 @@ def isGFX6GFX7GFX8GFX9GFX10 :
             "Subtarget->getGeneration() == RVGPUSubtarget::VOLCANIC_ISLANDS ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX9 ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX10">,
-  AssemblerPredicate<(all_of (not FeatureGFX11Insts))>;
+  AssemblerPredicate<(all_of (not FeatureR1000Insts))>;
 
 def isNotGFX12Plus :
-  Predicate<"Subtarget->getGeneration() <= RVGPUSubtarget::GFX11">,
+  Predicate<"Subtarget->getGeneration() <= RVGPUSubtarget::R1000">,
   AssemblerPredicate<(all_of (not FeatureGFX12Insts))>;
 
 def isGFX7GFX8GFX9GFX10 :
@@ -1669,13 +1649,13 @@ def isGFX7GFX8GFX9GFX10 :
             "Subtarget->getGeneration() == RVGPUSubtarget::VOLCANIC_ISLANDS ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX9 ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX10">,
-  AssemblerPredicate<(all_of FeatureCIInsts, (not FeatureGFX11Insts))>;
+  AssemblerPredicate<(all_of FeatureCIInsts, (not FeatureR1000Insts))>;
 
-def isGFX8GFX9GFX10GFX11 :
+def isGFX8GFX9GFX10R1000 :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::VOLCANIC_ISLANDS ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX9 ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX10 ||"
-            "Subtarget->getGeneration() == RVGPUSubtarget::GFX11">,
+            "Subtarget->getGeneration() == RVGPUSubtarget::R1000">,
   AssemblerPredicate<(all_of FeatureGFX8Insts, (not FeatureGFX12Insts))>;
 
 def isGFX7Plus :
@@ -1744,15 +1724,15 @@ def isGFX8GFX9 :
 
 def isGFX10Only :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::GFX10">,
-  AssemblerPredicate<(all_of FeatureGFX10Insts, (not FeatureGFX11Insts))>;
+  AssemblerPredicate<(all_of FeatureGFX10Insts, (not FeatureR1000Insts))>;
 
 def isGFX10Plus :
   Predicate<"Subtarget->getGeneration() >= RVGPUSubtarget::GFX10">,
   AssemblerPredicate<(all_of FeatureGFX10Insts)>;
 
-def isGFX10GFX11 :
+def isGFX10R1000 :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::GFX10 ||"
-            "Subtarget->getGeneration() == RVGPUSubtarget::GFX11">,
+            "Subtarget->getGeneration() == RVGPUSubtarget::R1000">,
   AssemblerPredicate<(all_of FeatureGFX10Insts, (not FeatureGFX12Insts))>;
 
 def isGFX10Before1030 :
@@ -1763,21 +1743,21 @@ def isGFX10Before1030 :
 def isGFX9GFX10 :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::GFX9 ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX10">,
-  AssemblerPredicate<(all_of FeatureGFX9Insts, (not FeatureGFX11Insts))>;
+  AssemblerPredicate<(all_of FeatureGFX9Insts, (not FeatureR1000Insts))>;
 
 def isGFX8GFX9GFX10 :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::VOLCANIC_ISLANDS ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX9 ||"
             "Subtarget->getGeneration() == RVGPUSubtarget::GFX10">,
-  AssemblerPredicate<(all_of FeatureGFX8Insts, (not FeatureGFX11Insts))>;
+  AssemblerPredicate<(all_of FeatureGFX8Insts, (not FeatureR1000Insts))>;
 
-def isGFX11Only :
-  Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::GFX11">,
-  AssemblerPredicate<(all_of FeatureGFX11Insts, (not FeatureGFX12Insts))>;
+def isR1000Only :
+  Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::R1000">,
+  AssemblerPredicate<(all_of FeatureR1000Insts, (not FeatureGFX12Insts))>;
 
-def isGFX11Plus :
-  Predicate<"Subtarget->getGeneration() >= RVGPUSubtarget::GFX11">,
-  AssemblerPredicate<(all_of FeatureGFX11Insts)>;
+def isR1000Plus :
+  Predicate<"Subtarget->getGeneration() >= RVGPUSubtarget::R1000">,
+  AssemblerPredicate<(all_of FeatureR1000Insts)>;
 
 def isGFX12Only :
   Predicate<"Subtarget->getGeneration() == RVGPUSubtarget::GFX12">,
@@ -1802,7 +1782,7 @@ def HasD16LoadStore : Predicate<"Subtarget->hasD16LoadStore()">,
 def HasFlatScratchSTMode : Predicate<"Subtarget->hasFlatScratchSTMode()">,
   AssemblerPredicate<(any_of FeatureGFX10_3Insts, FeatureGFX940Insts)>;
 def HasFlatScratchSVSMode : Predicate<"Subtarget->hasFlatScratchSVSMode()">,
-  AssemblerPredicate<(any_of FeatureGFX940Insts, FeatureGFX11Insts)>;
+  AssemblerPredicate<(any_of FeatureGFX940Insts, FeatureR1000Insts)>;
 
 def HasGFX10_AEncoding : Predicate<"Subtarget->hasGFX10_AEncoding()">,
   AssemblerPredicate<(all_of FeatureGFX10_AEncoding)>;

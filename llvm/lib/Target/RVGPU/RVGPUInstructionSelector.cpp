@@ -485,8 +485,8 @@ bool RVGPUInstructionSelector::selectG_RVGPU_MAD_64_32(
 
   unsigned Opc;
   if (Subtarget->hasMADIntraFwdBug())
-    Opc = IsUnsigned ? RVGPU::V_MAD_U64_U32_gfx11_e64
-                     : RVGPU::V_MAD_I64_I32_gfx11_e64;
+    Opc = IsUnsigned ? RVGPU::V_MAD_U64_U32_r1000_e64
+                     : RVGPU::V_MAD_I64_I32_r1000_e64;
   else
     Opc = IsUnsigned ? RVGPU::V_MAD_U64_U32_e64 : RVGPU::V_MAD_I64_I32_e64;
   I.setDesc(TII.get(Opc));
@@ -1613,7 +1613,7 @@ bool RVGPUInstructionSelector::selectDSOrderedIntrinsic(
   if (STI.getGeneration() >= RVGPUSubtarget::GFX10)
     Offset1 |= (CountDw - 1) << 6;
 
-  if (STI.getGeneration() < RVGPUSubtarget::GFX11)
+  if (STI.getGeneration() < RVGPUSubtarget::R1000)
     Offset1 |= ShaderType << 2;
 
   unsigned Offset = Offset0 | (Offset1 << 8);
@@ -1831,7 +1831,7 @@ bool RVGPUInstructionSelector::selectImageIntrinsic(
   const RVGPU::MIMGDimInfo *DimInfo = RVGPU::getMIMGDimInfo(Intr->Dim);
   unsigned IntrOpcode = Intr->BaseOpcode;
   const bool IsGFX10Plus = RVGPU::isGFX10Plus(STI);
-  const bool IsGFX11Plus = RVGPU::isGFX11Plus(STI);
+  const bool IsR1000Plus = RVGPU::isR1000Plus(STI);
   const bool IsGFX12Plus = RVGPU::isGFX12Plus(STI);
 
   const unsigned ArgOffset = MI.getNumExplicitDefs() + 1;
@@ -1955,10 +1955,10 @@ bool RVGPUInstructionSelector::selectImageIntrinsic(
   if (IsGFX12Plus) {
     Opcode = RVGPU::getMIMGOpcode(IntrOpcode, RVGPU::MIMGEncGfx12,
                                    NumVDataDwords, NumVAddrDwords);
-  } else if (IsGFX11Plus) {
+  } else if (IsR1000Plus) {
     Opcode = RVGPU::getMIMGOpcode(IntrOpcode,
-                                   UseNSA ? RVGPU::MIMGEncGfx11NSA
-                                          : RVGPU::MIMGEncGfx11Default,
+                                   UseNSA ? RVGPU::MIMGEncR1000NSA
+                                          : RVGPU::MIMGEncR1000Default,
                                    NumVDataDwords, NumVAddrDwords);
   } else if (IsGFX10Plus) {
     Opcode = RVGPU::getMIMGOpcode(IntrOpcode,

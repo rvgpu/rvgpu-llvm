@@ -39,7 +39,7 @@ class VINTERPe <VOPProfile P> : Enc64 {
   let Inst{63}    = src2_modifiers{0}; // neg(2)
 }
 
-class VINTERPe_gfx11 <bits<7> op, VOPProfile P> : VINTERPe<P> {
+class VINTERPe_r1000 <bits<7> op, VOPProfile P> : VINTERPe<P> {
   let Inst{22-16} = op;
 }
 
@@ -105,7 +105,7 @@ class VOP3_VINTERP_F16 <list<ValueType> ArgVT> : VOPProfile<ArgVT> {
 // VINTERP Pseudo Instructions
 //===----------------------------------------------------------------------===//
 
-let SubtargetPredicate = isGFX11Plus in {
+let SubtargetPredicate = isR1000Plus in {
 
 let Uses = [M0, EXEC, MODE] in {
 def V_INTERP_P10_F32_inreg : VINTERP_Pseudo <"v_interp_p10_f32", VOP3_VINTERP_F32>;
@@ -123,7 +123,7 @@ def V_INTERP_P2_RTZ_F16_F32_inreg :
   VINTERP_Pseudo <"v_interp_p2_rtz_f16_f32", VOP3_VINTERP_F16<[f16, f32, f32, f32]>>;
 } // Uses = [M0, EXEC]
 
-} // SubtargetPredicate = isGFX11Plus
+} // SubtargetPredicate = isR1000Plus
 
 class VInterpF32Pat <SDPatternOperator op, Instruction inst> : GCNPat <
    (f32 (op
@@ -178,11 +178,11 @@ defm : VInterpF16Pat<int_rvgpu_interp_inreg_p2_f16,
 // VINTERP Real Instructions
 //===----------------------------------------------------------------------===//
 
-multiclass VINTERP_Real_gfx11 <bits<7> op> {
-  let AssemblerPredicate = isGFX11Only, DecoderNamespace = "GFX11" in {
-    def _gfx11 :
-      VINTERP_Real<!cast<VOP3_Pseudo>(NAME), SIEncodingFamily.GFX11>,
-      VINTERPe_gfx11<op, !cast<VOP3_Pseudo>(NAME).Pfl>;
+multiclass VINTERP_Real_r1000 <bits<7> op> {
+  let AssemblerPredicate = isR1000Only, DecoderNamespace = "R1000" in {
+    def _r1000 :
+      VINTERP_Real<!cast<VOP3_Pseudo>(NAME), SIEncodingFamily.R1000>,
+      VINTERPe_r1000<op, !cast<VOP3_Pseudo>(NAME).Pfl>;
   }
 }
 
@@ -194,12 +194,12 @@ multiclass VINTERP_Real_gfx12 <bits<7> op> {
   }
 }
 
-multiclass VINTERP_Real_gfx11_gfx12 <bits<7> op> :
-  VINTERP_Real_gfx11<op>, VINTERP_Real_gfx12<op>;
+multiclass VINTERP_Real_r1000_gfx12 <bits<7> op> :
+  VINTERP_Real_r1000<op>, VINTERP_Real_gfx12<op>;
 
-defm V_INTERP_P10_F32_inreg : VINTERP_Real_gfx11_gfx12<0x000>;
-defm V_INTERP_P2_F32_inreg : VINTERP_Real_gfx11_gfx12<0x001>;
-defm V_INTERP_P10_F16_F32_inreg : VINTERP_Real_gfx11_gfx12<0x002>;
-defm V_INTERP_P2_F16_F32_inreg : VINTERP_Real_gfx11_gfx12<0x003>;
-defm V_INTERP_P10_RTZ_F16_F32_inreg : VINTERP_Real_gfx11_gfx12<0x004>;
-defm V_INTERP_P2_RTZ_F16_F32_inreg : VINTERP_Real_gfx11_gfx12<0x005>;
+defm V_INTERP_P10_F32_inreg : VINTERP_Real_r1000_gfx12<0x000>;
+defm V_INTERP_P2_F32_inreg : VINTERP_Real_r1000_gfx12<0x001>;
+defm V_INTERP_P10_F16_F32_inreg : VINTERP_Real_r1000_gfx12<0x002>;
+defm V_INTERP_P2_F16_F32_inreg : VINTERP_Real_r1000_gfx12<0x003>;
+defm V_INTERP_P10_RTZ_F16_F32_inreg : VINTERP_Real_r1000_gfx12<0x004>;
+defm V_INTERP_P2_RTZ_F16_F32_inreg : VINTERP_Real_r1000_gfx12<0x005>;

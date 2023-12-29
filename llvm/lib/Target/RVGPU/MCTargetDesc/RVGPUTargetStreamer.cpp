@@ -196,7 +196,7 @@ bool RVGPUTargetAsmStreamer::EmitCodeEnd(const MCSubtargetInfo &STI) {
   uint32_t Encoded_pad = Encoded_s_code_end;
 
   // Instruction cache line size in bytes.
-  const unsigned Log2CacheLineSize = RVGPU::isGFX11Plus(STI) ? 7 : 6;
+  const unsigned Log2CacheLineSize = RVGPU::isR1000Plus(STI) ? 7 : 6;
   const unsigned CacheLineSize = 1u << Log2CacheLineSize;
 
   // Extra padding amount in bytes to support prefetch mode 3.
@@ -332,9 +332,9 @@ void RVGPUTargetAsmStreamer::EmitSsKernelDescriptor(
               ss::COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_16_64);
   if (IVersion.Major < 12) {
     PRINT_FIELD(OS, ".ss_dx10_clamp", KD, compute_pgm_rsrc1,
-                ss::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP);
+                ss::COMPUTE_PGM_RSRC1_GFX6_R1000_ENABLE_DX10_CLAMP);
     PRINT_FIELD(OS, ".ss_ieee_mode", KD, compute_pgm_rsrc1,
-                ss::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE);
+                ss::COMPUTE_PGM_RSRC1_GFX6_R1000_ENABLE_IEEE_MODE);
   }
   if (IVersion.Major >= 9)
     PRINT_FIELD(OS, ".ss_fp16_overflow", KD,
@@ -695,7 +695,7 @@ bool RVGPUTargetELFStreamer::EmitCodeEnd(const MCSubtargetInfo &STI) {
   uint32_t Encoded_pad = Encoded_s_code_end;
 
   // Instruction cache line size in bytes.
-  const unsigned Log2CacheLineSize = RVGPU::isGFX11Plus(STI) ? 7 : 6;
+  const unsigned Log2CacheLineSize = RVGPU::isR1000Plus(STI) ? 7 : 6;
   const unsigned CacheLineSize = 1u << Log2CacheLineSize;
 
   // Extra padding amount in bytes to support prefetch mode 3.

@@ -105,21 +105,21 @@ def EXP_gfx10      : EXP_Real_gfx10<0, "EXP">;
 def EXP_DONE_gfx10 : EXP_Real_gfx10<1, "EXP_DONE">;
 
 //===----------------------------------------------------------------------===//
-// GFX11
+// R1000
 //===----------------------------------------------------------------------===//
 
-class EXP_Real_gfx11<bit _row, bit _done, string pseudo>
-  : EXP_Real_Row<_row, _done, pseudo, SIEncodingFamily.GFX11>, EXPe_Row {
-  let AssemblerPredicate = isGFX11Only;
-  let DecoderNamespace = "GFX11";
+class EXP_Real_r1000<bit _row, bit _done, string pseudo>
+  : EXP_Real_Row<_row, _done, pseudo, SIEncodingFamily.R1000>, EXPe_Row {
+  let AssemblerPredicate = isR1000Only;
+  let DecoderNamespace = "R1000";
   let row = _row;
   let done = _done;
 }
 
-def EXP_gfx11          : EXP_Real_gfx11<0, 0, "EXP">;
-def EXP_DONE_gfx11     : EXP_Real_gfx11<0, 1, "EXP_DONE">;
-def EXP_ROW_gfx11      : EXP_Real_gfx11<1, 0, "EXP_ROW">;
-def EXP_ROW_DONE_gfx11 : EXP_Real_gfx11<1, 1, "EXP_ROW_DONE">;
+def EXP_r1000          : EXP_Real_r1000<0, 0, "EXP">;
+def EXP_DONE_r1000     : EXP_Real_r1000<0, 1, "EXP_DONE">;
+def EXP_ROW_r1000      : EXP_Real_r1000<1, 0, "EXP_ROW">;
+def EXP_ROW_DONE_r1000 : EXP_Real_r1000<1, 1, "EXP_ROW_DONE">;
 
 //===----------------------------------------------------------------------===//
 // GFX12+

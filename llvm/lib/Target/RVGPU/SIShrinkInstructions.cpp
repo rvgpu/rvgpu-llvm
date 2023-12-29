@@ -270,8 +270,8 @@ void SIShrinkInstructions::shrinkMIMG(MachineInstr &MI) const {
   case RVGPU::MIMGEncGfx10NSA:
     NewEncoding = RVGPU::MIMGEncGfx10Default;
     break;
-  case RVGPU::MIMGEncGfx11NSA:
-    NewEncoding = RVGPU::MIMGEncGfx11Default;
+  case RVGPU::MIMGEncR1000NSA:
+    NewEncoding = RVGPU::MIMGEncR1000Default;
     break;
   default:
     return;

@@ -980,8 +980,8 @@ void RVGPUDAGToDAGISel::SelectMAD_64_32(SDNode *N) {
   bool Signed = N->getOpcode() == RVGPUISD::MAD_I64_I32;
   unsigned Opc;
   if (Subtarget->hasMADIntraFwdBug())
-    Opc = Signed ? RVGPU::V_MAD_I64_I32_gfx11_e64
-                 : RVGPU::V_MAD_U64_U32_gfx11_e64;
+    Opc = Signed ? RVGPU::V_MAD_I64_I32_r1000_e64
+                 : RVGPU::V_MAD_U64_U32_r1000_e64;
   else
     Opc = Signed ? RVGPU::V_MAD_I64_I32_e64 : RVGPU::V_MAD_U64_U32_e64;
 
@@ -998,8 +998,8 @@ void RVGPUDAGToDAGISel::SelectMUL_LOHI(SDNode *N) {
   bool Signed = N->getOpcode() == ISD::SMUL_LOHI;
   unsigned Opc;
   if (Subtarget->hasMADIntraFwdBug())
-    Opc = Signed ? RVGPU::V_MAD_I64_I32_gfx11_e64
-                 : RVGPU::V_MAD_U64_U32_gfx11_e64;
+    Opc = Signed ? RVGPU::V_MAD_I64_I32_r1000_e64
+                 : RVGPU::V_MAD_U64_U32_r1000_e64;
   else
     Opc = Signed ? RVGPU::V_MAD_I64_I32_e64 : RVGPU::V_MAD_U64_U32_e64;
 

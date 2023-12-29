@@ -166,7 +166,7 @@ GCNNSAReassign::CheckNSA(const MachineInstr &MI, bool Fast) const {
 
   switch (Info->MIMGEncoding) {
   case RVGPU::MIMGEncGfx10NSA:
-  case RVGPU::MIMGEncGfx11NSA:
+  case RVGPU::MIMGEncR1000NSA:
     break;
   default:
     return NSA_Status::NOT_NSA;
@@ -189,7 +189,7 @@ GCNNSAReassign::CheckNSA(const MachineInstr &MI, bool Fast) const {
       if (!PhysReg)
         return NSA_Status::FIXED;
 
-      // TODO: address the below limitation to handle GFX11 BVH instructions
+      // TODO: address the below limitation to handle R1000 BVH instructions
       // Bail if address is not a VGPR32. That should be possible to extend the
       // optimization to work with subregs of a wider register tuples, but the
       // logic to find free registers will be much more complicated with much

@@ -134,16 +134,16 @@ defvar VOPDPseudosCommon = [
   "V_ADD_F32_e32", "V_SUB_F32_e32", "V_SUBREV_F32_e32", "V_MUL_LEGACY_F32_e32",
   "V_MOV_B32_e32", "V_CNDMASK_B32_e32", "V_MAX_F32_e32", "V_MIN_F32_e32"
 ];
-defvar VOPDPseudosGFX11 = ["V_DOT2C_F32_F16_e32"];
+defvar VOPDPseudosR1000 = ["V_DOT2C_F32_F16_e32"];
 defvar VOPDYOnlyPseudosCommon = ["V_ADD_U32_e32", "V_LSHLREV_B32_e32",
                                  "V_AND_B32_e32"];
 
-defvar VOPDXPseudosGFX11 = !listconcat(VOPDPseudosCommon, VOPDPseudosGFX11);
+defvar VOPDXPseudosR1000 = !listconcat(VOPDPseudosCommon, VOPDPseudosR1000);
 defvar VOPDXPseudosGFX12 = VOPDPseudosCommon;
-defvar VOPDYPseudosGFX11 = !listconcat(VOPDXPseudosGFX11, VOPDYOnlyPseudosCommon);
+defvar VOPDYPseudosR1000 = !listconcat(VOPDXPseudosR1000, VOPDYOnlyPseudosCommon);
 defvar VOPDYPseudosGFX12 = !listconcat(VOPDXPseudosGFX12, VOPDYOnlyPseudosCommon);
 
-def GFX11GenD : GFXGenD<GFX11Gen, VOPDXPseudosGFX11, VOPDYPseudosGFX11>;
+def R1000GenD : GFXGenD<R1000Gen, VOPDXPseudosR1000, VOPDYPseudosR1000>;
 def GFX12GenD : GFXGenD<GFX12Gen, VOPDXPseudosGFX12, VOPDYPseudosGFX12>;
 
 
@@ -161,7 +161,7 @@ class getRenamed<string VOPDName, GFXGen Gen> {
                    VOPDName);
 }
 
-foreach Gen = [GFX11GenD, GFX12GenD] in {
+foreach Gen = [R1000GenD, GFX12GenD] in {
   foreach x = Gen.VOPDXPseudos in {
     foreach y = Gen.VOPDYPseudos in {
       defvar xInst = !cast<VOP_Pseudo>(x);
