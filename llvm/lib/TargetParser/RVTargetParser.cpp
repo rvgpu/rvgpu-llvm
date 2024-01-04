@@ -31,7 +31,7 @@ struct GPUInfo {
 // Don't bother listing the implicitly true features
 constexpr GPUInfo RVGPUGPUs[] = {
 
-    {{"ss1000"},   {"ss1000"}, GK_SS1000, FEATURE_FAST_FMA_F32|FEATURE_FAST_DENORMAL_F32|FEATURE_WAVE32|FEATURE_WGP},
+    {{"r1000"},   {"r1000"}, GK_R1000, FEATURE_FAST_FMA_F32|FEATURE_FAST_DENORMAL_F32|FEATURE_WAVE32|FEATURE_WGP},
     // clang-format on
 };
 
@@ -94,7 +94,7 @@ void RVGPU::fillRVGPUFeatureMap(StringRef GPU, const Triple &T,
                                   StringMap<bool> &Features) {
   // XXX - What does the member GPU mean if device name string passed here?
     switch (parseArchRVGPU(GPU)) {
-    case GK_SS1000:
+    case GK_R1000:
       Features["ci-insts"] = true;
       Features["dot5-insts"] = true;
       Features["dot7-insts"] = true;

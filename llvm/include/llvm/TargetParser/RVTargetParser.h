@@ -36,8 +36,8 @@ enum GPUKind : uint32_t {
   // Not specified processor.
   GK_NONE = 0,
 
-  GK_SS1000 = 1,
-  GK_RVGPU_FIRST = GK_SS1000,
+  GK_R1000 = 1,
+  GK_RVGPU_FIRST = GK_R1000,
   GK_RVGPU_LAST ,
 };
 

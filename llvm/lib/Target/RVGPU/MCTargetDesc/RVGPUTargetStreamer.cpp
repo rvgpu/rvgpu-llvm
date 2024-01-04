@@ -69,9 +69,9 @@ StringRef RVGPUTargetStreamer::getArchNameFromElfMach(unsigned ElfMach) {
   // clang-format off
   switch (ElfMach) {
 
-  case ELF::EF_RVGPU_MACH_1000: AK = GK_SS1000; break;
-  case ELF::EF_RVGPU_MACH_NONE:           AK = GK_NONE;    break;
-  default:                                 AK = GK_NONE;    break;
+  case ELF::EF_RVGPU_MACH_1000: AK = GK_R1000;  break;
+  case ELF::EF_RVGPU_MACH_NONE: AK = GK_NONE;   break;
+  default:                      AK = GK_NONE;   break;
   }
   // clang-format on
 
@@ -84,8 +84,8 @@ unsigned RVGPUTargetStreamer::getElfMach(StringRef GPU) {
 
   // clang-format off
   switch (AK) {
-  case GK_SS1000: return ELF::EF_RVGPU_MACH_1000;
-  case GK_NONE:    return ELF::EF_RVGPU_MACH_NONE;
+  case GK_R1000:    return ELF::EF_RVGPU_MACH_1000;
+  case GK_NONE:     return ELF::EF_RVGPU_MACH_NONE;
   }
   // clang-format on
 

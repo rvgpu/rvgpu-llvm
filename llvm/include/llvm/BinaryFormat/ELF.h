@@ -862,8 +862,9 @@ enum {
 // RVGPU specific e_flags.
 enum : unsigned {
   // Processor selection mask for EF_RVGPU_MACH_* values.
+  EF_RVGPU_MACH = 0x0ff,
   EF_RVGPU_MACH_NONE = 0,
-  EF_RVGPU_MACH_1000       = 1,
+  EF_RVGPU_MACH_1000 = 1,
   // clang-format on
 };
 enum {

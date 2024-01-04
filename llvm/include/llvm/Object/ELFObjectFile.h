@@ -65,6 +65,7 @@ class ELFObjectFileBase : public ObjectFile {
 
   StringRef getAMDGPUCPUName() const;
   StringRef getNVPTXCPUName() const;
+  StringRef getRVGPUName() const;
 
 protected:
   ELFObjectFileBase(unsigned int Type, MemoryBufferRef Source);

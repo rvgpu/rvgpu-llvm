@@ -360,6 +360,8 @@ std::optional<StringRef> ELFObjectFileBase::tryGetCPUName() const {
     return getAMDGPUCPUName();
   case ELF::EM_CUDA:
     return getNVPTXCPUName();
+  case ELF::EM_RVGPU:
+    return getRVGPUName();
   case ELF::EM_PPC:
   case ELF::EM_PPC64:
     return StringRef("future");
@@ -583,6 +585,18 @@ StringRef ELFObjectFileBase::getNVPTXCPUName() const {
     return getPlatformFlags() & ELF::EF_CUDA_ACCELERATORS ? "sm_90a" : "sm_90";
   default:
     llvm_unreachable("Unknown EF_CUDA_SM value");
+  }
+}
+
+StringRef ELFObjectFileBase::getRVGPUName() const {
+  assert(getEMachine() == ELF::EM_RVGPU);
+  unsigned CPU = getPlatformFlags() & ELF::EF_RVGPU_MACH;
+
+  switch (CPU) {
+  case ELF::EF_RVGPU_MACH_1000:
+    return "r1000";
+  default:
+    llvm_unreachable("Unknown EF_RVGPU_MACH value");
   }
 }
 
