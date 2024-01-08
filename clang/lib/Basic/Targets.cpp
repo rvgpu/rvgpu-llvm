@@ -423,8 +423,7 @@ std::unique_ptr<TargetInfo> AllocateTarget(const llvm::Triple &Triple,
     return std::make_unique<NVPTXTargetInfo>(Triple, Opts,
                                              /*TargetPointerWidth=*/64);
   case llvm::Triple::rvgpu:
-    return std::make_unique<RVGPUTargetInfo>(Triple, Opts,
-                                             /*TargetPointerWidth=*/64);
+    return std::make_unique<RVGPUTargetInfo>(Triple, Opts);
   case llvm::Triple::amdgcn:
   case llvm::Triple::r600:
     return std::make_unique<AMDGPUTargetInfo>(Triple, Opts);

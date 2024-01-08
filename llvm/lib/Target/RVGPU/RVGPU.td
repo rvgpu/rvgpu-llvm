@@ -791,7 +791,6 @@ def FeatureR1000FullVGPRs : SubtargetFeature<"r1000-full-vgprs",
   "R1000 with 50% more physical VGPRs and 50% larger allocation granule than GFX10"
 >;
 
-
 def FeatureVOPD : SubtargetFeature<"vopd",
   "HasVOPDInsts",
   "true",

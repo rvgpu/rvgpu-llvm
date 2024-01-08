@@ -1016,6 +1016,9 @@ void TypePrinter::printFunctionAfter(const FunctionType::ExtInfo &Info,
     case CC_AMDGPUKernelCall:
       OS << "__attribute__((amdgpu_kernel))";
       break;
+    case CC_RVGPUKernelCall:
+      OS << "__attribute__((rvgpu_kernel))";
+      break;
     case CC_IntelOclBicc:
       OS << " __attribute__((intel_ocl_bicc))";
       break;
@@ -1874,6 +1877,7 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
   case attr::AArch64VectorPcs: OS << "aarch64_vector_pcs"; break;
   case attr::AArch64SVEPcs: OS << "aarch64_sve_pcs"; break;
   case attr::AMDGPUKernelCall: OS << "amdgpu_kernel"; break;
+  case attr::RVGPUKernelCall: OS << "rvgpu_kernel"; break;
   case attr::IntelOclBicc: OS << "inteloclbicc"; break;
   case attr::PreserveMost:
     OS << "preserve_most";

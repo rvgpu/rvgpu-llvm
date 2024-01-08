@@ -109,6 +109,32 @@ template <unsigned wavesize> constexpr const GV &getAMDGPUGridValues() {
   return wavesize == 32 ? AMDGPUGridValues32 : AMDGPUGridValues64;
 }
 
+/// For RVGPU GPUs
+static constexpr GV RVGPUGridValues64 = {
+    256,       // GV_Slot_Size
+    64,        // GV_Warp_Size
+    (1 << 16), // GV_Max_Teams
+    440,       // GV_Default_Num_Teams
+    896,       // GV_SimpleBufferSize
+    1024,      // GV_Max_WG_Size,
+    256,       // GV_Default_WG_Size
+};
+
+static constexpr GV RVGPUGridValues32 = {
+    256,       // GV_Slot_Size
+    32,        // GV_Warp_Size
+    (1 << 16), // GV_Max_Teams
+    440,       // GV_Default_Num_Teams
+    896,       // GV_SimpleBufferSize
+    1024,      // GV_Max_WG_Size,
+    256,       // GV_Default_WG_Size
+};
+
+template <unsigned wavesize> constexpr const GV &getRVGPUGridValues() {
+  static_assert(wavesize == 32 || wavesize == 64, "Unexpected wavesize");
+  return wavesize == 32 ? RVGPUGridValues32 : RVGPUGridValues64;
+}
+
 /// For Nvidia GPUs
 static constexpr GV NVPTXGridValues = {
     256,       // GV_Slot_Size

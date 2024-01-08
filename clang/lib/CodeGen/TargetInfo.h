@@ -428,6 +428,9 @@ std::unique_ptr<TargetCodeGenInfo>
 createAMDGPUTargetCodeGenInfo(CodeGenModule &CGM);
 
 std::unique_ptr<TargetCodeGenInfo>
+createRVGPUTargetCodeGenInfo(CodeGenModule &CGM);
+
+std::unique_ptr<TargetCodeGenInfo>
 createARCTargetCodeGenInfo(CodeGenModule &CGM);
 
 enum class ARMABIKind {

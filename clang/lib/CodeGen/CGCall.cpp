@@ -66,6 +66,7 @@ unsigned CodeGenTypes::ClangCallConvToLLVMCallConv(CallingConv CC) {
   case CC_AArch64VectorCall: return llvm::CallingConv::AArch64_VectorCall;
   case CC_AArch64SVEPCS: return llvm::CallingConv::AArch64_SVE_VectorCall;
   case CC_AMDGPUKernelCall: return llvm::CallingConv::AMDGPU_KERNEL;
+  case CC_RVGPUKernelCall: return llvm::CallingConv::RVGPU_KERNEL;
   case CC_SpirFunction: return llvm::CallingConv::SPIR_FUNC;
   case CC_OpenCLKernel: return CGM.getTargetCodeGenInfo().getOpenCLKernelCallingConv();
   case CC_PreserveMost: return llvm::CallingConv::PreserveMost;
@@ -238,6 +239,9 @@ static CallingConv getCallingConventionForDecl(const ObjCMethodDecl *D,
   if (D->hasAttr<AMDGPUKernelCallAttr>())
     return CC_AMDGPUKernelCall;
 
+  if (D->hasAttr<RVGPUKernelCallAttr>())
+    return CC_RVGPUKernelCall;
+  
   if (D->hasAttr<IntelOclBiccAttr>())
     return CC_IntelOclBicc;
 

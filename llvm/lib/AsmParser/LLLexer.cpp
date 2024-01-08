@@ -636,6 +636,9 @@ lltok::Kind LLLexer::LexIdentifier() {
   KEYWORD(tailcc);
   KEYWORD(m68k_rtdcc);
   KEYWORD(graalcc);
+  KEYWORD(rvgpu_kernel);
+  KEYWORD(rvgpu_r1000);
+  KEYWORD(tailcc);
 
   KEYWORD(cc);
   KEYWORD(c);

@@ -1124,6 +1124,7 @@ public:
   bool hasNullExportTarget() const { return !R1000Insts; }
 
   bool hasR1000FullVGPRs() const { return HasR1000FullVGPRs; }
+
   
   bool hasGFX10_AEncoding() const {
     return GFX10_AEncoding;

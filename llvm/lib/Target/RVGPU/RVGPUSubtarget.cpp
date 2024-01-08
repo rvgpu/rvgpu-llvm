@@ -97,12 +97,6 @@ RVSubtarget::initializeSubtargetDependencies(const Triple &TT,
   // generation features are enabled (e.g for -mcpu=''). HSA OS defaults to
   // the first rvgpu target that supports flat addressing. Other OSes defaults
   // to the first rvgpu target.
-  if (Gen == RVGPUSubtarget::INVALID) {
-     Gen = TT.getOS() == Triple::SS ? RVGPUSubtarget::SEA_ISLANDS
-                                        : RVGPUSubtarget::SOUTHERN_ISLANDS;
-  }
-  Gen = R1000;
-
   // We don't support FP64 for EG/NI atm.
   assert(!hasFP64() || (getGeneration() >= RVGPUSubtarget::SOUTHERN_ISLANDS));
 

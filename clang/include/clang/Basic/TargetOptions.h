@@ -78,6 +78,8 @@ public:
   /// \brief If enabled, allow AMDGPU unsafe floating point atomics.
   bool AllowAMDGPUUnsafeFPAtomics = false;
 
+  bool AllowRVGPUUnsafeFPAtomics = false;
+
   /// \brief Code object version for AMDGPU.
   llvm::CodeObjectVersionKind CodeObjectVersion =
       llvm::CodeObjectVersionKind::COV_None;

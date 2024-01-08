@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGETPARSER_TARGETPARSER_H
-#define LLVM_TARGETPARSER_TARGETPARSER_H
+#ifndef LLVM_TARGETPARSER_RVTARGETPARSER_H
+#define LLVM_TARGETPARSER_RVTARGETPARSER_H
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -53,7 +53,7 @@ struct IsaVersion {
 enum ArchFeatureKind : uint32_t {
   FEATURE_NONE = 0,
 
-  // These features only exist for r600, and are implied true for amdgcn.
+  // These features only exist for r600, and are implied true for rvgpu.
   FEATURE_FMA = 1 << 1,
   FEATURE_LDEXP = 1 << 2,
   FEATURE_FP64 = 1 << 3,

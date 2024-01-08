@@ -2641,6 +2641,7 @@ void Verifier::visitFunction(const Function &F) {
     break;
   }
   case CallingConv::AMDGPU_KERNEL:
+  case CallingConv::RVGPU_KERNEL:
   case CallingConv::SPIR_KERNEL:
   case CallingConv::AMDGPU_CS_Chain:
   case CallingConv::AMDGPU_CS_ChainPreserve:

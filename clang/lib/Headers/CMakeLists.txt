@@ -62,6 +62,7 @@ set(cuda_files
   __clang_cuda_libdevice_declares.h
   __clang_cuda_math_forward_declares.h
   __clang_cuda_runtime_wrapper.h
+  __clang_ss_runtime_wrapper.h
   )
 
 set(hexagon_files

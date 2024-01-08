@@ -4711,6 +4711,8 @@ void OpenMPIRBuilder::setOutlinedTargetRegionFunctionAttributes(
     OutlinedFn->setVisibility(GlobalValue::ProtectedVisibility);
     if (T.isAMDGCN())
       OutlinedFn->setCallingConv(CallingConv::AMDGPU_KERNEL);
+    if (T.isRVGPU())
+      OutlinedFn->setCallingConv(CallingConv::RVGPU_KERNEL);
   }
 }
 
@@ -6421,6 +6423,8 @@ void OpenMPIRBuilder::createOffloadEntry(Constant *ID, Constant *Addr,
   // Add a function attribute for the kernel.
   Fn->addFnAttr(Attribute::get(Ctx, "kernel"));
   if (T.isAMDGCN())
+    Fn->addFnAttr("uniform-work-group-size", "true");
+  if (T.isRVGPU())
     Fn->addFnAttr("uniform-work-group-size", "true");
   Fn->addFnAttr(Attribute::MustProgress);
 }

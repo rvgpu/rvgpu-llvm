@@ -2019,6 +2019,39 @@ def AMDGPUKernelCall : DeclOrTypeAttr {
   let Documentation = [Undocumented];
 }
 
+def RVGPUFlatWorkGroupSize : InheritableAttr {
+  let Spellings = [Clang<"rvgpu_flat_work_group_size", 0>];
+  let Args = [ExprArgument<"Min">, ExprArgument<"Max">];
+  let Documentation = [RVGPUFlatWorkGroupSizeDocs];
+  let Subjects = SubjectList<[Function], ErrorDiag, "kernel functions">;
+}
+
+def RVGPUWavesPerEU : InheritableAttr {
+  let Spellings = [Clang<"rvgpu_waves_per_eu", 0>];
+  let Args = [ExprArgument<"Min">, ExprArgument<"Max", 1>];
+  let Documentation = [RVGPUWavesPerEUDocs];
+  let Subjects = SubjectList<[Function], ErrorDiag, "kernel functions">;
+}
+
+def RVGPUNumSGPR : InheritableAttr {
+  let Spellings = [Clang<"rvgpu_num_sgpr", 0>];
+  let Args = [UnsignedArgument<"NumSGPR">];
+  let Documentation = [RVGPUNumSGPRNumVGPRDocs];
+  let Subjects = SubjectList<[Function], ErrorDiag, "kernel functions">;
+}
+
+def RVGPUNumVGPR : InheritableAttr {
+  let Spellings = [Clang<"rvgpu_num_vgpr", 0>];
+  let Args = [UnsignedArgument<"NumVGPR">];
+  let Documentation = [RVGPUNumSGPRNumVGPRDocs];
+  let Subjects = SubjectList<[Function], ErrorDiag, "kernel functions">;
+}
+
+def RVGPUKernelCall : DeclOrTypeAttr {
+  let Spellings = [Clang<"rvgpu_kernel">];
+  let Documentation = [Undocumented];
+}
+
 def BPFPreserveAccessIndex : InheritableAttr,
                              TargetSpecificAttr<TargetBPF>  {
   let Spellings = [Clang<"preserve_access_index">];

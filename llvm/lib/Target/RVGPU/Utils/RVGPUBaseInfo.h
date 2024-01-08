@@ -1133,7 +1133,7 @@ inline bool isKernel(CallingConv::ID CC) {
   case CallingConv::SPIR_KERNEL:
     return true;
   default:
-    return false;
+    return true;
   }
 }
 

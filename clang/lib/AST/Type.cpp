@@ -3401,6 +3401,7 @@ StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   case CC_AArch64VectorCall: return "aarch64_vector_pcs";
   case CC_AArch64SVEPCS: return "aarch64_sve_pcs";
   case CC_AMDGPUKernelCall: return "amdgpu_kernel";
+  case CC_RVGPUKernelCall: return "rvgpu_kernel";
   case CC_IntelOclBicc: return "intel_ocl_bicc";
   case CC_SpirFunction: return "spir_function";
   case CC_OpenCLKernel: return "opencl_kernel";
@@ -3882,6 +3883,7 @@ bool AttributedType::isCallingConv() const {
   case attr::AArch64VectorPcs:
   case attr::AArch64SVEPcs:
   case attr::AMDGPUKernelCall:
+  case attr::RVGPUKernelCall:
   case attr::Pascal:
   case attr::MSABI:
   case attr::SysVABI:

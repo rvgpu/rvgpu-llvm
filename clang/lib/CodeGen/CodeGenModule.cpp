@@ -277,6 +277,8 @@ createTargetCodeGenInfo(CodeGenModule &CGM) {
     return createAMDGPUTargetCodeGenInfo(CGM);
   case llvm::Triple::amdgcn:
     return createAMDGPUTargetCodeGenInfo(CGM);
+  case llvm::Triple::rvgpu:
+    return createRVGPUTargetCodeGenInfo(CGM);
   case llvm::Triple::sparc:
     return createSparcV8TargetCodeGenInfo(CGM);
   case llvm::Triple::sparcv9:
@@ -766,7 +768,7 @@ static void setVisibilityFromDLLStorageClass(const clang::LangOptions &LO,
 static bool isStackProtectorOn(const LangOptions &LangOpts,
                                const llvm::Triple &Triple,
                                clang::LangOptions::StackProtectorMode Mode) {
-  if (Triple.isAMDGPU() || Triple.isNVPTX())
+  if (Triple.isAMDGPU() || Triple.isNVPTX() || Triple.isRVGPU())
     return false;
   return LangOpts.getStackProtector() == Mode;
 }
@@ -864,6 +866,30 @@ void CodeGenModule::Release() {
       getModule().addModuleFlag(llvm::Module::Error, "amdgpu_printf_kind",
                                 MDStr);
     }
+  }
+  if (getTriple().isRVGPU()) {
+    // Emit amdgpu_code_object_version module flag, which is code object version
+    // times 100.
+    if (getTarget().getTargetOpts().CodeObjectVersion !=
+        llvm::CodeObjectVersionKind::COV_None) {
+      getModule().addModuleFlag(llvm::Module::Error,
+                                "rvgpu_code_object_version",
+                                getTarget().getTargetOpts().CodeObjectVersion);
+    }
+
+    // Currently, "-mprintf-kind" option is only supported for HIP.
+#if 0
+    if (LangOpts.HIP) 
+    {
+      auto *MDStr = llvm::MDString::get(
+          getLLVMContext(), (getTarget().getTargetOpts().AMDGPUPrintfKindVal ==
+                             TargetOptions::AMDGPUPrintfKind::Hostcall)
+                                ? "hostcall"
+                                : "buffered");
+      getModule().addModuleFlag(llvm::Module::Error, "rvgpu_printf_kind",
+                                MDStr);
+    }
+#endif 
   }
 
   // Emit a global array containing all external kernels or device variables

@@ -6644,7 +6644,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Forward OpenACC options to -cc1
   RenderOpenACCOptions(D, Args, CmdArgs, InputType);
 
-  if (IsHIP) {
+  if (IsHIP || IsSS) {
     if (Args.hasFlag(options::OPT_fhip_new_launch_api,
                      options::OPT_fno_hip_new_launch_api, true))
       CmdArgs.push_back("-fhip-new-launch-api");
@@ -7422,7 +7422,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                       options::OPT_fno_gpu_approx_transcendentals);
   }
 
-  if (IsHIP) {
+  if (IsHIP || IsSS) {
     CmdArgs.push_back("-fcuda-allow-variadic-functions");
     Args.AddLastArg(CmdArgs, options::OPT_fgpu_default_stream_EQ);
   }
@@ -7443,7 +7443,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  if (IsHIPDevice)
+  if (IsHIPDevice || IsSSDevice)
     Args.addOptOutFlag(CmdArgs,
                        options::OPT_fhip_fp32_correctly_rounded_divide_sqrt,
                        options::OPT_fno_hip_fp32_correctly_rounded_divide_sqrt);

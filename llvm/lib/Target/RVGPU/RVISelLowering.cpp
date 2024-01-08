@@ -2622,7 +2622,7 @@ SDValue RVTargetLowering::LowerFormalArguments(
   bool IsGraphics = RVGPU::isGraphics(CallConv);
   bool IsKernel = RVGPU::isKernel(CallConv);
   bool IsEntryFunc = RVGPU::isEntryFunctionCC(CallConv);
-
+  
   if (IsGraphics) {
     const RVUserSGPRUsageInfo &UserSGPRInfo = Info->getUserSGPRInfo();
     assert(!UserSGPRInfo.hasDispatchPtr() &&

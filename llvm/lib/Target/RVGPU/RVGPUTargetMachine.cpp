@@ -998,7 +998,7 @@ void RVGPUPassConfig::addIRPasses() {
   disablePass(&PatchableFunctionID);
 
   addPass(createRVGPUPrintfRuntimeBinding());
-  if (LowerCtorDtor)
+//  if (LowerCtorDtor)
     addPass(createRVGPUCtorDtorLoweringLegacyPass());
 
   if (isPassEnabled(EnableImageIntrinsicOptimizer))

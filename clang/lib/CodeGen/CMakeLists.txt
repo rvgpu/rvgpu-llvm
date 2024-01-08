@@ -115,6 +115,7 @@ add_clang_library(clangCodeGen
   TargetInfo.cpp
   Targets/AArch64.cpp
   Targets/AMDGPU.cpp
+  Targets/RVGPU.cpp
   Targets/ARC.cpp
   Targets/ARM.cpp
   Targets/AVR.cpp

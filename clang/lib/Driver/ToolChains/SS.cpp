@@ -302,7 +302,8 @@ void SSInstallationDetector::AddSSIncludeArgs(
   }
 
   CC1Args.push_back("-include");
-  CC1Args.push_back("__clang_cuda_runtime_wrapper.h");
+  CC1Args.push_back("__clang_ss_runtime_wrapper.h");
+//  CC1Args.push_back("__clang_cuda_runtime_wrapper.h");
 }
 
 void SSInstallationDetector::CheckCudaVersionSupportsArch(

@@ -5207,6 +5207,9 @@ static void handleCallConvAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   case ParsedAttr::AT_AMDGPUKernelCall:
     D->addAttr(::new (S.Context) AMDGPUKernelCallAttr(S.Context, AL));
     return;
+  case ParsedAttr::AT_RVGPUKernelCall:
+    D->addAttr(::new (S.Context) RVGPUKernelCallAttr(S.Context, AL));
+    return;
   case ParsedAttr::AT_IntelOclBicc:
     D->addAttr(::new (S.Context) IntelOclBiccAttr(S.Context, AL));
     return;
@@ -5383,6 +5386,9 @@ bool Sema::CheckCallingConvAttr(const ParsedAttr &Attrs, CallingConv &CC,
     break;
   case ParsedAttr::AT_AMDGPUKernelCall:
     CC = CC_AMDGPUKernelCall;
+    break;
+  case ParsedAttr::AT_RVGPUKernelCall:
+    CC = CC_RVGPUKernelCall;
     break;
   case ParsedAttr::AT_RegCall:
     CC = CC_X86RegCall;
@@ -9354,6 +9360,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
   case ParsedAttr::AT_AArch64VectorPcs:
   case ParsedAttr::AT_AArch64SVEPcs:
   case ParsedAttr::AT_AMDGPUKernelCall:
+  case ParsedAttr::AT_RVGPUKernelCall:
   case ParsedAttr::AT_M68kRTD:
     handleCallConvAttr(S, D, AL);
     break;
@@ -9699,6 +9706,24 @@ void Sema::ProcessDeclAttributeList(
             << A << A->isRegularKeywordAttribute() << ExpectedKernelFunction;
         D->setInvalidDecl();
       } else if (const auto *A = D->getAttr<AMDGPUNumVGPRAttr>()) {
+        Diag(D->getLocation(), diag::err_attribute_wrong_decl_type)
+            << A << A->isRegularKeywordAttribute() << ExpectedKernelFunction;
+        D->setInvalidDecl();
+      }
+      
+      if (const auto *A = D->getAttr<RVGPUFlatWorkGroupSizeAttr>()) {
+        Diag(D->getLocation(), diag::err_attribute_wrong_decl_type)
+            << A << A->isRegularKeywordAttribute() << ExpectedKernelFunction;
+        D->setInvalidDecl();
+      } else if (const auto *A = D->getAttr<RVGPUWavesPerEUAttr>()) {
+        Diag(D->getLocation(), diag::err_attribute_wrong_decl_type)
+            << A << A->isRegularKeywordAttribute() << ExpectedKernelFunction;
+        D->setInvalidDecl();
+      } else if (const auto *A = D->getAttr<RVGPUNumSGPRAttr>()) {
+        Diag(D->getLocation(), diag::err_attribute_wrong_decl_type)
+            << A << A->isRegularKeywordAttribute() << ExpectedKernelFunction;
+        D->setInvalidDecl();
+      } else if (const auto *A = D->getAttr<RVGPUNumVGPRAttr>()) {
         Diag(D->getLocation(), diag::err_attribute_wrong_decl_type)
             << A << A->isRegularKeywordAttribute() << ExpectedKernelFunction;
         D->setInvalidDecl();

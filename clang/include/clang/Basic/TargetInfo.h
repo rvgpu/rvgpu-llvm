@@ -265,6 +265,7 @@ protected:
 
   LLVM_PREFERRED_TYPE(bool)
   unsigned AllowAMDGPUUnsafeFPAtomics : 1;
+  unsigned AllowRVGPUUnsafeFPAtomics : 1;
 
   unsigned ARMCDECoprocMask : 8;
 
@@ -1007,6 +1008,7 @@ public:
   /// Returns whether or not the AMDGPU unsafe floating point atomics are
   /// allowed.
   bool allowAMDGPUUnsafeFPAtomics() const { return AllowAMDGPUUnsafeFPAtomics; }
+  bool allowRVGPUUnsafeFPAtomics() const { return AllowRVGPUUnsafeFPAtomics; }
 
   /// For ARM targets returns a mask defining which coprocessors are configured
   /// as Custom Datapath.
