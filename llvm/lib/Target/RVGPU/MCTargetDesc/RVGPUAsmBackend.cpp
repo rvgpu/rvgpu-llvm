@@ -241,10 +241,7 @@ public:
       ABIVersion(ABIVersion) {
     switch (TT.getOS()) {
     case Triple::SS:
-      OSABI = ELF::ELFOSABI_RVGPU_HSA;
-      break;
-    case Triple::Mesa3D:
-      OSABI = ELF::ELFOSABI_RVGPU_MESA3D;
+      OSABI = ELF::ELFOSABI_RVGPU_SS;
       break;
     default:
       break;

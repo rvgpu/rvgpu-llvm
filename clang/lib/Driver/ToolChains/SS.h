@@ -1,4 +1,4 @@
-//===--- Cuda.h - Cuda ToolChain Implementations ----------------*- C++ -*-===//
+//===--- SS.h - SS installation detector --------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,216 +10,289 @@
 #define LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_SS_H
 
 #include "clang/Basic/Cuda.h"
-#include "clang/Driver/Action.h"
-#include "clang/Driver/Multilib.h"
-#include "clang/Driver/Tool.h"
-#include "clang/Driver/ToolChain.h"
-#include "llvm/Support/Compiler.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Driver/Driver.h"
+#include "clang/Driver/Options.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/Option/ArgList.h"
 #include "llvm/Support/VersionTuple.h"
-#include <bitset>
-#include <set>
-#include <vector>
+#include "llvm/TargetParser/Triple.h"
 
 namespace clang {
 namespace driver {
 
-/// A class to find a viable CUDA installation
+/// ABI version of device library.
+struct SSDeviceLibABIVersion {
+  unsigned ABIVersion = 0;
+  SSDeviceLibABIVersion(unsigned V) : ABIVersion(V) {}
+  static SSDeviceLibABIVersion fromCodeObjectVersion(unsigned CodeObjectVersion) {
+    if (CodeObjectVersion < 4)
+      CodeObjectVersion = 4;
+    return SSDeviceLibABIVersion(CodeObjectVersion * 100);
+  }
+  /// Whether ABI version bc file is requested.
+  /// ABIVersion is code object version multiplied by 100. Code object v4
+  /// and below works with ROCm 5.0 and below which does not have
+  /// abi_version_*.bc. Code object v5 requires abi_version_500.bc.
+  bool requiresLibrary() { return ABIVersion >= 500; }
+  std::string toString() {
+    assert(ABIVersion % 100 == 0 && "Not supported");
+    return Twine(ABIVersion / 100).str();
+  }
+};
+
+/// A class to find a viable ROCM installation
+/// TODO: Generalize to handle libclc.
 class SSInstallationDetector {
 private:
+  struct ConditionalLibrary {
+    SmallString<0> On;
+    SmallString<0> Off;
+
+    bool isValid() const { return !On.empty() && !Off.empty(); }
+
+    StringRef get(bool Enabled) const {
+      assert(isValid());
+      return Enabled ? On : Off;
+    }
+  };
+
+  // Installation path candidate.
+  struct Candidate {
+    llvm::SmallString<0> Path;
+    bool StrictChecking;
+    // Release string for ROCm packages built with SPACK if not empty. The
+    // installation directories of ROCm packages built with SPACK follow the
+    // convention <package_name>-<rocm_release_string>-<hash>.
+    std::string SPACKReleaseStr;
+
+    bool isSPACK() const { return !SPACKReleaseStr.empty(); }
+    Candidate(std::string Path, bool StrictChecking = false,
+              StringRef SPACKReleaseStr = {})
+        : Path(Path), StrictChecking(StrictChecking),
+          SPACKReleaseStr(SPACKReleaseStr.str()) {}
+  };
+
   const Driver &D;
-  bool IsValid = false;
-  CudaVersion Version = CudaVersion::UNKNOWN;
-  std::string InstallPath;
-  std::string BinPath;
-  std::string LibDevicePath;
-  std::string IncludePath;
+  bool HasSSRuntime = false;
+  bool HasDeviceLibrary = false;
+  bool HasSSStdParLibrary = false;
+  bool HasRocThrustLibrary = false;
+  bool HasRocPrimLibrary = false;
+
+  // Default version if not detected or specified.
+  const unsigned DefaultVersionMajor = 3;
+  const unsigned DefaultVersionMinor = 5;
+  const char *DefaultVersionPatch = "0";
+
+  // The version string in Major.Minor.Patch format.
+  std::string DetectedVersion;
+  // Version containing major and minor.
+  llvm::VersionTuple VersionMajorMinor;
+  // Version containing patch.
+  std::string VersionPatch;
+
+  // ROCm path specified by --rocm-path.
+  StringRef SsPathArg;
+  // ROCm device library paths specified by --rocm-device-lib-path.
+  std::vector<std::string> SSDeviceLibPathArg;
+  // SS runtime path specified by --hip-path.
+  StringRef SSPathArg;
+  // SS Standard Parallel Algorithm acceleration library specified by
+  // --hipstdpar-path
+  StringRef SSStdParPathArg;
+  // rocThrust algorithm library specified by --hipstdpar-thrust-path
+  StringRef SSRocThrustPathArg;
+  // rocPrim algorithm library specified by --hipstdpar-prim-path
+  StringRef SSRocPrimPathArg;
+  // SS version specified by --hip-version.
+  StringRef SSVersionArg;
+  // Wheter -nogpulib is specified.
+  bool NoBuiltinLibs = false;
+
+  // Paths
+  SmallString<0> InstallPath;
+  SmallString<0> BinPath;
+  SmallString<0> LibPath;
+  SmallString<0> LibDevicePath;
+  SmallString<0> IncludePath;
+  SmallString<0> SharePath;
   llvm::StringMap<std::string> LibDeviceMap;
 
-  // CUDA architectures for which we have raised an error in
-  // CheckCudaVersionSupportsArch.
-  mutable std::bitset<(int)CudaArch::LAST> ArchsWithBadVersion;
+  // Libraries that are always linked.
+  SmallString<0> OCML;
+  SmallString<0> OCKL;
+
+  // Libraries that are always linked depending on the language
+  SmallString<0> OpenCL;
+  SmallString<0> SS;
+
+  // Asan runtime library
+  SmallString<0> AsanRTL;
+
+  // Libraries swapped based on compile flags.
+  ConditionalLibrary WavefrontSize64;
+  ConditionalLibrary FiniteOnly;
+  ConditionalLibrary UnsafeMath;
+  ConditionalLibrary DenormalsAreZero;
+  ConditionalLibrary CorrectlyRoundedSqrt;
+
+  // Maps ABI version to library path. The version number is in the format of
+  // three digits as used in the ABI version library name.
+  std::map<unsigned, std::string> ABIVersionMap;
+
+  // Cache ROCm installation search paths.
+  SmallVector<Candidate, 4> ROCmSearchDirs;
+  bool PrintROCmSearchDirs;
+  bool Verbose;
+
+  bool allGenericLibsValid() const {
+    return !OCML.empty() && !OCKL.empty() && !OpenCL.empty() && !SS.empty() &&
+           WavefrontSize64.isValid() && FiniteOnly.isValid() &&
+           UnsafeMath.isValid() && DenormalsAreZero.isValid() &&
+           CorrectlyRoundedSqrt.isValid();
+  }
+
+  void scanLibDevicePath(llvm::StringRef Path);
+  bool parseSSVersionFile(llvm::StringRef V);
+  const SmallVectorImpl<Candidate> &getInstallationPathCandidates();
+
+  /// Find the path to a SPACK package under the ROCm candidate installation
+  /// directory if the candidate is a SPACK ROCm candidate. \returns empty
+  /// string if the candidate is not SPACK ROCm candidate or the requested
+  /// package is not found.
+  llvm::SmallString<0> findSPACKPackage(const Candidate &Cand,
+                                        StringRef PackageName);
 
 public:
   SSInstallationDetector(const Driver &D, const llvm::Triple &HostTriple,
-                         const llvm::opt::ArgList &Args);
+                           const llvm::opt::ArgList &Args,
+                           bool DetectSSRuntime = true,
+                           bool DetectDeviceLib = false);
 
-  void AddSSIncludeArgs(const llvm::opt::ArgList &DriverArgs,
-                        llvm::opt::ArgStringList &CC1Args) const;
+  /// Get file paths of default bitcode libraries common to RVGPU based
+  /// toolchains.
+  llvm::SmallVector<std::string, 12>
+  getCommonBitcodeLibs(const llvm::opt::ArgList &DriverArgs,
+                       StringRef LibDeviceFile, bool Wave64, bool DAZ,
+                       bool FiniteOnly, bool UnsafeMathOpt,
+                       bool FastRelaxedMath, bool CorrectSqrt,
+                       SSDeviceLibABIVersion ABIVer, bool isOpenMP) const;
+  /// Check file paths of default bitcode libraries common to RVGPU based
+  /// toolchains. \returns false if there are invalid or missing files.
+  bool checkCommonBitcodeLibs(StringRef GPUArch, StringRef LibDeviceFile,
+                              SSDeviceLibABIVersion ABIVer) const;
 
-  /// Emit an error if Version does not support the given Arch.
-  ///
-  /// If either Version or Arch is unknown, does not emit an error.  Emits at
-  /// most one error per Arch.
-  void CheckCudaVersionSupportsArch(CudaArch Arch) const;
+  /// Check whether we detected a valid SS runtime.
+  bool hasSSRuntime() const { return HasSSRuntime; }
 
-  /// Check whether we detected a valid Cuda install.
-  bool isValid() const { return IsValid; }
-  /// Print information about the detected CUDA installation.
+  /// Check whether we detected a valid ROCm device library.
+  bool hasDeviceLibrary() const { return HasDeviceLibrary; }
+
+  /// Check whether we detected a valid SS STDPAR Acceleration library.
+  bool hasSSStdParLibrary() const { return HasSSStdParLibrary; }
+
+  /// Print information about the detected ROCm installation.
   void print(raw_ostream &OS) const;
 
-  /// Get the detected Cuda install's version.
-  CudaVersion version() const {
-    return Version == CudaVersion::NEW ? CudaVersion::PARTIALLY_SUPPORTED
-                                       : Version;
-  }
-  /// Get the detected Cuda installation path.
+  /// Get the detected SS install's version.
+  // SSVersion version() const { return Version; }
+
+  /// Get the detected SS installation path.
   StringRef getInstallPath() const { return InstallPath; }
-  /// Get the detected path to Cuda's bin directory.
-  StringRef getBinPath() const { return BinPath; }
-  /// Get the detected Cuda Include path.
+
+  /// Get the detected path to SS's bin directory.
+  // StringRef getBinPath() const { return BinPath; }
+
+  /// Get the detected SS Include path.
   StringRef getIncludePath() const { return IncludePath; }
-  /// Get the detected Cuda device library path.
+
+  /// Get the detected SS library path.
+  StringRef getLibPath() const { return LibPath; }
+
+  /// Get the detected SS device library path.
   StringRef getLibDevicePath() const { return LibDevicePath; }
+
+  StringRef getOCMLPath() const {
+    assert(!OCML.empty());
+    return OCML;
+  }
+
+  StringRef getOCKLPath() const {
+    assert(!OCKL.empty());
+    return OCKL;
+  }
+
+  StringRef getOpenCLPath() const {
+    assert(!OpenCL.empty());
+    return OpenCL;
+  }
+
+  StringRef getSSPath() const {
+    assert(!SS.empty());
+    return SS;
+  }
+
+  /// Returns empty string of Asan runtime library is not available.
+  StringRef getAsanRTLPath() const { return AsanRTL; }
+
+  StringRef getWavefrontSize64Path(bool Enabled) const {
+    return WavefrontSize64.get(Enabled);
+  }
+
+  StringRef getFiniteOnlyPath(bool Enabled) const {
+    return FiniteOnly.get(Enabled);
+  }
+
+  StringRef getUnsafeMathPath(bool Enabled) const {
+    return UnsafeMath.get(Enabled);
+  }
+
+  StringRef getDenormalsAreZeroPath(bool Enabled) const {
+    return DenormalsAreZero.get(Enabled);
+  }
+
+  StringRef getCorrectlyRoundedSqrtPath(bool Enabled) const {
+    return CorrectlyRoundedSqrt.get(Enabled);
+  }
+
+  StringRef getABIVersionPath(SSDeviceLibABIVersion ABIVer) const {
+    auto Loc = ABIVersionMap.find(ABIVer.ABIVersion);
+    if (Loc == ABIVersionMap.end())
+      return StringRef();
+    return Loc->second;
+  }
+
   /// Get libdevice file for given architecture
-  std::string getLibDeviceFile(StringRef Gpu) const {
-    return LibDeviceMap.lookup(Gpu);
+  StringRef getLibDeviceFile(StringRef Gpu) const {
+    auto Loc = LibDeviceMap.find(Gpu);
+    if (Loc == LibDeviceMap.end())
+      return "";
+    return Loc->second;
   }
-  void WarnIfUnsupportedVersion();
-};
-
-namespace tools {
-namespace RVGPU {
-
-// Runs fatbinary, which combines GPU object files ("cubin" files) and/or PTX
-// assembly into a single output file.
-class LLVM_LIBRARY_VISIBILITY FatBinary : public Tool {
-public:
-  FatBinary(const ToolChain &TC) : Tool("RVGPU::Linker", "fatbinary", TC) {}
-
-  bool hasIntegratedCPP() const override { return false; }
-
-  void ConstructJob(Compilation &C, const JobAction &JA,
-                    const InputInfo &Output, const InputInfoList &Inputs,
-                    const llvm::opt::ArgList &TCArgs,
-                    const char *LinkingOutput) const override;
-};
-
-// Runs nvlink, which links GPU object files ("cubin" files) into a single file.
-class LLVM_LIBRARY_VISIBILITY Linker final : public Tool {
-public:
-  Linker(const ToolChain &TC) : Tool("RVGPU::Linker", "rvlink", TC) {}
-
-  bool hasIntegratedCPP() const override { return false; }
-
-  void ConstructJob(Compilation &C, const JobAction &JA,
-                    const InputInfo &Output, const InputInfoList &Inputs,
-                    const llvm::opt::ArgList &TCArgs,
-                    const char *LinkingOutput) const override;
-};
-
-void getRVGPUTargetFeatures(const Driver &D, const llvm::Triple &Triple,
-                            const llvm::opt::ArgList &Args,
-                            std::vector<StringRef> &Features);
-
-} // end namespace RVGPU
-} // end namespace tools
-
-namespace toolchains {
-
-class LLVM_LIBRARY_VISIBILITY RVGPUToolChain : public ToolChain {
-public:
-  RVGPUToolChain(const Driver &D, const llvm::Triple &Triple,
-                 const llvm::Triple &HostTriple, const llvm::opt::ArgList &Args,
-                 bool Freestanding);
-
-  RVGPUToolChain(const Driver &D, const llvm::Triple &Triple,
-                 const llvm::opt::ArgList &Args);
-
-  llvm::opt::DerivedArgList *
-  TranslateArgs(const llvm::opt::DerivedArgList &Args, StringRef BoundArch,
-                Action::OffloadKind DeviceOffloadKind) const override;
-
-  void
-  addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
-                        llvm::opt::ArgStringList &CC1Args,
-                        Action::OffloadKind DeviceOffloadKind) const override;
-
-  // Never try to use the integrated assembler with CUDA; always fork out to
-  // ptxas.
-  bool useIntegratedAs() const override { return false; }
-  bool isCrossCompiling() const override { return true; }
-  bool isPICDefault() const override { return false; }
-  bool isPIEDefault(const llvm::opt::ArgList &Args) const override {
-    return false;
-  }
-  bool isPICDefaultForced() const override { return false; }
-  bool SupportsProfiling() const override { return false; }
-
-  bool IsMathErrnoDefault() const override { return false; }
-
-  bool supportsDebugInfoOption(const llvm::opt::Arg *A) const override;
-  void adjustDebugInfoKind(llvm::codegenoptions::DebugInfoKind &DebugInfoKind,
-                           const llvm::opt::ArgList &Args) const override;
-
-  // NVPTX supports only DWARF2.
-  unsigned GetDefaultDwarfVersion() const override { return 2; }
-  unsigned getMaxDwarfVersion() const override { return 2; }
-
-  SSInstallationDetector CudaInstallation;
-
-protected:
-  Tool *buildLinker() const override;    // nvlink.
-
-private:
-  bool Freestanding = false;
-};
-
-class LLVM_LIBRARY_VISIBILITY SSToolChain : public RVGPUToolChain {
-public:
-  SSToolChain(const Driver &D, const llvm::Triple &Triple,
-                const ToolChain &HostTC, const llvm::opt::ArgList &Args);
-
-  const llvm::Triple *getAuxTriple() const override {
-    return &HostTC.getTriple();
-  }
-
-  std::string getInputFilename(const InputInfo &Input) const override;
-
-  llvm::opt::DerivedArgList *
-  TranslateArgs(const llvm::opt::DerivedArgList &Args, StringRef BoundArch,
-                Action::OffloadKind DeviceOffloadKind) const override;
-  void
-  addClangTargetOptions(const llvm::opt::ArgList &DriverArgs,
-                        llvm::opt::ArgStringList &CC1Args,
-                        Action::OffloadKind DeviceOffloadKind) const override;
-
-  llvm::DenormalMode getDefaultDenormalModeForType(
-      const llvm::opt::ArgList &DriverArgs, const JobAction &JA,
-      const llvm::fltSemantics *FPType = nullptr) const override;
 
   void AddSSIncludeArgs(const llvm::opt::ArgList &DriverArgs,
-                        llvm::opt::ArgStringList &CC1Args) const override;
+                         llvm::opt::ArgStringList &CC1Args) const;
 
-  void addClangWarningOptions(llvm::opt::ArgStringList &CC1Args) const override;
-  CXXStdlibType GetCXXStdlibType(const llvm::opt::ArgList &Args) const override;
-  void
-  AddClangSystemIncludeArgs(const llvm::opt::ArgList &DriverArgs,
-                            llvm::opt::ArgStringList &CC1Args) const override;
-  void AddClangCXXStdlibIncludeArgs(
-      const llvm::opt::ArgList &Args,
-      llvm::opt::ArgStringList &CC1Args) const override;
-  void AddIAMCUIncludeArgs(const llvm::opt::ArgList &DriverArgs,
-                           llvm::opt::ArgStringList &CC1Args) const override;
+  void detectDeviceLibrary();
+  void detectSSRuntime();
 
-  SanitizerMask getSupportedSanitizers() const override;
+  /// Get the values for --rocm-device-lib-path arguments
+  ArrayRef<std::string> getSSDeviceLibPathArg() const {
+    return SSDeviceLibPathArg;
+  }
 
-  VersionTuple
-  computeMSVCVersion(const Driver *D,
-                     const llvm::opt::ArgList &Args) const override;
+  /// Get the value for --rocm-path argument
+  StringRef getSSPathArg() const { return SSPathArg; }
 
-  const ToolChain &HostTC;
+  /// Get the value for --hip-version argument
+  StringRef getSSVersionArg() const { return SSVersionArg; }
 
-  /// Uses nvptx-arch tool to get arch of the system GPU. Will return error
-  /// if unable to find one.
-  virtual Expected<SmallVector<std::string>>
-  getSystemGPUArchs(const llvm::opt::ArgList &Args) const override;
-
-protected:
-  Tool *buildLinker() const override;    // fatbinary (ok, not really a linker)
+  StringRef getSSVersion() const { return DetectedVersion; }
 };
 
-} // end namespace toolchains
 } // end namespace driver
 } // end namespace clang
 
-#endif // LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_SS_H
+#endif // LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_ROCM_H

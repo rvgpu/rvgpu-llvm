@@ -43,6 +43,7 @@ add_clang_library(clangDriver
   ToolChains/Arch/X86.cpp
   ToolChains/AIX.cpp
   ToolChains/AMDGPU.cpp
+  ToolChains/RVGPU.cpp
   ToolChains/AMDGPUOpenMP.cpp
   ToolChains/AVR.cpp
   ToolChains/BareMetal.cpp
@@ -60,6 +61,8 @@ add_clang_library(clangDriver
   ToolChains/Haiku.cpp
   ToolChains/HIPUtility.cpp
   ToolChains/HIPAMD.cpp
+  ToolChains/SSUtility.cpp
+  ToolChains/SSRV.cpp
   ToolChains/HIPSPV.cpp
   ToolChains/Hexagon.cpp
   ToolChains/HLSL.cpp
@@ -77,7 +80,6 @@ add_clang_library(clangDriver
   ToolChains/RISCVToolchain.cpp
   ToolChains/Solaris.cpp
   ToolChains/SPIRV.cpp
-  ToolChains/SS.cpp
   ToolChains/TCE.cpp
   ToolChains/VEToolchain.cpp
   ToolChains/WebAssembly.cpp

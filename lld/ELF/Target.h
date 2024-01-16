@@ -177,6 +177,7 @@ protected:
 
 TargetInfo *getAArch64TargetInfo();
 TargetInfo *getAMDGPUTargetInfo();
+TargetInfo *getRVGPUTargetInfo();
 TargetInfo *getARMTargetInfo();
 TargetInfo *getAVRTargetInfo();
 TargetInfo *getHexagonTargetInfo();

@@ -198,6 +198,7 @@ static std::tuple<ELFKind, uint16_t, uint8_t> parseEmulation(StringRef emul) {
           .Case("elf64_sparc", {ELF64BEKind, EM_SPARCV9})
           .Case("msp430elf", {ELF32LEKind, EM_MSP430})
           .Case("elf64_amdgpu", {ELF64LEKind, EM_AMDGPU})
+          .Case("elf64_rvgpu", {ELF64LEKind, EM_RVGPU})
           .Case("elf64loongarch", {ELF64LEKind, EM_LOONGARCH})
           .Default({ELFNoneKind, EM_NONE});
 
@@ -207,6 +208,8 @@ static std::tuple<ELFKind, uint16_t, uint8_t> parseEmulation(StringRef emul) {
     osabi = ELFOSABI_STANDALONE;
   else if (ret.second == EM_AMDGPU)
     osabi = ELFOSABI_AMDGPU_HSA;
+  else if (ret.second == EM_RVGPU)
+    osabi = ELFOSABI_RVGPU_SS;
   return std::make_tuple(ret.first, ret.second, osabi);
 }
 
@@ -1171,7 +1174,7 @@ static bool getIsRela(opt::InputArgList &args) {
   uint16_t m = config->emachine;
   return m == EM_AARCH64 || m == EM_AMDGPU || m == EM_HEXAGON ||
          m == EM_LOONGARCH || m == EM_PPC || m == EM_PPC64 || m == EM_RISCV ||
-         m == EM_X86_64;
+         m == EM_X86_64 || m == EM_RVGPU;
 }
 
 static void parseClangOption(StringRef opt, const Twine &msg) {

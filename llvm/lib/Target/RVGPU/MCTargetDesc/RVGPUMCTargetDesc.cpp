@@ -92,7 +92,7 @@ static MCTargetStreamer *createRVGPUNullTargetStreamer(MCStreamer &S) {
   return new RVGPUTargetStreamer(S);
 }
 
-static MCStreamer *createMCStreamer(const Triple &T, MCContext &Context,
+static MCStreamer *createRVGPUMCStreamer(const Triple &T, MCContext &Context,
                                     std::unique_ptr<MCAsmBackend> &&MAB,
                                     std::unique_ptr<MCObjectWriter> &&OW,
                                     std::unique_ptr<MCCodeEmitter> &&Emitter,
@@ -141,7 +141,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTargetMC() {
     TargetRegistry::RegisterMCInstPrinter(*T, createRVGPUMCInstPrinter);
     TargetRegistry::RegisterMCInstrAnalysis(*T, createRVGPUMCInstrAnalysis);
     TargetRegistry::RegisterMCAsmBackend(*T, createRVGPUAsmBackend);
-    TargetRegistry::RegisterELFStreamer(*T, createMCStreamer);
+    TargetRegistry::RegisterELFStreamer(*T, createRVGPUMCStreamer);
   }
 
   // GCN specific registration

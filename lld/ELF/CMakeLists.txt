@@ -22,6 +22,7 @@ add_lld_library(lldELF
   AArch64ErrataFix.cpp
   Arch/AArch64.cpp
   Arch/AMDGPU.cpp
+  Arch/RVGPU.cpp
   Arch/ARM.cpp
   Arch/AVR.cpp
   Arch/Hexagon.cpp

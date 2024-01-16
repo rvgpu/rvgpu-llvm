@@ -492,6 +492,21 @@ static std::string getAMDGPUTargetGPU(const llvm::Triple &T,
     return getProcessorFromTargetID(T, MArch->getValue()).str();
   return "";
 }
+/// Get the (LLVM) name of the RVGPU gpu we are targeting.
+static std::string getRVGPUTargetGPU(const llvm::Triple &T,
+                                      const ArgList &Args) {
+  Arg *MArch = Args.getLastArg(options::OPT_march_EQ);
+  if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ)) {
+    auto GPUName = getProcessorFromTargetID(T, A->getValue());
+    return llvm::StringSwitch<std::string>(GPUName)
+        .Case("r1000", "r1000")
+        .Default(GPUName.str());
+  }
+  if (MArch)
+    return getProcessorFromTargetID(T, MArch->getValue()).str();
+  return "r1000";
+}
+
 
 static std::string getLanaiTargetCPU(const ArgList &Args) {
   if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ)) {
@@ -564,12 +579,6 @@ std::string tools::getCPUName(const Driver &D, const ArgList &Args,
     if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
       return A->getValue();
     return "";
-
-  case llvm::Triple::rvgpu:
-    if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))
-      return A->getValue();
-    return "";
-
   case llvm::Triple::ppc:
   case llvm::Triple::ppcle:
   case llvm::Triple::ppc64:
@@ -615,6 +624,8 @@ std::string tools::getCPUName(const Driver &D, const ArgList &Args,
   case llvm::Triple::r600:
   case llvm::Triple::amdgcn:
     return getAMDGPUTargetGPU(T, Args);
+  case llvm::Triple::rvgpu:
+    return getRVGPUTargetGPU(T, Args);
 
   case llvm::Triple::wasm32:
   case llvm::Triple::wasm64:
@@ -2591,6 +2602,11 @@ unsigned tools::getAMDGPUCodeObjectVersion(const Driver &D,
   unsigned CodeObjVer = 4; // default
   if (auto *CodeObjArg = getAMDGPUCodeObjectArgument(D, Args))
     StringRef(CodeObjArg->getValue()).getAsInteger(0, CodeObjVer);
+  return CodeObjVer;
+}
+unsigned tools::getRVGPUCodeObjectVersion(const Driver &D,
+                                          const llvm::opt::ArgList &Args) {
+  unsigned CodeObjVer = 4; // default
   return CodeObjVer;
 }
 

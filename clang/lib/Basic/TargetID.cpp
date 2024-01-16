@@ -10,6 +10,7 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/TargetParser.h"
+#include "llvm/TargetParser/RVTargetParser.h"
 #include "llvm/TargetParser/Triple.h"
 #include <map>
 #include <optional>
@@ -48,6 +49,8 @@ static llvm::StringRef getCanonicalProcessorName(const llvm::Triple &T,
                                                  llvm::StringRef Processor) {
   if (T.isAMDGPU())
     return llvm::AMDGPU::getCanonicalArchName(T, Processor);
+  if (T.isRVGPU())
+    return llvm::RVGPU::getCanonicalArchName(T, Processor);
   return Processor;
 }
 

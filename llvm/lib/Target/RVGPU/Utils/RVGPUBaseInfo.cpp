@@ -128,9 +128,9 @@ std::optional<uint8_t> getHsaAbiVersion(const MCSubtargetInfo *STI) {
 
   switch (SsCodeObjectVersion) {
   case 4:
-    return ELF::ELFABIVERSION_RVGPU_HSA_V4;
+    return ELF::ELFABIVERSION_RVGPU_SS_V4;
   case 5:
-    return ELF::ELFABIVERSION_RVGPU_HSA_V5;
+    return ELF::ELFABIVERSION_RVGPU_SS_V5;
   default:
     report_fatal_error(Twine("Unsupported SS Code Object Version ") +
                        Twine(SsCodeObjectVersion));
@@ -139,13 +139,13 @@ std::optional<uint8_t> getHsaAbiVersion(const MCSubtargetInfo *STI) {
 
 bool isHsaAbiVersion4(const MCSubtargetInfo *STI) {
   if (std::optional<uint8_t> HsaAbiVer = getHsaAbiVersion(STI))
-    return *HsaAbiVer == ELF::ELFABIVERSION_RVGPU_HSA_V4;
+    return *HsaAbiVer == ELF::ELFABIVERSION_RVGPU_SS_V4;
   return false;
 }
 
 bool isHsaAbiVersion5(const MCSubtargetInfo *STI) {
   if (std::optional<uint8_t> HsaAbiVer = getHsaAbiVersion(STI))
-    return *HsaAbiVer == ELF::ELFABIVERSION_RVGPU_HSA_V5;
+    return *HsaAbiVer == ELF::ELFABIVERSION_RVGPU_SS_V5;
   return false;
 }
 

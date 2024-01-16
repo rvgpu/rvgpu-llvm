@@ -132,8 +132,8 @@ void RVGPUAsmPrinter::emitEndOfAsmFile(Module &M) {
   if (TM.getTargetTriple().getOS() != Triple::SS)
     getTargetStreamer()->EmitISAVersion();
 
-  // Emit HSA Metadata (NT_RV_RVGPU_HSA_METADATA).
-  // Emit HSA Metadata (NT_RV_HSA_METADATA).
+  // Emit HSA Metadata (NT_RV_RVGPU_SS_METADATA).
+  // Emit HSA Metadata (NT_RV_SS_METADATA).
   if (TM.getTargetTriple().getOS() == Triple::SS) {
     HSAMetadataStream->end();
     bool Success = HSAMetadataStream->emitTo(*getTargetStreamer());
@@ -257,7 +257,7 @@ void RVGPUAsmPrinter::emitFunctionEntryLabel() {
     SmallString<128> SymbolName;
     getNameWithPrefix(SymbolName, &MF->getFunction()),
     getTargetStreamer()->EmitRVGPUSymbolType(
-        SymbolName, ELF::STT_RVGPU_HSA_KERNEL);
+        SymbolName, ELF::STT_RVGPU_SS_KERNEL);
   }
   if (DumpCodeInstEmitter) {
     // Disassemble function name label to text.
@@ -986,9 +986,7 @@ void RVGPUAsmPrinter::EmitProgramInfoSI(const MachineFunction &MF,
                               S_00B028_SGPRS(CurrentProgramInfo.SGPRBlocks), 4);
     OutStreamer->emitInt32(R_0286E8_SPI_TMPRING_SIZE);
     OutStreamer->emitInt32(
-        STM.getGeneration() >= RVGPUSubtarget::R1000
-            ? S_0286E8_WAVESIZE_R1000Plus(CurrentProgramInfo.ScratchBlocks)
-            : S_0286E8_WAVESIZE_PreR1000(CurrentProgramInfo.ScratchBlocks));
+            S_0286E8_WAVESIZE_R1000Plus(CurrentProgramInfo.ScratchBlocks));
   }
 
   if (MF.getFunction().getCallingConv() == CallingConv::RVGPU_PS) {

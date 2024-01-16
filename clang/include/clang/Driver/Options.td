@@ -179,6 +179,8 @@ def m_aarch64_Features_Group : OptionGroup<"<aarch64 features group>">,
                                Group<m_Group>, DocName<"AARCH64">;
 def m_amdgpu_Features_Group : OptionGroup<"<amdgpu features group>">,
                               Group<m_Group>, DocName<"AMDGPU">;
+def m_rvgpu_Features_Group : OptionGroup<"<rvgpu features group>">,
+                              Group<m_Group>, DocName<"RVGPU">;
 def m_arm_Features_Group : OptionGroup<"<arm features group>">,
                            Group<m_Group>, DocName<"ARM">;
 def m_hexagon_Features_Group : OptionGroup<"<hexagon features group>">,
@@ -1167,6 +1169,9 @@ def amdgpu_arch_tool_EQ : Joined<["--"], "amdgpu-arch-tool=">,
 def nvptx_arch_tool_EQ : Joined<["--"], "nvptx-arch-tool=">,
   HelpText<"Tool used for detecting NVIDIA GPU arch in the system.">;
 
+def rvgpu_arch_tool_EQ : Joined<["--"], "rvgpu-arch-tool=">,
+  HelpText<"Tool used for detecting RV GPU arch in the system.">;
+
 defm gpu_rdc : BoolFOption<"gpu-rdc",
   LangOpts<"GPURelocatableDeviceCode">, DefaultFalse,
   PosFlag<SetTrue, [], [ClangOption, CC1Option],
@@ -1353,6 +1358,11 @@ defm hip_new_launch_api : BoolFOption<"hip-new-launch-api",
   PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use">,
   NegFlag<SetFalse, [], [ClangOption], "Don't use">,
   BothFlags<[], [ClangOption], " new kernel launching API for HIP">>;
+defm ss_new_launch_api : BoolFOption<"ss-new-launch-api",
+  LangOpts<"SSUseNewLaunchAPI">, DefaultFalse,
+  PosFlag<SetTrue, [], [ClangOption, CC1Option], "Use">,
+  NegFlag<SetFalse, [], [ClangOption], "Don't use">,
+  BothFlags<[], [ClangOption], " new kernel launching API for SS">>;
 defm hip_fp32_correctly_rounded_divide_sqrt : BoolFOption<"hip-fp32-correctly-rounded-divide-sqrt",
   CodeGenOpts<"HIPCorrectlyRoundedDivSqrt">, DefaultTrue,
   PosFlag<SetTrue, [], [ClangOption], "Specify">,

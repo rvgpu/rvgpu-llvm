@@ -1039,7 +1039,8 @@ std::string Sema::getCudaConfigureFuncName() const {
   if (CudaFeatureEnabled(Context.getTargetInfo().getSDKVersion(),
                          CudaFeature::CUDA_USES_NEW_LAUNCH))
     return "__cudaPushCallConfiguration";
-
+   if (getLangOpts().SSUseNewLaunchAPI)
+    return "__cudaPushCallConfiguration";
   // Legacy CUDA kernel configuration call
-  return "cudaConfigureCall";
+  return "__cudaPushCallConfiguration";
 }

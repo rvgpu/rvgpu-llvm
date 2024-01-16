@@ -4750,7 +4750,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
         if (CTC->CudaInstallation.version() >= CudaVersion::CUDA_90)
           CmdArgs.push_back("-fcuda-allow-variadic-functions");
       }
-
+#if 0
       if (IsSS) {
         // We need to figure out which CUDA version we're compiling for, as that
         // determines how we load and launch GPU kernels.
@@ -4769,6 +4769,7 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
         if (CTC->CudaInstallation.version() >= CudaVersion::CUDA_90)
           CmdArgs.push_back("-fcuda-allow-variadic-functions");
       }
+#endif 
     }
     CmdArgs.push_back("-aux-triple");
     CmdArgs.push_back(Args.MakeArgString(NormalizedTriple));
@@ -6644,10 +6645,21 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   // Forward OpenACC options to -cc1
   RenderOpenACCOptions(D, Args, CmdArgs, InputType);
 
-  if (IsHIP || IsSS) {
+  if (IsHIP) {
     if (Args.hasFlag(options::OPT_fhip_new_launch_api,
                      options::OPT_fno_hip_new_launch_api, true))
       CmdArgs.push_back("-fhip-new-launch-api");
+    Args.addOptInFlag(CmdArgs, options::OPT_fgpu_allow_device_init,
+                      options::OPT_fno_gpu_allow_device_init);
+    Args.AddLastArg(CmdArgs, options::OPT_hipstdpar);
+    Args.AddLastArg(CmdArgs, options::OPT_hipstdpar_interpose_alloc);
+    Args.addOptInFlag(CmdArgs, options::OPT_fhip_kernel_arg_name,
+                      options::OPT_fno_hip_kernel_arg_name);
+  }
+  if (IsSS) {
+    if (Args.hasFlag(options::OPT_fss_new_launch_api,
+                     options::OPT_fno_ss_new_launch_api, true))
+      CmdArgs.push_back("-fss-new-launch-api");
     Args.addOptInFlag(CmdArgs, options::OPT_fgpu_allow_device_init,
                       options::OPT_fno_gpu_allow_device_init);
     Args.AddLastArg(CmdArgs, options::OPT_hipstdpar);

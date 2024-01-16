@@ -5699,7 +5699,7 @@ bool RVGPUAsmParser::ParseDirectiveRVGPUHsaKernel() {
     return true;
 
   getTargetStreamer().EmitRVGPUSymbolType(KernelName,
-                                           ELF::STT_RVGPU_HSA_KERNEL);
+                                           ELF::STT_RVGPU_SS_KERNEL);
 
   KernelScope.initialize(getContext());
   return false;

@@ -200,6 +200,8 @@ void checkAMDGPUCodeObjectVersion(const Driver &D,
 
 unsigned getAMDGPUCodeObjectVersion(const Driver &D,
                                     const llvm::opt::ArgList &Args);
+unsigned getRVGPUCodeObjectVersion(const Driver &D,
+                                   const llvm::opt::ArgList &Args);
 
 bool haveAMDGPUCodeObjectVersionArgument(const Driver &D,
                                          const llvm::opt::ArgList &Args);

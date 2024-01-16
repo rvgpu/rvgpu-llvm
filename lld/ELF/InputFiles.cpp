@@ -1582,6 +1582,8 @@ static uint16_t getBitcodeMachineKind(StringRef path, const Triple &t) {
   case Triple::amdgcn:
   case Triple::r600:
     return EM_AMDGPU;
+  case Triple::rvgpu:
+    return EM_RVGPU;
   case Triple::arm:
   case Triple::armeb:
   case Triple::thumb:
@@ -1631,6 +1633,8 @@ static uint8_t getOsAbi(const Triple &t) {
     return ELF::ELFOSABI_AMDGPU_PAL;
   case Triple::Mesa3D:
     return ELF::ELFOSABI_AMDGPU_MESA3D;
+  case Triple::SS:
+    return ELF::ELFOSABI_RVGPU_SS;
   default:
     return ELF::ELFOSABI_NONE;
   }

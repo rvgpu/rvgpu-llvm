@@ -364,9 +364,7 @@ enum {
   ELFOSABI_ARM = 97,           // ARM
   ELFOSABI_C6000_ELFABI = 64,  // Bare-metal TMS320C6000
   ELFOSABI_C6000_LINUX = 65,   // Linux TMS320C6000
-  ELFOSABI_RVGPU_HSA = 66,    // RV HSA runtime
-  ELFOSABI_RVGPU_PAL = 67,    // RV PAL runtime
-  ELFOSABI_RVGPU_MESA3D = 68, // RV GCN GPUs (GFX6+) for MESA runtime
+  ELFOSABI_RVGPU_SS = 66,    // RV HSA runtime
   ELFOSABI_STANDALONE = 255,   // Standalone (embedded) application
   ELFOSABI_LAST_ARCH = 255     // Last Architecture-specific OS ABI
 };
@@ -382,12 +380,12 @@ enum {
 };
 // RVGPU OS ABI Version identification.
 enum {
-  // ELFABIVERSION_RVGPU_HSA_V1 does not exist because OS ABI identification
+  // ELFABIVERSION_RVGPU_SS_V1 does not exist because OS ABI identification
   // was never defined for V1.
-  ELFABIVERSION_RVGPU_HSA_V2 = 0,
-  ELFABIVERSION_RVGPU_HSA_V3 = 1,
-  ELFABIVERSION_RVGPU_HSA_V4 = 2,
-  ELFABIVERSION_RVGPU_HSA_V5 = 3
+  ELFABIVERSION_RVGPU_SS_V2 = 0,
+  ELFABIVERSION_RVGPU_SS_V3 = 1,
+  ELFABIVERSION_RVGPU_SS_V4 = 2,
+  ELFABIVERSION_RVGPU_SS_V5 = 3
 };
 
 #define ELF_RELOC(name, value) name = value,
@@ -1340,7 +1338,7 @@ enum {
 
   // AMDGPU symbol types
   STT_AMDGPU_HSA_KERNEL = 10,
-  STT_RVGPU_HSA_KERNEL = 16
+  STT_RVGPU_SS_KERNEL = 16
 };
 
 enum {

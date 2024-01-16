@@ -1092,7 +1092,9 @@ const EnumEntry<unsigned> AMDGPUElfOSABI[] = {
   {"AMDGPU_PAL",    "AMDGPU - PAL",    ELF::ELFOSABI_AMDGPU_PAL},
   {"AMDGPU_MESA3D", "AMDGPU - MESA3D", ELF::ELFOSABI_AMDGPU_MESA3D}
 };
-
+const EnumEntry<unsigned> RVGPUElfOSABI[] = {
+  {"RVGPU_SS",    "RVGPU - SS",    ELF::ELFOSABI_RVGPU_SS},
+};
 const EnumEntry<unsigned> ARMElfOSABI[] = {
   {"ARM", "ARM", ELF::ELFOSABI_ARM}
 };
@@ -1262,6 +1264,7 @@ const EnumEntry<unsigned> ElfMachineType[] = {
   ENUM_ENT(EM_78KOR,         "EM_78KOR"),
   ENUM_ENT(EM_56800EX,       "EM_56800EX"),
   ENUM_ENT(EM_AMDGPU,        "EM_AMDGPU"),
+  ENUM_ENT(EM_RVGPU,         "EM_RVGPU"),
   ENUM_ENT(EM_RISCV,         "RISC-V"),
   ENUM_ENT(EM_LANAI,         "EM_LANAI"),
   ENUM_ENT(EM_BPF,           "EM_BPF"),
@@ -1283,6 +1286,9 @@ const EnumEntry<unsigned> ElfSymbolVisibilities[] = {
 
 const EnumEntry<unsigned> AMDGPUSymbolTypes[] = {
   { "AMDGPU_HSA_KERNEL",            ELF::STT_AMDGPU_HSA_KERNEL }
+};
+const EnumEntry<unsigned> RVGPUSymbolTypes[] = {
+  { "RVGPU_SS_KERNEL",            ELF::STT_RVGPU_SS_KERNEL }
 };
 
 static const char *getGroupType(uint32_t Flag) {
@@ -3605,6 +3611,9 @@ template <class ELFT> void GNUELFDumper<ELFT>::printFileHeaders() {
     switch (e.e_machine) {
     case ELF::EM_AMDGPU:
       OSABI = ArrayRef(AMDGPUElfOSABI);
+      break;
+    case ELF::EM_RVGPU:
+      OSABI = ArrayRef(RVGPUElfOSABI);
       break;
     default:
       break;
@@ -6890,6 +6899,9 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printFileHeaders() {
         switch (E.e_machine) {
         case ELF::EM_AMDGPU:
           OSABI = ArrayRef(AMDGPUElfOSABI);
+          break;
+        case ELF::EM_RVGPU:
+          OSABI = ArrayRef(RVGPUElfOSABI);
           break;
         case ELF::EM_ARM:
           OSABI = ArrayRef(ARMElfOSABI);

@@ -146,7 +146,7 @@ void RVGPUTargetAsmStreamer::EmitRVGPUSymbolType(StringRef SymbolName,
                                                    unsigned Type) {
   switch (Type) {
     default: llvm_unreachable("Invalid RVGPU symbol type");
-    case ELF::STT_RVGPU_HSA_KERNEL:
+    case ELF::STT_RVGPU_SS_KERNEL:
       OS << "\t.rvgpu_hsa_kernel " << SymbolName << '\n' ;
       break;
   }
@@ -486,10 +486,10 @@ unsigned RVGPUTargetELFStreamer::getEFlagsSS() {
 
   if (std::optional<uint8_t> HsaAbiVer = getHsaAbiVersion(&STI)) {
     switch (*HsaAbiVer) {
-    case ELF::ELFABIVERSION_RVGPU_HSA_V3:
+    case ELF::ELFABIVERSION_RVGPU_SS_V3:
       return getEFlagsV3();
-    case ELF::ELFABIVERSION_RVGPU_HSA_V4:
-    case ELF::ELFABIVERSION_RVGPU_HSA_V5:
+    case ELF::ELFABIVERSION_RVGPU_SS_V4:
+    case ELF::ELFABIVERSION_RVGPU_SS_V5:
       return getEFlagsV4();
     }
   }

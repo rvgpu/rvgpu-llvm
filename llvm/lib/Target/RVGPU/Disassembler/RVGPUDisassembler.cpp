@@ -2233,7 +2233,7 @@ RVGPUDisassembler::onSymbolStart(SymbolInfoTy &Symbol, uint64_t &Size,
   // Object V2 and V3 when symbols are marked protected.
 
   // rv_kernel_code_t for Code Object V2.
-  if (Symbol.Type == ELF::STT_RVGPU_HSA_KERNEL) {
+  if (Symbol.Type == ELF::STT_RVGPU_SS_KERNEL) {
     Size = 256;
     return MCDisassembler::Fail;
   }
