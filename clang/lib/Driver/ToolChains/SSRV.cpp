@@ -241,7 +241,6 @@ void SSRVToolChain::addClangTargetOptions(
 
   CC1Args.push_back("-fcuda-is-device");
   
-  printf("\n\n*********************SSRV set version***************\n");
   CC1Args.push_back(
         DriverArgs.MakeArgString(Twine("-target-sdk-version=12.3")));
 
