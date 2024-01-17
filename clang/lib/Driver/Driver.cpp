@@ -3152,7 +3152,8 @@ class OffloadingActionBuilder final {
       const ToolChain *HostTC = C.getSingleOffloadToolChain<Action::OFK_Host>();
       assert(HostTC && "No toolchain for host compilation.");
       if (HostTC->getTriple().isNVPTX() ||
-          HostTC->getTriple().getArch() == llvm::Triple::amdgcn) {
+          HostTC->getTriple().getArch() == llvm::Triple::amdgcn ||
+          HostTC->getTriple().isRVGPU()) {
         // We do not support targeting NVPTX/AMDGCN for host compilation. Throw
         // an error and abort pipeline construction early so we don't trip
         // asserts that assume device-side compilation.
@@ -4815,7 +4816,7 @@ Driver::getOffloadArchs(Compilation &C, const llvm::opt::DerivedArgList &Args,
     else if (Kind == Action::OFK_OpenMP)
       Archs.insert(StringRef());
     else if (Kind == Action::OFK_SS)
-      Archs.insert(StringRef());
+      Archs.insert(CudaArchToString(CudaArch::SSDefault));
   } else {
     Args.ClaimAllArgs(options::OPT_offload_arch_EQ);
     Args.ClaimAllArgs(options::OPT_no_offload_arch_EQ);

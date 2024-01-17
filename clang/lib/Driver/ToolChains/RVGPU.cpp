@@ -167,9 +167,6 @@ void SSInstallationDetector::scanLibDevicePath(llvm::StringRef Path) {
       if (!BaseName.starts_with(DeviceLibPrefix))
         continue;
 
-      StringRef IsaVersionNumber =
-        BaseName.drop_front(DeviceLibPrefix.size());
-
       llvm::Twine IsaName = Twine("r1000");
       SmallString<8> Tmp;
       LibDeviceMap.insert(

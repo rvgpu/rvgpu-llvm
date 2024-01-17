@@ -108,7 +108,7 @@ void RVGPU::fillRVGPUFeatureMap(StringRef GPU, const Triple &T,
       Features["gfx9-insts"] = true;
       Features["gfx10-insts"] = true;
       Features["gfx10-3-insts"] = true;
-      Features["gfx11-insts"] = true;
+      Features["r1000-insts"] = true;
       Features["atomic-fadd-rtn-insts"] = true;
       Features["image-insts"] = true;
       Features["gws"] = true;
