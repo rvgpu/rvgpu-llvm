@@ -33,7 +33,7 @@
 static llvm::cl::opt<unsigned>
     SsCodeObjectVersion("ss-code-object-version", llvm::cl::Hidden,
                             llvm::cl::desc("SS Code Object Version"),
-                            llvm::cl::init(4));
+                            llvm::cl::init(5));
 
 namespace {
 
@@ -160,7 +160,7 @@ unsigned getCodeObjectVersion(const Module &M) {
   }
 
   // Default code object version.
-  return SS_COV4;
+  return SS_COV5;
 }
 
 unsigned getMultigridSyncArgImplicitArgPosition(unsigned CodeObjectVersion) {

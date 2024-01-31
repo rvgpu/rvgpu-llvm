@@ -28,7 +28,7 @@ struct SSDeviceLibABIVersion {
   SSDeviceLibABIVersion(unsigned V) : ABIVersion(V) {}
   static SSDeviceLibABIVersion fromCodeObjectVersion(unsigned CodeObjectVersion) {
     if (CodeObjectVersion < 4)
-      CodeObjectVersion = 4;
+      CodeObjectVersion = 5;
     return SSDeviceLibABIVersion(CodeObjectVersion * 100);
   }
   /// Whether ABI version bc file is requested.

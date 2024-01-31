@@ -874,22 +874,8 @@ void CodeGenModule::Release() {
         llvm::CodeObjectVersionKind::COV_None) {
       getModule().addModuleFlag(llvm::Module::Error,
                                 "rvgpu_code_object_version",
-                                getTarget().getTargetOpts().CodeObjectVersion);
+                                llvm::CodeObjectVersionKind::COV_5);
     }
-
-    // Currently, "-mprintf-kind" option is only supported for HIP.
-#if 0
-    if (LangOpts.HIP) 
-    {
-      auto *MDStr = llvm::MDString::get(
-          getLLVMContext(), (getTarget().getTargetOpts().AMDGPUPrintfKindVal ==
-                             TargetOptions::AMDGPUPrintfKind::Hostcall)
-                                ? "hostcall"
-                                : "buffered");
-      getModule().addModuleFlag(llvm::Module::Error, "rvgpu_printf_kind",
-                                MDStr);
-    }
-#endif 
   }
 
   // Emit a global array containing all external kernels or device variables

@@ -2606,7 +2606,7 @@ unsigned tools::getAMDGPUCodeObjectVersion(const Driver &D,
 }
 unsigned tools::getRVGPUCodeObjectVersion(const Driver &D,
                                           const llvm::opt::ArgList &Args) {
-  unsigned CodeObjVer = 4; // default
+  unsigned CodeObjVer = 5; // default
   return CodeObjVer;
 }
 
