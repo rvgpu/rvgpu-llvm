@@ -1,4 +1,4 @@
-//===-- NVPTXLowerUnreachable.cpp - Lower unreachables to exit =====--===//
+//===-- RVGPULowerUnreachable.cpp - Lower unreachables to exit =====--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -69,7 +69,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTX.h"
+#include "RVGPU.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
@@ -79,18 +79,18 @@
 using namespace llvm;
 
 namespace llvm {
-void initializeNVPTXLowerUnreachablePass(PassRegistry &);
+void initializeRVGPULowerUnreachablePass(PassRegistry &);
 }
 
 namespace {
-class NVPTXLowerUnreachable : public FunctionPass {
+class RVGPULowerUnreachable : public FunctionPass {
   StringRef getPassName() const override;
   bool runOnFunction(Function &F) override;
   bool isLoweredToTrap(const UnreachableInst &I) const;
 
 public:
   static char ID; // Pass identification, replacement for typeid
-  NVPTXLowerUnreachable(bool TrapUnreachable, bool NoTrapAfterNoreturn)
+  RVGPULowerUnreachable(bool TrapUnreachable, bool NoTrapAfterNoreturn)
       : FunctionPass(ID), TrapUnreachable(TrapUnreachable),
         NoTrapAfterNoreturn(NoTrapAfterNoreturn) {}
 
@@ -100,12 +100,12 @@ private:
 };
 } // namespace
 
-char NVPTXLowerUnreachable::ID = 1;
+char RVGPULowerUnreachable::ID = 1;
 
-INITIALIZE_PASS(NVPTXLowerUnreachable, "nvptx-lower-unreachable",
+INITIALIZE_PASS(RVGPULowerUnreachable, "nvptx-lower-unreachable",
                 "Lower Unreachable", false, false)
 
-StringRef NVPTXLowerUnreachable::getPassName() const {
+StringRef RVGPULowerUnreachable::getPassName() const {
   return "add an exit instruction before every unreachable";
 }
 
@@ -114,7 +114,7 @@ StringRef NVPTXLowerUnreachable::getPassName() const {
 //
 // This is a copy of the logic in SelectionDAGBuilder::visitUnreachable().
 // =============================================================================
-bool NVPTXLowerUnreachable::isLoweredToTrap(const UnreachableInst &I) const {
+bool RVGPULowerUnreachable::isLoweredToTrap(const UnreachableInst &I) const {
   if (!TrapUnreachable)
     return false;
   if (!NoTrapAfterNoreturn)
@@ -126,7 +126,7 @@ bool NVPTXLowerUnreachable::isLoweredToTrap(const UnreachableInst &I) const {
 // =============================================================================
 // Main function for this pass.
 // =============================================================================
-bool NVPTXLowerUnreachable::runOnFunction(Function &F) {
+bool RVGPULowerUnreachable::runOnFunction(Function &F) {
   if (skipFunction(F))
     return false;
   // Early out iff isLoweredToTrap() always returns true.
@@ -150,7 +150,7 @@ bool NVPTXLowerUnreachable::runOnFunction(Function &F) {
   return Changed;
 }
 
-FunctionPass *llvm::createNVPTXLowerUnreachablePass(bool TrapUnreachable,
+FunctionPass *llvm::createRVGPULowerUnreachablePass(bool TrapUnreachable,
                                                     bool NoTrapAfterNoreturn) {
-  return new NVPTXLowerUnreachable(TrapUnreachable, NoTrapAfterNoreturn);
+  return new RVGPULowerUnreachable(TrapUnreachable, NoTrapAfterNoreturn);
 }

@@ -1,4 +1,4 @@
-//===-- NVPTXISelDAGToDAG.cpp - A dag to dag inst selector for NVPTX ------===//
+//===-- RVGPUISelDAGToDAG.cpp - A dag to dag inst selector for RVGPU ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,18 +6,18 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines an instruction selector for the NVPTX target.
+// This file defines an instruction selector for the RVGPU target.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXISelDAGToDAG.h"
-#include "MCTargetDesc/NVPTXBaseInfo.h"
-#include "NVPTXUtilities.h"
+#include "RVGPUISelDAGToDAG.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
+#include "RVGPUUtilities.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -28,59 +28,59 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "nvptx-isel"
-#define PASS_NAME "NVPTX DAG->DAG Pattern Instruction Selection"
+#define PASS_NAME "RVGPU DAG->DAG Pattern Instruction Selection"
 
-/// createNVPTXISelDag - This pass converts a legalized DAG into a
-/// NVPTX-specific DAG, ready for instruction scheduling.
-FunctionPass *llvm::createNVPTXISelDag(NVPTXTargetMachine &TM,
+/// createRVGPUISelDag - This pass converts a legalized DAG into a
+/// RVGPU-specific DAG, ready for instruction scheduling.
+FunctionPass *llvm::createRVGPUISelDag(RVGPUTargetMachine &TM,
                                        llvm::CodeGenOptLevel OptLevel) {
-  return new NVPTXDAGToDAGISel(TM, OptLevel);
+  return new RVGPUDAGToDAGISel(TM, OptLevel);
 }
 
-char NVPTXDAGToDAGISel::ID = 0;
+char RVGPUDAGToDAGISel::ID = 0;
 
-INITIALIZE_PASS(NVPTXDAGToDAGISel, DEBUG_TYPE, PASS_NAME, false, false)
+INITIALIZE_PASS(RVGPUDAGToDAGISel, DEBUG_TYPE, PASS_NAME, false, false)
 
-NVPTXDAGToDAGISel::NVPTXDAGToDAGISel(NVPTXTargetMachine &tm,
+RVGPUDAGToDAGISel::RVGPUDAGToDAGISel(RVGPUTargetMachine &tm,
                                      CodeGenOptLevel OptLevel)
     : SelectionDAGISel(ID, tm, OptLevel), TM(tm) {
   doMulWide = (OptLevel > CodeGenOptLevel::None);
 }
 
-bool NVPTXDAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
-  Subtarget = &MF.getSubtarget<NVPTXSubtarget>();
+bool RVGPUDAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
+  Subtarget = &MF.getSubtarget<RVGPUSubtarget>();
   return SelectionDAGISel::runOnMachineFunction(MF);
 }
 
-int NVPTXDAGToDAGISel::getDivF32Level() const {
+int RVGPUDAGToDAGISel::getDivF32Level() const {
   return Subtarget->getTargetLowering()->getDivF32Level();
 }
 
-bool NVPTXDAGToDAGISel::usePrecSqrtF32() const {
+bool RVGPUDAGToDAGISel::usePrecSqrtF32() const {
   return Subtarget->getTargetLowering()->usePrecSqrtF32();
 }
 
-bool NVPTXDAGToDAGISel::useF32FTZ() const {
+bool RVGPUDAGToDAGISel::useF32FTZ() const {
   return Subtarget->getTargetLowering()->useF32FTZ(*MF);
 }
 
-bool NVPTXDAGToDAGISel::allowFMA() const {
-  const NVPTXTargetLowering *TL = Subtarget->getTargetLowering();
+bool RVGPUDAGToDAGISel::allowFMA() const {
+  const RVGPUTargetLowering *TL = Subtarget->getTargetLowering();
   return TL->allowFMA(*MF, OptLevel);
 }
 
-bool NVPTXDAGToDAGISel::allowUnsafeFPMath() const {
-  const NVPTXTargetLowering *TL = Subtarget->getTargetLowering();
+bool RVGPUDAGToDAGISel::allowUnsafeFPMath() const {
+  const RVGPUTargetLowering *TL = Subtarget->getTargetLowering();
   return TL->allowUnsafeFPMath(*MF);
 }
 
-bool NVPTXDAGToDAGISel::useShortPointers() const {
+bool RVGPUDAGToDAGISel::useShortPointers() const {
   return TM.useShortPointers();
 }
 
 /// Select - Select instructions not customized! Used for
 /// expanded, promoted and normal instructions.
-void NVPTXDAGToDAGISel::Select(SDNode *N) {
+void RVGPUDAGToDAGISel::Select(SDNode *N) {
 
   if (N->isMachineOpcode()) {
     N->setNodeId(-1);
@@ -102,46 +102,46 @@ void NVPTXDAGToDAGISel::Select(SDNode *N) {
     if (tryEXTRACT_VECTOR_ELEMENT(N))
       return;
     break;
-  case NVPTXISD::SETP_F16X2:
+  case RVGPUISD::SETP_F16X2:
     SelectSETP_F16X2(N);
     return;
-  case NVPTXISD::SETP_BF16X2:
+  case RVGPUISD::SETP_BF16X2:
     SelectSETP_BF16X2(N);
     return;
-  case NVPTXISD::LoadV2:
-  case NVPTXISD::LoadV4:
+  case RVGPUISD::LoadV2:
+  case RVGPUISD::LoadV4:
     if (tryLoadVector(N))
       return;
     break;
-  case NVPTXISD::LDGV2:
-  case NVPTXISD::LDGV4:
-  case NVPTXISD::LDUV2:
-  case NVPTXISD::LDUV4:
+  case RVGPUISD::LDGV2:
+  case RVGPUISD::LDGV4:
+  case RVGPUISD::LDUV2:
+  case RVGPUISD::LDUV4:
     if (tryLDGLDU(N))
       return;
     break;
-  case NVPTXISD::StoreV2:
-  case NVPTXISD::StoreV4:
+  case RVGPUISD::StoreV2:
+  case RVGPUISD::StoreV4:
     if (tryStoreVector(N))
       return;
     break;
-  case NVPTXISD::LoadParam:
-  case NVPTXISD::LoadParamV2:
-  case NVPTXISD::LoadParamV4:
+  case RVGPUISD::LoadParam:
+  case RVGPUISD::LoadParamV2:
+  case RVGPUISD::LoadParamV4:
     if (tryLoadParam(N))
       return;
     break;
-  case NVPTXISD::StoreRetval:
-  case NVPTXISD::StoreRetvalV2:
-  case NVPTXISD::StoreRetvalV4:
+  case RVGPUISD::StoreRetval:
+  case RVGPUISD::StoreRetvalV2:
+  case RVGPUISD::StoreRetvalV4:
     if (tryStoreRetval(N))
       return;
     break;
-  case NVPTXISD::StoreParam:
-  case NVPTXISD::StoreParamV2:
-  case NVPTXISD::StoreParamV4:
-  case NVPTXISD::StoreParamS32:
-  case NVPTXISD::StoreParamU32:
+  case RVGPUISD::StoreParam:
+  case RVGPUISD::StoreParamV2:
+  case RVGPUISD::StoreParamV4:
+  case RVGPUISD::StoreParamS32:
+  case RVGPUISD::StoreParamU32:
     if (tryStoreParam(N))
       return;
     break;
@@ -153,342 +153,342 @@ void NVPTXDAGToDAGISel::Select(SDNode *N) {
     if (tryIntrinsicChain(N))
       return;
     break;
-  case NVPTXISD::Tex1DFloatS32:
-  case NVPTXISD::Tex1DFloatFloat:
-  case NVPTXISD::Tex1DFloatFloatLevel:
-  case NVPTXISD::Tex1DFloatFloatGrad:
-  case NVPTXISD::Tex1DS32S32:
-  case NVPTXISD::Tex1DS32Float:
-  case NVPTXISD::Tex1DS32FloatLevel:
-  case NVPTXISD::Tex1DS32FloatGrad:
-  case NVPTXISD::Tex1DU32S32:
-  case NVPTXISD::Tex1DU32Float:
-  case NVPTXISD::Tex1DU32FloatLevel:
-  case NVPTXISD::Tex1DU32FloatGrad:
-  case NVPTXISD::Tex1DArrayFloatS32:
-  case NVPTXISD::Tex1DArrayFloatFloat:
-  case NVPTXISD::Tex1DArrayFloatFloatLevel:
-  case NVPTXISD::Tex1DArrayFloatFloatGrad:
-  case NVPTXISD::Tex1DArrayS32S32:
-  case NVPTXISD::Tex1DArrayS32Float:
-  case NVPTXISD::Tex1DArrayS32FloatLevel:
-  case NVPTXISD::Tex1DArrayS32FloatGrad:
-  case NVPTXISD::Tex1DArrayU32S32:
-  case NVPTXISD::Tex1DArrayU32Float:
-  case NVPTXISD::Tex1DArrayU32FloatLevel:
-  case NVPTXISD::Tex1DArrayU32FloatGrad:
-  case NVPTXISD::Tex2DFloatS32:
-  case NVPTXISD::Tex2DFloatFloat:
-  case NVPTXISD::Tex2DFloatFloatLevel:
-  case NVPTXISD::Tex2DFloatFloatGrad:
-  case NVPTXISD::Tex2DS32S32:
-  case NVPTXISD::Tex2DS32Float:
-  case NVPTXISD::Tex2DS32FloatLevel:
-  case NVPTXISD::Tex2DS32FloatGrad:
-  case NVPTXISD::Tex2DU32S32:
-  case NVPTXISD::Tex2DU32Float:
-  case NVPTXISD::Tex2DU32FloatLevel:
-  case NVPTXISD::Tex2DU32FloatGrad:
-  case NVPTXISD::Tex2DArrayFloatS32:
-  case NVPTXISD::Tex2DArrayFloatFloat:
-  case NVPTXISD::Tex2DArrayFloatFloatLevel:
-  case NVPTXISD::Tex2DArrayFloatFloatGrad:
-  case NVPTXISD::Tex2DArrayS32S32:
-  case NVPTXISD::Tex2DArrayS32Float:
-  case NVPTXISD::Tex2DArrayS32FloatLevel:
-  case NVPTXISD::Tex2DArrayS32FloatGrad:
-  case NVPTXISD::Tex2DArrayU32S32:
-  case NVPTXISD::Tex2DArrayU32Float:
-  case NVPTXISD::Tex2DArrayU32FloatLevel:
-  case NVPTXISD::Tex2DArrayU32FloatGrad:
-  case NVPTXISD::Tex3DFloatS32:
-  case NVPTXISD::Tex3DFloatFloat:
-  case NVPTXISD::Tex3DFloatFloatLevel:
-  case NVPTXISD::Tex3DFloatFloatGrad:
-  case NVPTXISD::Tex3DS32S32:
-  case NVPTXISD::Tex3DS32Float:
-  case NVPTXISD::Tex3DS32FloatLevel:
-  case NVPTXISD::Tex3DS32FloatGrad:
-  case NVPTXISD::Tex3DU32S32:
-  case NVPTXISD::Tex3DU32Float:
-  case NVPTXISD::Tex3DU32FloatLevel:
-  case NVPTXISD::Tex3DU32FloatGrad:
-  case NVPTXISD::TexCubeFloatFloat:
-  case NVPTXISD::TexCubeFloatFloatLevel:
-  case NVPTXISD::TexCubeS32Float:
-  case NVPTXISD::TexCubeS32FloatLevel:
-  case NVPTXISD::TexCubeU32Float:
-  case NVPTXISD::TexCubeU32FloatLevel:
-  case NVPTXISD::TexCubeArrayFloatFloat:
-  case NVPTXISD::TexCubeArrayFloatFloatLevel:
-  case NVPTXISD::TexCubeArrayS32Float:
-  case NVPTXISD::TexCubeArrayS32FloatLevel:
-  case NVPTXISD::TexCubeArrayU32Float:
-  case NVPTXISD::TexCubeArrayU32FloatLevel:
-  case NVPTXISD::Tld4R2DFloatFloat:
-  case NVPTXISD::Tld4G2DFloatFloat:
-  case NVPTXISD::Tld4B2DFloatFloat:
-  case NVPTXISD::Tld4A2DFloatFloat:
-  case NVPTXISD::Tld4R2DS64Float:
-  case NVPTXISD::Tld4G2DS64Float:
-  case NVPTXISD::Tld4B2DS64Float:
-  case NVPTXISD::Tld4A2DS64Float:
-  case NVPTXISD::Tld4R2DU64Float:
-  case NVPTXISD::Tld4G2DU64Float:
-  case NVPTXISD::Tld4B2DU64Float:
-  case NVPTXISD::Tld4A2DU64Float:
-  case NVPTXISD::TexUnified1DFloatS32:
-  case NVPTXISD::TexUnified1DFloatFloat:
-  case NVPTXISD::TexUnified1DFloatFloatLevel:
-  case NVPTXISD::TexUnified1DFloatFloatGrad:
-  case NVPTXISD::TexUnified1DS32S32:
-  case NVPTXISD::TexUnified1DS32Float:
-  case NVPTXISD::TexUnified1DS32FloatLevel:
-  case NVPTXISD::TexUnified1DS32FloatGrad:
-  case NVPTXISD::TexUnified1DU32S32:
-  case NVPTXISD::TexUnified1DU32Float:
-  case NVPTXISD::TexUnified1DU32FloatLevel:
-  case NVPTXISD::TexUnified1DU32FloatGrad:
-  case NVPTXISD::TexUnified1DArrayFloatS32:
-  case NVPTXISD::TexUnified1DArrayFloatFloat:
-  case NVPTXISD::TexUnified1DArrayFloatFloatLevel:
-  case NVPTXISD::TexUnified1DArrayFloatFloatGrad:
-  case NVPTXISD::TexUnified1DArrayS32S32:
-  case NVPTXISD::TexUnified1DArrayS32Float:
-  case NVPTXISD::TexUnified1DArrayS32FloatLevel:
-  case NVPTXISD::TexUnified1DArrayS32FloatGrad:
-  case NVPTXISD::TexUnified1DArrayU32S32:
-  case NVPTXISD::TexUnified1DArrayU32Float:
-  case NVPTXISD::TexUnified1DArrayU32FloatLevel:
-  case NVPTXISD::TexUnified1DArrayU32FloatGrad:
-  case NVPTXISD::TexUnified2DFloatS32:
-  case NVPTXISD::TexUnified2DFloatFloat:
-  case NVPTXISD::TexUnified2DFloatFloatLevel:
-  case NVPTXISD::TexUnified2DFloatFloatGrad:
-  case NVPTXISD::TexUnified2DS32S32:
-  case NVPTXISD::TexUnified2DS32Float:
-  case NVPTXISD::TexUnified2DS32FloatLevel:
-  case NVPTXISD::TexUnified2DS32FloatGrad:
-  case NVPTXISD::TexUnified2DU32S32:
-  case NVPTXISD::TexUnified2DU32Float:
-  case NVPTXISD::TexUnified2DU32FloatLevel:
-  case NVPTXISD::TexUnified2DU32FloatGrad:
-  case NVPTXISD::TexUnified2DArrayFloatS32:
-  case NVPTXISD::TexUnified2DArrayFloatFloat:
-  case NVPTXISD::TexUnified2DArrayFloatFloatLevel:
-  case NVPTXISD::TexUnified2DArrayFloatFloatGrad:
-  case NVPTXISD::TexUnified2DArrayS32S32:
-  case NVPTXISD::TexUnified2DArrayS32Float:
-  case NVPTXISD::TexUnified2DArrayS32FloatLevel:
-  case NVPTXISD::TexUnified2DArrayS32FloatGrad:
-  case NVPTXISD::TexUnified2DArrayU32S32:
-  case NVPTXISD::TexUnified2DArrayU32Float:
-  case NVPTXISD::TexUnified2DArrayU32FloatLevel:
-  case NVPTXISD::TexUnified2DArrayU32FloatGrad:
-  case NVPTXISD::TexUnified3DFloatS32:
-  case NVPTXISD::TexUnified3DFloatFloat:
-  case NVPTXISD::TexUnified3DFloatFloatLevel:
-  case NVPTXISD::TexUnified3DFloatFloatGrad:
-  case NVPTXISD::TexUnified3DS32S32:
-  case NVPTXISD::TexUnified3DS32Float:
-  case NVPTXISD::TexUnified3DS32FloatLevel:
-  case NVPTXISD::TexUnified3DS32FloatGrad:
-  case NVPTXISD::TexUnified3DU32S32:
-  case NVPTXISD::TexUnified3DU32Float:
-  case NVPTXISD::TexUnified3DU32FloatLevel:
-  case NVPTXISD::TexUnified3DU32FloatGrad:
-  case NVPTXISD::TexUnifiedCubeFloatFloat:
-  case NVPTXISD::TexUnifiedCubeFloatFloatLevel:
-  case NVPTXISD::TexUnifiedCubeS32Float:
-  case NVPTXISD::TexUnifiedCubeS32FloatLevel:
-  case NVPTXISD::TexUnifiedCubeU32Float:
-  case NVPTXISD::TexUnifiedCubeU32FloatLevel:
-  case NVPTXISD::TexUnifiedCubeArrayFloatFloat:
-  case NVPTXISD::TexUnifiedCubeArrayFloatFloatLevel:
-  case NVPTXISD::TexUnifiedCubeArrayS32Float:
-  case NVPTXISD::TexUnifiedCubeArrayS32FloatLevel:
-  case NVPTXISD::TexUnifiedCubeArrayU32Float:
-  case NVPTXISD::TexUnifiedCubeArrayU32FloatLevel:
-  case NVPTXISD::Tld4UnifiedR2DFloatFloat:
-  case NVPTXISD::Tld4UnifiedG2DFloatFloat:
-  case NVPTXISD::Tld4UnifiedB2DFloatFloat:
-  case NVPTXISD::Tld4UnifiedA2DFloatFloat:
-  case NVPTXISD::Tld4UnifiedR2DS64Float:
-  case NVPTXISD::Tld4UnifiedG2DS64Float:
-  case NVPTXISD::Tld4UnifiedB2DS64Float:
-  case NVPTXISD::Tld4UnifiedA2DS64Float:
-  case NVPTXISD::Tld4UnifiedR2DU64Float:
-  case NVPTXISD::Tld4UnifiedG2DU64Float:
-  case NVPTXISD::Tld4UnifiedB2DU64Float:
-  case NVPTXISD::Tld4UnifiedA2DU64Float:
+  case RVGPUISD::Tex1DFloatS32:
+  case RVGPUISD::Tex1DFloatFloat:
+  case RVGPUISD::Tex1DFloatFloatLevel:
+  case RVGPUISD::Tex1DFloatFloatGrad:
+  case RVGPUISD::Tex1DS32S32:
+  case RVGPUISD::Tex1DS32Float:
+  case RVGPUISD::Tex1DS32FloatLevel:
+  case RVGPUISD::Tex1DS32FloatGrad:
+  case RVGPUISD::Tex1DU32S32:
+  case RVGPUISD::Tex1DU32Float:
+  case RVGPUISD::Tex1DU32FloatLevel:
+  case RVGPUISD::Tex1DU32FloatGrad:
+  case RVGPUISD::Tex1DArrayFloatS32:
+  case RVGPUISD::Tex1DArrayFloatFloat:
+  case RVGPUISD::Tex1DArrayFloatFloatLevel:
+  case RVGPUISD::Tex1DArrayFloatFloatGrad:
+  case RVGPUISD::Tex1DArrayS32S32:
+  case RVGPUISD::Tex1DArrayS32Float:
+  case RVGPUISD::Tex1DArrayS32FloatLevel:
+  case RVGPUISD::Tex1DArrayS32FloatGrad:
+  case RVGPUISD::Tex1DArrayU32S32:
+  case RVGPUISD::Tex1DArrayU32Float:
+  case RVGPUISD::Tex1DArrayU32FloatLevel:
+  case RVGPUISD::Tex1DArrayU32FloatGrad:
+  case RVGPUISD::Tex2DFloatS32:
+  case RVGPUISD::Tex2DFloatFloat:
+  case RVGPUISD::Tex2DFloatFloatLevel:
+  case RVGPUISD::Tex2DFloatFloatGrad:
+  case RVGPUISD::Tex2DS32S32:
+  case RVGPUISD::Tex2DS32Float:
+  case RVGPUISD::Tex2DS32FloatLevel:
+  case RVGPUISD::Tex2DS32FloatGrad:
+  case RVGPUISD::Tex2DU32S32:
+  case RVGPUISD::Tex2DU32Float:
+  case RVGPUISD::Tex2DU32FloatLevel:
+  case RVGPUISD::Tex2DU32FloatGrad:
+  case RVGPUISD::Tex2DArrayFloatS32:
+  case RVGPUISD::Tex2DArrayFloatFloat:
+  case RVGPUISD::Tex2DArrayFloatFloatLevel:
+  case RVGPUISD::Tex2DArrayFloatFloatGrad:
+  case RVGPUISD::Tex2DArrayS32S32:
+  case RVGPUISD::Tex2DArrayS32Float:
+  case RVGPUISD::Tex2DArrayS32FloatLevel:
+  case RVGPUISD::Tex2DArrayS32FloatGrad:
+  case RVGPUISD::Tex2DArrayU32S32:
+  case RVGPUISD::Tex2DArrayU32Float:
+  case RVGPUISD::Tex2DArrayU32FloatLevel:
+  case RVGPUISD::Tex2DArrayU32FloatGrad:
+  case RVGPUISD::Tex3DFloatS32:
+  case RVGPUISD::Tex3DFloatFloat:
+  case RVGPUISD::Tex3DFloatFloatLevel:
+  case RVGPUISD::Tex3DFloatFloatGrad:
+  case RVGPUISD::Tex3DS32S32:
+  case RVGPUISD::Tex3DS32Float:
+  case RVGPUISD::Tex3DS32FloatLevel:
+  case RVGPUISD::Tex3DS32FloatGrad:
+  case RVGPUISD::Tex3DU32S32:
+  case RVGPUISD::Tex3DU32Float:
+  case RVGPUISD::Tex3DU32FloatLevel:
+  case RVGPUISD::Tex3DU32FloatGrad:
+  case RVGPUISD::TexCubeFloatFloat:
+  case RVGPUISD::TexCubeFloatFloatLevel:
+  case RVGPUISD::TexCubeS32Float:
+  case RVGPUISD::TexCubeS32FloatLevel:
+  case RVGPUISD::TexCubeU32Float:
+  case RVGPUISD::TexCubeU32FloatLevel:
+  case RVGPUISD::TexCubeArrayFloatFloat:
+  case RVGPUISD::TexCubeArrayFloatFloatLevel:
+  case RVGPUISD::TexCubeArrayS32Float:
+  case RVGPUISD::TexCubeArrayS32FloatLevel:
+  case RVGPUISD::TexCubeArrayU32Float:
+  case RVGPUISD::TexCubeArrayU32FloatLevel:
+  case RVGPUISD::Tld4R2DFloatFloat:
+  case RVGPUISD::Tld4G2DFloatFloat:
+  case RVGPUISD::Tld4B2DFloatFloat:
+  case RVGPUISD::Tld4A2DFloatFloat:
+  case RVGPUISD::Tld4R2DS64Float:
+  case RVGPUISD::Tld4G2DS64Float:
+  case RVGPUISD::Tld4B2DS64Float:
+  case RVGPUISD::Tld4A2DS64Float:
+  case RVGPUISD::Tld4R2DU64Float:
+  case RVGPUISD::Tld4G2DU64Float:
+  case RVGPUISD::Tld4B2DU64Float:
+  case RVGPUISD::Tld4A2DU64Float:
+  case RVGPUISD::TexUnified1DFloatS32:
+  case RVGPUISD::TexUnified1DFloatFloat:
+  case RVGPUISD::TexUnified1DFloatFloatLevel:
+  case RVGPUISD::TexUnified1DFloatFloatGrad:
+  case RVGPUISD::TexUnified1DS32S32:
+  case RVGPUISD::TexUnified1DS32Float:
+  case RVGPUISD::TexUnified1DS32FloatLevel:
+  case RVGPUISD::TexUnified1DS32FloatGrad:
+  case RVGPUISD::TexUnified1DU32S32:
+  case RVGPUISD::TexUnified1DU32Float:
+  case RVGPUISD::TexUnified1DU32FloatLevel:
+  case RVGPUISD::TexUnified1DU32FloatGrad:
+  case RVGPUISD::TexUnified1DArrayFloatS32:
+  case RVGPUISD::TexUnified1DArrayFloatFloat:
+  case RVGPUISD::TexUnified1DArrayFloatFloatLevel:
+  case RVGPUISD::TexUnified1DArrayFloatFloatGrad:
+  case RVGPUISD::TexUnified1DArrayS32S32:
+  case RVGPUISD::TexUnified1DArrayS32Float:
+  case RVGPUISD::TexUnified1DArrayS32FloatLevel:
+  case RVGPUISD::TexUnified1DArrayS32FloatGrad:
+  case RVGPUISD::TexUnified1DArrayU32S32:
+  case RVGPUISD::TexUnified1DArrayU32Float:
+  case RVGPUISD::TexUnified1DArrayU32FloatLevel:
+  case RVGPUISD::TexUnified1DArrayU32FloatGrad:
+  case RVGPUISD::TexUnified2DFloatS32:
+  case RVGPUISD::TexUnified2DFloatFloat:
+  case RVGPUISD::TexUnified2DFloatFloatLevel:
+  case RVGPUISD::TexUnified2DFloatFloatGrad:
+  case RVGPUISD::TexUnified2DS32S32:
+  case RVGPUISD::TexUnified2DS32Float:
+  case RVGPUISD::TexUnified2DS32FloatLevel:
+  case RVGPUISD::TexUnified2DS32FloatGrad:
+  case RVGPUISD::TexUnified2DU32S32:
+  case RVGPUISD::TexUnified2DU32Float:
+  case RVGPUISD::TexUnified2DU32FloatLevel:
+  case RVGPUISD::TexUnified2DU32FloatGrad:
+  case RVGPUISD::TexUnified2DArrayFloatS32:
+  case RVGPUISD::TexUnified2DArrayFloatFloat:
+  case RVGPUISD::TexUnified2DArrayFloatFloatLevel:
+  case RVGPUISD::TexUnified2DArrayFloatFloatGrad:
+  case RVGPUISD::TexUnified2DArrayS32S32:
+  case RVGPUISD::TexUnified2DArrayS32Float:
+  case RVGPUISD::TexUnified2DArrayS32FloatLevel:
+  case RVGPUISD::TexUnified2DArrayS32FloatGrad:
+  case RVGPUISD::TexUnified2DArrayU32S32:
+  case RVGPUISD::TexUnified2DArrayU32Float:
+  case RVGPUISD::TexUnified2DArrayU32FloatLevel:
+  case RVGPUISD::TexUnified2DArrayU32FloatGrad:
+  case RVGPUISD::TexUnified3DFloatS32:
+  case RVGPUISD::TexUnified3DFloatFloat:
+  case RVGPUISD::TexUnified3DFloatFloatLevel:
+  case RVGPUISD::TexUnified3DFloatFloatGrad:
+  case RVGPUISD::TexUnified3DS32S32:
+  case RVGPUISD::TexUnified3DS32Float:
+  case RVGPUISD::TexUnified3DS32FloatLevel:
+  case RVGPUISD::TexUnified3DS32FloatGrad:
+  case RVGPUISD::TexUnified3DU32S32:
+  case RVGPUISD::TexUnified3DU32Float:
+  case RVGPUISD::TexUnified3DU32FloatLevel:
+  case RVGPUISD::TexUnified3DU32FloatGrad:
+  case RVGPUISD::TexUnifiedCubeFloatFloat:
+  case RVGPUISD::TexUnifiedCubeFloatFloatLevel:
+  case RVGPUISD::TexUnifiedCubeS32Float:
+  case RVGPUISD::TexUnifiedCubeS32FloatLevel:
+  case RVGPUISD::TexUnifiedCubeU32Float:
+  case RVGPUISD::TexUnifiedCubeU32FloatLevel:
+  case RVGPUISD::TexUnifiedCubeArrayFloatFloat:
+  case RVGPUISD::TexUnifiedCubeArrayFloatFloatLevel:
+  case RVGPUISD::TexUnifiedCubeArrayS32Float:
+  case RVGPUISD::TexUnifiedCubeArrayS32FloatLevel:
+  case RVGPUISD::TexUnifiedCubeArrayU32Float:
+  case RVGPUISD::TexUnifiedCubeArrayU32FloatLevel:
+  case RVGPUISD::Tld4UnifiedR2DFloatFloat:
+  case RVGPUISD::Tld4UnifiedG2DFloatFloat:
+  case RVGPUISD::Tld4UnifiedB2DFloatFloat:
+  case RVGPUISD::Tld4UnifiedA2DFloatFloat:
+  case RVGPUISD::Tld4UnifiedR2DS64Float:
+  case RVGPUISD::Tld4UnifiedG2DS64Float:
+  case RVGPUISD::Tld4UnifiedB2DS64Float:
+  case RVGPUISD::Tld4UnifiedA2DS64Float:
+  case RVGPUISD::Tld4UnifiedR2DU64Float:
+  case RVGPUISD::Tld4UnifiedG2DU64Float:
+  case RVGPUISD::Tld4UnifiedB2DU64Float:
+  case RVGPUISD::Tld4UnifiedA2DU64Float:
     if (tryTextureIntrinsic(N))
       return;
     break;
-  case NVPTXISD::Suld1DI8Clamp:
-  case NVPTXISD::Suld1DI16Clamp:
-  case NVPTXISD::Suld1DI32Clamp:
-  case NVPTXISD::Suld1DI64Clamp:
-  case NVPTXISD::Suld1DV2I8Clamp:
-  case NVPTXISD::Suld1DV2I16Clamp:
-  case NVPTXISD::Suld1DV2I32Clamp:
-  case NVPTXISD::Suld1DV2I64Clamp:
-  case NVPTXISD::Suld1DV4I8Clamp:
-  case NVPTXISD::Suld1DV4I16Clamp:
-  case NVPTXISD::Suld1DV4I32Clamp:
-  case NVPTXISD::Suld1DArrayI8Clamp:
-  case NVPTXISD::Suld1DArrayI16Clamp:
-  case NVPTXISD::Suld1DArrayI32Clamp:
-  case NVPTXISD::Suld1DArrayI64Clamp:
-  case NVPTXISD::Suld1DArrayV2I8Clamp:
-  case NVPTXISD::Suld1DArrayV2I16Clamp:
-  case NVPTXISD::Suld1DArrayV2I32Clamp:
-  case NVPTXISD::Suld1DArrayV2I64Clamp:
-  case NVPTXISD::Suld1DArrayV4I8Clamp:
-  case NVPTXISD::Suld1DArrayV4I16Clamp:
-  case NVPTXISD::Suld1DArrayV4I32Clamp:
-  case NVPTXISD::Suld2DI8Clamp:
-  case NVPTXISD::Suld2DI16Clamp:
-  case NVPTXISD::Suld2DI32Clamp:
-  case NVPTXISD::Suld2DI64Clamp:
-  case NVPTXISD::Suld2DV2I8Clamp:
-  case NVPTXISD::Suld2DV2I16Clamp:
-  case NVPTXISD::Suld2DV2I32Clamp:
-  case NVPTXISD::Suld2DV2I64Clamp:
-  case NVPTXISD::Suld2DV4I8Clamp:
-  case NVPTXISD::Suld2DV4I16Clamp:
-  case NVPTXISD::Suld2DV4I32Clamp:
-  case NVPTXISD::Suld2DArrayI8Clamp:
-  case NVPTXISD::Suld2DArrayI16Clamp:
-  case NVPTXISD::Suld2DArrayI32Clamp:
-  case NVPTXISD::Suld2DArrayI64Clamp:
-  case NVPTXISD::Suld2DArrayV2I8Clamp:
-  case NVPTXISD::Suld2DArrayV2I16Clamp:
-  case NVPTXISD::Suld2DArrayV2I32Clamp:
-  case NVPTXISD::Suld2DArrayV2I64Clamp:
-  case NVPTXISD::Suld2DArrayV4I8Clamp:
-  case NVPTXISD::Suld2DArrayV4I16Clamp:
-  case NVPTXISD::Suld2DArrayV4I32Clamp:
-  case NVPTXISD::Suld3DI8Clamp:
-  case NVPTXISD::Suld3DI16Clamp:
-  case NVPTXISD::Suld3DI32Clamp:
-  case NVPTXISD::Suld3DI64Clamp:
-  case NVPTXISD::Suld3DV2I8Clamp:
-  case NVPTXISD::Suld3DV2I16Clamp:
-  case NVPTXISD::Suld3DV2I32Clamp:
-  case NVPTXISD::Suld3DV2I64Clamp:
-  case NVPTXISD::Suld3DV4I8Clamp:
-  case NVPTXISD::Suld3DV4I16Clamp:
-  case NVPTXISD::Suld3DV4I32Clamp:
-  case NVPTXISD::Suld1DI8Trap:
-  case NVPTXISD::Suld1DI16Trap:
-  case NVPTXISD::Suld1DI32Trap:
-  case NVPTXISD::Suld1DI64Trap:
-  case NVPTXISD::Suld1DV2I8Trap:
-  case NVPTXISD::Suld1DV2I16Trap:
-  case NVPTXISD::Suld1DV2I32Trap:
-  case NVPTXISD::Suld1DV2I64Trap:
-  case NVPTXISD::Suld1DV4I8Trap:
-  case NVPTXISD::Suld1DV4I16Trap:
-  case NVPTXISD::Suld1DV4I32Trap:
-  case NVPTXISD::Suld1DArrayI8Trap:
-  case NVPTXISD::Suld1DArrayI16Trap:
-  case NVPTXISD::Suld1DArrayI32Trap:
-  case NVPTXISD::Suld1DArrayI64Trap:
-  case NVPTXISD::Suld1DArrayV2I8Trap:
-  case NVPTXISD::Suld1DArrayV2I16Trap:
-  case NVPTXISD::Suld1DArrayV2I32Trap:
-  case NVPTXISD::Suld1DArrayV2I64Trap:
-  case NVPTXISD::Suld1DArrayV4I8Trap:
-  case NVPTXISD::Suld1DArrayV4I16Trap:
-  case NVPTXISD::Suld1DArrayV4I32Trap:
-  case NVPTXISD::Suld2DI8Trap:
-  case NVPTXISD::Suld2DI16Trap:
-  case NVPTXISD::Suld2DI32Trap:
-  case NVPTXISD::Suld2DI64Trap:
-  case NVPTXISD::Suld2DV2I8Trap:
-  case NVPTXISD::Suld2DV2I16Trap:
-  case NVPTXISD::Suld2DV2I32Trap:
-  case NVPTXISD::Suld2DV2I64Trap:
-  case NVPTXISD::Suld2DV4I8Trap:
-  case NVPTXISD::Suld2DV4I16Trap:
-  case NVPTXISD::Suld2DV4I32Trap:
-  case NVPTXISD::Suld2DArrayI8Trap:
-  case NVPTXISD::Suld2DArrayI16Trap:
-  case NVPTXISD::Suld2DArrayI32Trap:
-  case NVPTXISD::Suld2DArrayI64Trap:
-  case NVPTXISD::Suld2DArrayV2I8Trap:
-  case NVPTXISD::Suld2DArrayV2I16Trap:
-  case NVPTXISD::Suld2DArrayV2I32Trap:
-  case NVPTXISD::Suld2DArrayV2I64Trap:
-  case NVPTXISD::Suld2DArrayV4I8Trap:
-  case NVPTXISD::Suld2DArrayV4I16Trap:
-  case NVPTXISD::Suld2DArrayV4I32Trap:
-  case NVPTXISD::Suld3DI8Trap:
-  case NVPTXISD::Suld3DI16Trap:
-  case NVPTXISD::Suld3DI32Trap:
-  case NVPTXISD::Suld3DI64Trap:
-  case NVPTXISD::Suld3DV2I8Trap:
-  case NVPTXISD::Suld3DV2I16Trap:
-  case NVPTXISD::Suld3DV2I32Trap:
-  case NVPTXISD::Suld3DV2I64Trap:
-  case NVPTXISD::Suld3DV4I8Trap:
-  case NVPTXISD::Suld3DV4I16Trap:
-  case NVPTXISD::Suld3DV4I32Trap:
-  case NVPTXISD::Suld1DI8Zero:
-  case NVPTXISD::Suld1DI16Zero:
-  case NVPTXISD::Suld1DI32Zero:
-  case NVPTXISD::Suld1DI64Zero:
-  case NVPTXISD::Suld1DV2I8Zero:
-  case NVPTXISD::Suld1DV2I16Zero:
-  case NVPTXISD::Suld1DV2I32Zero:
-  case NVPTXISD::Suld1DV2I64Zero:
-  case NVPTXISD::Suld1DV4I8Zero:
-  case NVPTXISD::Suld1DV4I16Zero:
-  case NVPTXISD::Suld1DV4I32Zero:
-  case NVPTXISD::Suld1DArrayI8Zero:
-  case NVPTXISD::Suld1DArrayI16Zero:
-  case NVPTXISD::Suld1DArrayI32Zero:
-  case NVPTXISD::Suld1DArrayI64Zero:
-  case NVPTXISD::Suld1DArrayV2I8Zero:
-  case NVPTXISD::Suld1DArrayV2I16Zero:
-  case NVPTXISD::Suld1DArrayV2I32Zero:
-  case NVPTXISD::Suld1DArrayV2I64Zero:
-  case NVPTXISD::Suld1DArrayV4I8Zero:
-  case NVPTXISD::Suld1DArrayV4I16Zero:
-  case NVPTXISD::Suld1DArrayV4I32Zero:
-  case NVPTXISD::Suld2DI8Zero:
-  case NVPTXISD::Suld2DI16Zero:
-  case NVPTXISD::Suld2DI32Zero:
-  case NVPTXISD::Suld2DI64Zero:
-  case NVPTXISD::Suld2DV2I8Zero:
-  case NVPTXISD::Suld2DV2I16Zero:
-  case NVPTXISD::Suld2DV2I32Zero:
-  case NVPTXISD::Suld2DV2I64Zero:
-  case NVPTXISD::Suld2DV4I8Zero:
-  case NVPTXISD::Suld2DV4I16Zero:
-  case NVPTXISD::Suld2DV4I32Zero:
-  case NVPTXISD::Suld2DArrayI8Zero:
-  case NVPTXISD::Suld2DArrayI16Zero:
-  case NVPTXISD::Suld2DArrayI32Zero:
-  case NVPTXISD::Suld2DArrayI64Zero:
-  case NVPTXISD::Suld2DArrayV2I8Zero:
-  case NVPTXISD::Suld2DArrayV2I16Zero:
-  case NVPTXISD::Suld2DArrayV2I32Zero:
-  case NVPTXISD::Suld2DArrayV2I64Zero:
-  case NVPTXISD::Suld2DArrayV4I8Zero:
-  case NVPTXISD::Suld2DArrayV4I16Zero:
-  case NVPTXISD::Suld2DArrayV4I32Zero:
-  case NVPTXISD::Suld3DI8Zero:
-  case NVPTXISD::Suld3DI16Zero:
-  case NVPTXISD::Suld3DI32Zero:
-  case NVPTXISD::Suld3DI64Zero:
-  case NVPTXISD::Suld3DV2I8Zero:
-  case NVPTXISD::Suld3DV2I16Zero:
-  case NVPTXISD::Suld3DV2I32Zero:
-  case NVPTXISD::Suld3DV2I64Zero:
-  case NVPTXISD::Suld3DV4I8Zero:
-  case NVPTXISD::Suld3DV4I16Zero:
-  case NVPTXISD::Suld3DV4I32Zero:
+  case RVGPUISD::Suld1DI8Clamp:
+  case RVGPUISD::Suld1DI16Clamp:
+  case RVGPUISD::Suld1DI32Clamp:
+  case RVGPUISD::Suld1DI64Clamp:
+  case RVGPUISD::Suld1DV2I8Clamp:
+  case RVGPUISD::Suld1DV2I16Clamp:
+  case RVGPUISD::Suld1DV2I32Clamp:
+  case RVGPUISD::Suld1DV2I64Clamp:
+  case RVGPUISD::Suld1DV4I8Clamp:
+  case RVGPUISD::Suld1DV4I16Clamp:
+  case RVGPUISD::Suld1DV4I32Clamp:
+  case RVGPUISD::Suld1DArrayI8Clamp:
+  case RVGPUISD::Suld1DArrayI16Clamp:
+  case RVGPUISD::Suld1DArrayI32Clamp:
+  case RVGPUISD::Suld1DArrayI64Clamp:
+  case RVGPUISD::Suld1DArrayV2I8Clamp:
+  case RVGPUISD::Suld1DArrayV2I16Clamp:
+  case RVGPUISD::Suld1DArrayV2I32Clamp:
+  case RVGPUISD::Suld1DArrayV2I64Clamp:
+  case RVGPUISD::Suld1DArrayV4I8Clamp:
+  case RVGPUISD::Suld1DArrayV4I16Clamp:
+  case RVGPUISD::Suld1DArrayV4I32Clamp:
+  case RVGPUISD::Suld2DI8Clamp:
+  case RVGPUISD::Suld2DI16Clamp:
+  case RVGPUISD::Suld2DI32Clamp:
+  case RVGPUISD::Suld2DI64Clamp:
+  case RVGPUISD::Suld2DV2I8Clamp:
+  case RVGPUISD::Suld2DV2I16Clamp:
+  case RVGPUISD::Suld2DV2I32Clamp:
+  case RVGPUISD::Suld2DV2I64Clamp:
+  case RVGPUISD::Suld2DV4I8Clamp:
+  case RVGPUISD::Suld2DV4I16Clamp:
+  case RVGPUISD::Suld2DV4I32Clamp:
+  case RVGPUISD::Suld2DArrayI8Clamp:
+  case RVGPUISD::Suld2DArrayI16Clamp:
+  case RVGPUISD::Suld2DArrayI32Clamp:
+  case RVGPUISD::Suld2DArrayI64Clamp:
+  case RVGPUISD::Suld2DArrayV2I8Clamp:
+  case RVGPUISD::Suld2DArrayV2I16Clamp:
+  case RVGPUISD::Suld2DArrayV2I32Clamp:
+  case RVGPUISD::Suld2DArrayV2I64Clamp:
+  case RVGPUISD::Suld2DArrayV4I8Clamp:
+  case RVGPUISD::Suld2DArrayV4I16Clamp:
+  case RVGPUISD::Suld2DArrayV4I32Clamp:
+  case RVGPUISD::Suld3DI8Clamp:
+  case RVGPUISD::Suld3DI16Clamp:
+  case RVGPUISD::Suld3DI32Clamp:
+  case RVGPUISD::Suld3DI64Clamp:
+  case RVGPUISD::Suld3DV2I8Clamp:
+  case RVGPUISD::Suld3DV2I16Clamp:
+  case RVGPUISD::Suld3DV2I32Clamp:
+  case RVGPUISD::Suld3DV2I64Clamp:
+  case RVGPUISD::Suld3DV4I8Clamp:
+  case RVGPUISD::Suld3DV4I16Clamp:
+  case RVGPUISD::Suld3DV4I32Clamp:
+  case RVGPUISD::Suld1DI8Trap:
+  case RVGPUISD::Suld1DI16Trap:
+  case RVGPUISD::Suld1DI32Trap:
+  case RVGPUISD::Suld1DI64Trap:
+  case RVGPUISD::Suld1DV2I8Trap:
+  case RVGPUISD::Suld1DV2I16Trap:
+  case RVGPUISD::Suld1DV2I32Trap:
+  case RVGPUISD::Suld1DV2I64Trap:
+  case RVGPUISD::Suld1DV4I8Trap:
+  case RVGPUISD::Suld1DV4I16Trap:
+  case RVGPUISD::Suld1DV4I32Trap:
+  case RVGPUISD::Suld1DArrayI8Trap:
+  case RVGPUISD::Suld1DArrayI16Trap:
+  case RVGPUISD::Suld1DArrayI32Trap:
+  case RVGPUISD::Suld1DArrayI64Trap:
+  case RVGPUISD::Suld1DArrayV2I8Trap:
+  case RVGPUISD::Suld1DArrayV2I16Trap:
+  case RVGPUISD::Suld1DArrayV2I32Trap:
+  case RVGPUISD::Suld1DArrayV2I64Trap:
+  case RVGPUISD::Suld1DArrayV4I8Trap:
+  case RVGPUISD::Suld1DArrayV4I16Trap:
+  case RVGPUISD::Suld1DArrayV4I32Trap:
+  case RVGPUISD::Suld2DI8Trap:
+  case RVGPUISD::Suld2DI16Trap:
+  case RVGPUISD::Suld2DI32Trap:
+  case RVGPUISD::Suld2DI64Trap:
+  case RVGPUISD::Suld2DV2I8Trap:
+  case RVGPUISD::Suld2DV2I16Trap:
+  case RVGPUISD::Suld2DV2I32Trap:
+  case RVGPUISD::Suld2DV2I64Trap:
+  case RVGPUISD::Suld2DV4I8Trap:
+  case RVGPUISD::Suld2DV4I16Trap:
+  case RVGPUISD::Suld2DV4I32Trap:
+  case RVGPUISD::Suld2DArrayI8Trap:
+  case RVGPUISD::Suld2DArrayI16Trap:
+  case RVGPUISD::Suld2DArrayI32Trap:
+  case RVGPUISD::Suld2DArrayI64Trap:
+  case RVGPUISD::Suld2DArrayV2I8Trap:
+  case RVGPUISD::Suld2DArrayV2I16Trap:
+  case RVGPUISD::Suld2DArrayV2I32Trap:
+  case RVGPUISD::Suld2DArrayV2I64Trap:
+  case RVGPUISD::Suld2DArrayV4I8Trap:
+  case RVGPUISD::Suld2DArrayV4I16Trap:
+  case RVGPUISD::Suld2DArrayV4I32Trap:
+  case RVGPUISD::Suld3DI8Trap:
+  case RVGPUISD::Suld3DI16Trap:
+  case RVGPUISD::Suld3DI32Trap:
+  case RVGPUISD::Suld3DI64Trap:
+  case RVGPUISD::Suld3DV2I8Trap:
+  case RVGPUISD::Suld3DV2I16Trap:
+  case RVGPUISD::Suld3DV2I32Trap:
+  case RVGPUISD::Suld3DV2I64Trap:
+  case RVGPUISD::Suld3DV4I8Trap:
+  case RVGPUISD::Suld3DV4I16Trap:
+  case RVGPUISD::Suld3DV4I32Trap:
+  case RVGPUISD::Suld1DI8Zero:
+  case RVGPUISD::Suld1DI16Zero:
+  case RVGPUISD::Suld1DI32Zero:
+  case RVGPUISD::Suld1DI64Zero:
+  case RVGPUISD::Suld1DV2I8Zero:
+  case RVGPUISD::Suld1DV2I16Zero:
+  case RVGPUISD::Suld1DV2I32Zero:
+  case RVGPUISD::Suld1DV2I64Zero:
+  case RVGPUISD::Suld1DV4I8Zero:
+  case RVGPUISD::Suld1DV4I16Zero:
+  case RVGPUISD::Suld1DV4I32Zero:
+  case RVGPUISD::Suld1DArrayI8Zero:
+  case RVGPUISD::Suld1DArrayI16Zero:
+  case RVGPUISD::Suld1DArrayI32Zero:
+  case RVGPUISD::Suld1DArrayI64Zero:
+  case RVGPUISD::Suld1DArrayV2I8Zero:
+  case RVGPUISD::Suld1DArrayV2I16Zero:
+  case RVGPUISD::Suld1DArrayV2I32Zero:
+  case RVGPUISD::Suld1DArrayV2I64Zero:
+  case RVGPUISD::Suld1DArrayV4I8Zero:
+  case RVGPUISD::Suld1DArrayV4I16Zero:
+  case RVGPUISD::Suld1DArrayV4I32Zero:
+  case RVGPUISD::Suld2DI8Zero:
+  case RVGPUISD::Suld2DI16Zero:
+  case RVGPUISD::Suld2DI32Zero:
+  case RVGPUISD::Suld2DI64Zero:
+  case RVGPUISD::Suld2DV2I8Zero:
+  case RVGPUISD::Suld2DV2I16Zero:
+  case RVGPUISD::Suld2DV2I32Zero:
+  case RVGPUISD::Suld2DV2I64Zero:
+  case RVGPUISD::Suld2DV4I8Zero:
+  case RVGPUISD::Suld2DV4I16Zero:
+  case RVGPUISD::Suld2DV4I32Zero:
+  case RVGPUISD::Suld2DArrayI8Zero:
+  case RVGPUISD::Suld2DArrayI16Zero:
+  case RVGPUISD::Suld2DArrayI32Zero:
+  case RVGPUISD::Suld2DArrayI64Zero:
+  case RVGPUISD::Suld2DArrayV2I8Zero:
+  case RVGPUISD::Suld2DArrayV2I16Zero:
+  case RVGPUISD::Suld2DArrayV2I32Zero:
+  case RVGPUISD::Suld2DArrayV2I64Zero:
+  case RVGPUISD::Suld2DArrayV4I8Zero:
+  case RVGPUISD::Suld2DArrayV4I16Zero:
+  case RVGPUISD::Suld2DArrayV4I32Zero:
+  case RVGPUISD::Suld3DI8Zero:
+  case RVGPUISD::Suld3DI16Zero:
+  case RVGPUISD::Suld3DI32Zero:
+  case RVGPUISD::Suld3DI64Zero:
+  case RVGPUISD::Suld3DV2I8Zero:
+  case RVGPUISD::Suld3DV2I16Zero:
+  case RVGPUISD::Suld3DV2I32Zero:
+  case RVGPUISD::Suld3DV2I64Zero:
+  case RVGPUISD::Suld3DV4I8Zero:
+  case RVGPUISD::Suld3DV4I16Zero:
+  case RVGPUISD::Suld3DV4I32Zero:
     if (trySurfaceIntrinsic(N))
       return;
     break;
@@ -512,7 +512,7 @@ void NVPTXDAGToDAGISel::Select(SDNode *N) {
   SelectCode(N);
 }
 
-bool NVPTXDAGToDAGISel::tryIntrinsicChain(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryIntrinsicChain(SDNode *N) {
   unsigned IID = cast<ConstantSDNode>(N->getOperand(1))->getZExtValue();
   switch (IID) {
   default:
@@ -529,23 +529,23 @@ bool NVPTXDAGToDAGISel::tryIntrinsicChain(SDNode *N) {
 
 // There's no way to specify FP16 and BF16 immediates in .(b)f16 ops, so we
 // have to load them into an .(b)f16 register first.
-bool NVPTXDAGToDAGISel::tryConstantFP(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryConstantFP(SDNode *N) {
   if (N->getValueType(0) != MVT::f16 && N->getValueType(0) != MVT::bf16)
     return false;
   SDValue Val = CurDAG->getTargetConstantFP(
       cast<ConstantFPSDNode>(N)->getValueAPF(), SDLoc(N), N->getValueType(0));
   SDNode *LoadConstF16 = CurDAG->getMachineNode(
-      (N->getValueType(0) == MVT::f16 ? NVPTX::LOAD_CONST_F16
-                                      : NVPTX::LOAD_CONST_BF16),
+      (N->getValueType(0) == MVT::f16 ? RVGPU::LOAD_CONST_F16
+                                      : RVGPU::LOAD_CONST_BF16),
       SDLoc(N), N->getValueType(0), Val);
   ReplaceNode(N, LoadConstF16);
   return true;
 }
 
 // Map ISD:CONDCODE value to appropriate CmpMode expected by
-// NVPTXInstPrinter::printCmpMode()
+// RVGPUInstPrinter::printCmpMode()
 static unsigned getPTXCmpMode(const CondCodeSDNode &CondCode, bool FTZ) {
-  using NVPTX::PTXCmpMode::CmpMode;
+  using RVGPU::PTXCmpMode::CmpMode;
   unsigned PTXCmpMode = [](ISD::CondCode CC) {
     switch (CC) {
     default:
@@ -594,28 +594,28 @@ static unsigned getPTXCmpMode(const CondCodeSDNode &CondCode, bool FTZ) {
   }(CondCode.get());
 
   if (FTZ)
-    PTXCmpMode |= NVPTX::PTXCmpMode::FTZ_FLAG;
+    PTXCmpMode |= RVGPU::PTXCmpMode::FTZ_FLAG;
 
   return PTXCmpMode;
 }
 
-bool NVPTXDAGToDAGISel::SelectSETP_F16X2(SDNode *N) {
+bool RVGPUDAGToDAGISel::SelectSETP_F16X2(SDNode *N) {
   unsigned PTXCmpMode =
       getPTXCmpMode(*cast<CondCodeSDNode>(N->getOperand(2)), useF32FTZ());
   SDLoc DL(N);
   SDNode *SetP = CurDAG->getMachineNode(
-      NVPTX::SETP_f16x2rr, DL, MVT::i1, MVT::i1, N->getOperand(0),
+      RVGPU::SETP_f16x2rr, DL, MVT::i1, MVT::i1, N->getOperand(0),
       N->getOperand(1), CurDAG->getTargetConstant(PTXCmpMode, DL, MVT::i32));
   ReplaceNode(N, SetP);
   return true;
 }
 
-bool NVPTXDAGToDAGISel::SelectSETP_BF16X2(SDNode *N) {
+bool RVGPUDAGToDAGISel::SelectSETP_BF16X2(SDNode *N) {
   unsigned PTXCmpMode =
       getPTXCmpMode(*cast<CondCodeSDNode>(N->getOperand(2)), useF32FTZ());
   SDLoc DL(N);
   SDNode *SetP = CurDAG->getMachineNode(
-      NVPTX::SETP_bf16x2rr, DL, MVT::i1, MVT::i1, N->getOperand(0),
+      RVGPU::SETP_bf16x2rr, DL, MVT::i1, MVT::i1, N->getOperand(0),
       N->getOperand(1), CurDAG->getTargetConstant(PTXCmpMode, DL, MVT::i32));
   ReplaceNode(N, SetP);
   return true;
@@ -623,7 +623,7 @@ bool NVPTXDAGToDAGISel::SelectSETP_BF16X2(SDNode *N) {
 
 // Find all instances of extract_vector_elt that use this v2f16 vector
 // and coalesce them into a scattering move instruction.
-bool NVPTXDAGToDAGISel::tryEXTRACT_VECTOR_ELEMENT(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryEXTRACT_VECTOR_ELEMENT(SDNode *N) {
   SDValue Vector = N->getOperand(0);
 
   // We only care about 16x2 as it's the only real vector type we
@@ -658,7 +658,7 @@ bool NVPTXDAGToDAGISel::tryEXTRACT_VECTOR_ELEMENT(SDNode *N) {
   // into f16,f16 SplitF16x2(V)
   MVT EltVT = VT.getVectorElementType();
   SDNode *ScatterOp =
-      CurDAG->getMachineNode(NVPTX::I32toV2I16, SDLoc(N), EltVT, EltVT, Vector);
+      CurDAG->getMachineNode(RVGPU::I32toV2I16, SDLoc(N), EltVT, EltVT, Vector);
   for (auto *Node : E0)
     ReplaceUses(SDValue(Node, 0), SDValue(ScatterOp, 0));
   for (auto *Node : E1)
@@ -671,23 +671,23 @@ static unsigned int getCodeAddrSpace(MemSDNode *N) {
   const Value *Src = N->getMemOperand()->getValue();
 
   if (!Src)
-    return NVPTX::PTXLdStInstCode::GENERIC;
+    return RVGPU::PTXLdStInstCode::GENERIC;
 
   if (auto *PT = dyn_cast<PointerType>(Src->getType())) {
     switch (PT->getAddressSpace()) {
-    case llvm::ADDRESS_SPACE_LOCAL: return NVPTX::PTXLdStInstCode::LOCAL;
-    case llvm::ADDRESS_SPACE_GLOBAL: return NVPTX::PTXLdStInstCode::GLOBAL;
-    case llvm::ADDRESS_SPACE_SHARED: return NVPTX::PTXLdStInstCode::SHARED;
-    case llvm::ADDRESS_SPACE_GENERIC: return NVPTX::PTXLdStInstCode::GENERIC;
-    case llvm::ADDRESS_SPACE_PARAM: return NVPTX::PTXLdStInstCode::PARAM;
-    case llvm::ADDRESS_SPACE_CONST: return NVPTX::PTXLdStInstCode::CONSTANT;
+    case llvm::ADDRESS_SPACE_LOCAL: return RVGPU::PTXLdStInstCode::LOCAL;
+    case llvm::ADDRESS_SPACE_GLOBAL: return RVGPU::PTXLdStInstCode::GLOBAL;
+    case llvm::ADDRESS_SPACE_SHARED: return RVGPU::PTXLdStInstCode::SHARED;
+    case llvm::ADDRESS_SPACE_GENERIC: return RVGPU::PTXLdStInstCode::GENERIC;
+    case llvm::ADDRESS_SPACE_PARAM: return RVGPU::PTXLdStInstCode::PARAM;
+    case llvm::ADDRESS_SPACE_CONST: return RVGPU::PTXLdStInstCode::CONSTANT;
     default: break;
     }
   }
-  return NVPTX::PTXLdStInstCode::GENERIC;
+  return RVGPU::PTXLdStInstCode::GENERIC;
 }
 
-static bool canLowerToLDG(MemSDNode *N, const NVPTXSubtarget &Subtarget,
+static bool canLowerToLDG(MemSDNode *N, const RVGPUSubtarget &Subtarget,
                           unsigned CodeAddrSpace, MachineFunction *F) {
   // We use ldg (i.e. ld.global.nc) for invariant loads from the global address
   // space.
@@ -706,7 +706,7 @@ static bool canLowerToLDG(MemSDNode *N, const NVPTXSubtarget &Subtarget,
   // TODO: Infer invariance only at -O2.  We still want to use ldg at -O0 for
   // explicitly invariant loads because these are how clang tells us to use ldg
   // when the user uses a builtin.
-  if (!Subtarget.hasLDG() || CodeAddrSpace != NVPTX::PTXLdStInstCode::GLOBAL)
+  if (!Subtarget.hasLDG() || CodeAddrSpace != RVGPU::PTXLdStInstCode::GLOBAL)
     return false;
 
   if (N->isInvariant())
@@ -729,7 +729,7 @@ static bool canLowerToLDG(MemSDNode *N, const NVPTXSubtarget &Subtarget,
   });
 }
 
-bool NVPTXDAGToDAGISel::tryIntrinsicNoChain(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryIntrinsicNoChain(SDNode *N) {
   unsigned IID = cast<ConstantSDNode>(N->getOperand(0))->getZExtValue();
   switch (IID) {
   default:
@@ -740,15 +740,15 @@ bool NVPTXDAGToDAGISel::tryIntrinsicNoChain(SDNode *N) {
   }
 }
 
-void NVPTXDAGToDAGISel::SelectTexSurfHandle(SDNode *N) {
+void RVGPUDAGToDAGISel::SelectTexSurfHandle(SDNode *N) {
   // Op 0 is the intrinsic ID
   SDValue Wrapper = N->getOperand(1);
   SDValue GlobalVal = Wrapper.getOperand(0);
-  ReplaceNode(N, CurDAG->getMachineNode(NVPTX::texsurf_handles, SDLoc(N),
+  ReplaceNode(N, CurDAG->getMachineNode(RVGPU::texsurf_handles, SDLoc(N),
                                         MVT::i64, GlobalVal));
 }
 
-void NVPTXDAGToDAGISel::SelectAddrSpaceCast(SDNode *N) {
+void RVGPUDAGToDAGISel::SelectAddrSpaceCast(SDNode *N) {
   SDValue Src = N->getOperand(0);
   AddrSpaceCastSDNode *CastN = cast<AddrSpaceCastSDNode>(N);
   unsigned SrcAddrSpace = CastN->getSrcAddressSpace();
@@ -762,22 +762,22 @@ void NVPTXDAGToDAGISel::SelectAddrSpaceCast(SDNode *N) {
     switch (SrcAddrSpace) {
     default: report_fatal_error("Bad address space in addrspacecast");
     case ADDRESS_SPACE_GLOBAL:
-      Opc = TM.is64Bit() ? NVPTX::cvta_global_yes_64 : NVPTX::cvta_global_yes;
+      Opc = TM.is64Bit() ? RVGPU::cvta_global_yes_64 : RVGPU::cvta_global_yes;
       break;
     case ADDRESS_SPACE_SHARED:
-      Opc = TM.is64Bit() ? (useShortPointers() ? NVPTX::cvta_shared_yes_6432
-                                               : NVPTX::cvta_shared_yes_64)
-                         : NVPTX::cvta_shared_yes;
+      Opc = TM.is64Bit() ? (useShortPointers() ? RVGPU::cvta_shared_yes_6432
+                                               : RVGPU::cvta_shared_yes_64)
+                         : RVGPU::cvta_shared_yes;
       break;
     case ADDRESS_SPACE_CONST:
-      Opc = TM.is64Bit() ? (useShortPointers() ? NVPTX::cvta_const_yes_6432
-                                               : NVPTX::cvta_const_yes_64)
-                         : NVPTX::cvta_const_yes;
+      Opc = TM.is64Bit() ? (useShortPointers() ? RVGPU::cvta_const_yes_6432
+                                               : RVGPU::cvta_const_yes_64)
+                         : RVGPU::cvta_const_yes;
       break;
     case ADDRESS_SPACE_LOCAL:
-      Opc = TM.is64Bit() ? (useShortPointers() ? NVPTX::cvta_local_yes_6432
-                                               : NVPTX::cvta_local_yes_64)
-                         : NVPTX::cvta_local_yes;
+      Opc = TM.is64Bit() ? (useShortPointers() ? RVGPU::cvta_local_yes_6432
+                                               : RVGPU::cvta_local_yes_64)
+                         : RVGPU::cvta_local_yes;
       break;
     }
     ReplaceNode(N, CurDAG->getMachineNode(Opc, SDLoc(N), N->getValueType(0),
@@ -791,27 +791,27 @@ void NVPTXDAGToDAGISel::SelectAddrSpaceCast(SDNode *N) {
     switch (DstAddrSpace) {
     default: report_fatal_error("Bad address space in addrspacecast");
     case ADDRESS_SPACE_GLOBAL:
-      Opc = TM.is64Bit() ? NVPTX::cvta_to_global_yes_64
-                         : NVPTX::cvta_to_global_yes;
+      Opc = TM.is64Bit() ? RVGPU::cvta_to_global_yes_64
+                         : RVGPU::cvta_to_global_yes;
       break;
     case ADDRESS_SPACE_SHARED:
-      Opc = TM.is64Bit() ? (useShortPointers() ? NVPTX::cvta_to_shared_yes_3264
-                                                : NVPTX::cvta_to_shared_yes_64)
-                         : NVPTX::cvta_to_shared_yes;
+      Opc = TM.is64Bit() ? (useShortPointers() ? RVGPU::cvta_to_shared_yes_3264
+                                                : RVGPU::cvta_to_shared_yes_64)
+                         : RVGPU::cvta_to_shared_yes;
       break;
     case ADDRESS_SPACE_CONST:
-      Opc = TM.is64Bit() ? (useShortPointers() ? NVPTX::cvta_to_const_yes_3264
-                                             : NVPTX::cvta_to_const_yes_64)
-                         : NVPTX::cvta_to_const_yes;
+      Opc = TM.is64Bit() ? (useShortPointers() ? RVGPU::cvta_to_const_yes_3264
+                                             : RVGPU::cvta_to_const_yes_64)
+                         : RVGPU::cvta_to_const_yes;
       break;
     case ADDRESS_SPACE_LOCAL:
-      Opc = TM.is64Bit() ? (useShortPointers() ? NVPTX::cvta_to_local_yes_3264
-                                               : NVPTX::cvta_to_local_yes_64)
-                         : NVPTX::cvta_to_local_yes;
+      Opc = TM.is64Bit() ? (useShortPointers() ? RVGPU::cvta_to_local_yes_3264
+                                               : RVGPU::cvta_to_local_yes_64)
+                         : RVGPU::cvta_to_local_yes;
       break;
     case ADDRESS_SPACE_PARAM:
-      Opc = TM.is64Bit() ? NVPTX::nvvm_ptr_gen_to_param_64
-                         : NVPTX::nvvm_ptr_gen_to_param;
+      Opc = TM.is64Bit() ? RVGPU::nvvm_ptr_gen_to_param_64
+                         : RVGPU::nvvm_ptr_gen_to_param;
       break;
     }
     ReplaceNode(N, CurDAG->getMachineNode(Opc, SDLoc(N), N->getValueType(0),
@@ -861,21 +861,21 @@ static int getLdStRegType(EVT VT) {
     case MVT::bf16:
     case MVT::v2f16:
     case MVT::v2bf16:
-      return NVPTX::PTXLdStInstCode::Untyped;
+      return RVGPU::PTXLdStInstCode::Untyped;
     default:
-      return NVPTX::PTXLdStInstCode::Float;
+      return RVGPU::PTXLdStInstCode::Float;
     }
   else
-    return NVPTX::PTXLdStInstCode::Unsigned;
+    return RVGPU::PTXLdStInstCode::Unsigned;
 }
 
-bool NVPTXDAGToDAGISel::tryLoad(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryLoad(SDNode *N) {
   SDLoc dl(N);
   MemSDNode *LD = cast<MemSDNode>(N);
   assert(LD->readMem() && "Expected load");
   LoadSDNode *PlainLoad = dyn_cast<LoadSDNode>(N);
   EVT LoadedVT = LD->getMemoryVT();
-  SDNode *NVPTXLD = nullptr;
+  SDNode *RVGPULD = nullptr;
 
   // do not support pre/post inc/dec
   if (PlainLoad && PlainLoad->isIndexed())
@@ -905,9 +905,9 @@ bool NVPTXDAGToDAGISel::tryLoad(SDNode *N) {
   // - .volatile is only available for .global and .shared
   // - .volatile has the same memory synchronization semantics as .relaxed.sys
   bool isVolatile = LD->isVolatile() || Ordering == AtomicOrdering::Monotonic;
-  if (CodeAddrSpace != NVPTX::PTXLdStInstCode::GLOBAL &&
-      CodeAddrSpace != NVPTX::PTXLdStInstCode::SHARED &&
-      CodeAddrSpace != NVPTX::PTXLdStInstCode::GENERIC)
+  if (CodeAddrSpace != RVGPU::PTXLdStInstCode::GLOBAL &&
+      CodeAddrSpace != RVGPU::PTXLdStInstCode::SHARED &&
+      CodeAddrSpace != RVGPU::PTXLdStInstCode::GENERIC)
     isVolatile = false;
 
   // Type Setting: fromType + fromTypeWidth
@@ -923,7 +923,7 @@ bool NVPTXDAGToDAGISel::tryLoad(SDNode *N) {
   unsigned int fromType;
 
   // Vector Setting
-  unsigned vecType = NVPTX::PTXLdStInstCode::Scalar;
+  unsigned vecType = RVGPU::PTXLdStInstCode::Scalar;
   if (SimpleVT.isVector()) {
     assert((Isv2x16VT(LoadedVT) || LoadedVT == MVT::v4i8) &&
            "Unexpected vector type");
@@ -932,7 +932,7 @@ bool NVPTXDAGToDAGISel::tryLoad(SDNode *N) {
   }
 
   if (PlainLoad && (PlainLoad->getExtensionType() == ISD::SEXTLOAD))
-    fromType = NVPTX::PTXLdStInstCode::Signed;
+    fromType = RVGPU::PTXLdStInstCode::Signed;
   else
     fromType = getLdStRegType(ScalarVT);
 
@@ -945,72 +945,72 @@ bool NVPTXDAGToDAGISel::tryLoad(SDNode *N) {
   MVT::SimpleValueType TargetVT = LD->getSimpleValueType(0).SimpleTy;
 
   if (SelectDirectAddr(N1, Addr)) {
-    Opcode = pickOpcodeForVT(TargetVT, NVPTX::LD_i8_avar, NVPTX::LD_i16_avar,
-                             NVPTX::LD_i32_avar, NVPTX::LD_i64_avar,
-                             NVPTX::LD_f32_avar, NVPTX::LD_f64_avar);
+    Opcode = pickOpcodeForVT(TargetVT, RVGPU::LD_i8_avar, RVGPU::LD_i16_avar,
+                             RVGPU::LD_i32_avar, RVGPU::LD_i64_avar,
+                             RVGPU::LD_f32_avar, RVGPU::LD_f64_avar);
     if (!Opcode)
       return false;
     SDValue Ops[] = { getI32Imm(isVolatile, dl), getI32Imm(CodeAddrSpace, dl),
                       getI32Imm(vecType, dl), getI32Imm(fromType, dl),
                       getI32Imm(fromTypeWidth, dl), Addr, Chain };
-    NVPTXLD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
+    RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
   } else if (PointerSize == 64 ? SelectADDRsi64(N1.getNode(), N1, Base, Offset)
                                : SelectADDRsi(N1.getNode(), N1, Base, Offset)) {
-    Opcode = pickOpcodeForVT(TargetVT, NVPTX::LD_i8_asi, NVPTX::LD_i16_asi,
-                             NVPTX::LD_i32_asi, NVPTX::LD_i64_asi,
-                             NVPTX::LD_f32_asi, NVPTX::LD_f64_asi);
+    Opcode = pickOpcodeForVT(TargetVT, RVGPU::LD_i8_asi, RVGPU::LD_i16_asi,
+                             RVGPU::LD_i32_asi, RVGPU::LD_i64_asi,
+                             RVGPU::LD_f32_asi, RVGPU::LD_f64_asi);
     if (!Opcode)
       return false;
     SDValue Ops[] = { getI32Imm(isVolatile, dl), getI32Imm(CodeAddrSpace, dl),
                       getI32Imm(vecType, dl), getI32Imm(fromType, dl),
                       getI32Imm(fromTypeWidth, dl), Base, Offset, Chain };
-    NVPTXLD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
+    RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
   } else if (PointerSize == 64 ? SelectADDRri64(N1.getNode(), N1, Base, Offset)
                                : SelectADDRri(N1.getNode(), N1, Base, Offset)) {
     if (PointerSize == 64)
       Opcode =
-          pickOpcodeForVT(TargetVT, NVPTX::LD_i8_ari_64, NVPTX::LD_i16_ari_64,
-                          NVPTX::LD_i32_ari_64, NVPTX::LD_i64_ari_64,
-                          NVPTX::LD_f32_ari_64, NVPTX::LD_f64_ari_64);
+          pickOpcodeForVT(TargetVT, RVGPU::LD_i8_ari_64, RVGPU::LD_i16_ari_64,
+                          RVGPU::LD_i32_ari_64, RVGPU::LD_i64_ari_64,
+                          RVGPU::LD_f32_ari_64, RVGPU::LD_f64_ari_64);
     else
-      Opcode = pickOpcodeForVT(TargetVT, NVPTX::LD_i8_ari, NVPTX::LD_i16_ari,
-                               NVPTX::LD_i32_ari, NVPTX::LD_i64_ari,
-                               NVPTX::LD_f32_ari, NVPTX::LD_f64_ari);
+      Opcode = pickOpcodeForVT(TargetVT, RVGPU::LD_i8_ari, RVGPU::LD_i16_ari,
+                               RVGPU::LD_i32_ari, RVGPU::LD_i64_ari,
+                               RVGPU::LD_f32_ari, RVGPU::LD_f64_ari);
     if (!Opcode)
       return false;
     SDValue Ops[] = { getI32Imm(isVolatile, dl), getI32Imm(CodeAddrSpace, dl),
                       getI32Imm(vecType, dl), getI32Imm(fromType, dl),
                       getI32Imm(fromTypeWidth, dl), Base, Offset, Chain };
-    NVPTXLD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
+    RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
   } else {
     if (PointerSize == 64)
       Opcode =
-          pickOpcodeForVT(TargetVT, NVPTX::LD_i8_areg_64, NVPTX::LD_i16_areg_64,
-                          NVPTX::LD_i32_areg_64, NVPTX::LD_i64_areg_64,
-                          NVPTX::LD_f32_areg_64, NVPTX::LD_f64_areg_64);
+          pickOpcodeForVT(TargetVT, RVGPU::LD_i8_areg_64, RVGPU::LD_i16_areg_64,
+                          RVGPU::LD_i32_areg_64, RVGPU::LD_i64_areg_64,
+                          RVGPU::LD_f32_areg_64, RVGPU::LD_f64_areg_64);
     else
-      Opcode = pickOpcodeForVT(TargetVT, NVPTX::LD_i8_areg, NVPTX::LD_i16_areg,
-                               NVPTX::LD_i32_areg, NVPTX::LD_i64_areg,
-                               NVPTX::LD_f32_areg, NVPTX::LD_f64_areg);
+      Opcode = pickOpcodeForVT(TargetVT, RVGPU::LD_i8_areg, RVGPU::LD_i16_areg,
+                               RVGPU::LD_i32_areg, RVGPU::LD_i64_areg,
+                               RVGPU::LD_f32_areg, RVGPU::LD_f64_areg);
     if (!Opcode)
       return false;
     SDValue Ops[] = { getI32Imm(isVolatile, dl), getI32Imm(CodeAddrSpace, dl),
                       getI32Imm(vecType, dl), getI32Imm(fromType, dl),
                       getI32Imm(fromTypeWidth, dl), N1, Chain };
-    NVPTXLD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
+    RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
   }
 
-  if (!NVPTXLD)
+  if (!RVGPULD)
     return false;
 
   MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
-  CurDAG->setNodeMemRefs(cast<MachineSDNode>(NVPTXLD), {MemRef});
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(RVGPULD), {MemRef});
 
-  ReplaceNode(N, NVPTXLD);
+  ReplaceNode(N, RVGPULD);
   return true;
 }
 
-bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryLoadVector(SDNode *N) {
 
   SDValue Chain = N->getOperand(0);
   SDValue Op1 = N->getOperand(1);
@@ -1036,9 +1036,9 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
   // Volatile Setting
   // - .volatile is only availalble for .global and .shared
   bool IsVolatile = MemSD->isVolatile();
-  if (CodeAddrSpace != NVPTX::PTXLdStInstCode::GLOBAL &&
-      CodeAddrSpace != NVPTX::PTXLdStInstCode::SHARED &&
-      CodeAddrSpace != NVPTX::PTXLdStInstCode::GENERIC)
+  if (CodeAddrSpace != RVGPU::PTXLdStInstCode::GLOBAL &&
+      CodeAddrSpace != RVGPU::PTXLdStInstCode::SHARED &&
+      CodeAddrSpace != RVGPU::PTXLdStInstCode::GENERIC)
     IsVolatile = false;
 
   // Vector Setting
@@ -1058,18 +1058,18 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
   unsigned ExtensionType = cast<ConstantSDNode>(
       N->getOperand(N->getNumOperands() - 1))->getZExtValue();
   if (ExtensionType == ISD::SEXTLOAD)
-    FromType = NVPTX::PTXLdStInstCode::Signed;
+    FromType = RVGPU::PTXLdStInstCode::Signed;
   else
     FromType = getLdStRegType(ScalarVT);
 
   unsigned VecType;
 
   switch (N->getOpcode()) {
-  case NVPTXISD::LoadV2:
-    VecType = NVPTX::PTXLdStInstCode::V2;
+  case RVGPUISD::LoadV2:
+    VecType = RVGPU::PTXLdStInstCode::V2;
     break;
-  case NVPTXISD::LoadV4:
-    VecType = NVPTX::PTXLdStInstCode::V4;
+  case RVGPUISD::LoadV4:
+    VecType = RVGPU::PTXLdStInstCode::V4;
     break;
   default:
     return false;
@@ -1081,9 +1081,9 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
   // instruction. Instead, we split the vector into v2x16 chunks and
   // load them with ld.v4.b32.
   if (Isv2x16VT(EltVT)) {
-    assert(N->getOpcode() == NVPTXISD::LoadV4 && "Unexpected load opcode.");
+    assert(N->getOpcode() == RVGPUISD::LoadV4 && "Unexpected load opcode.");
     EltVT = MVT::i32;
-    FromType = NVPTX::PTXLdStInstCode::Untyped;
+    FromType = RVGPU::PTXLdStInstCode::Untyped;
     FromTypeWidth = 32;
   }
 
@@ -1091,17 +1091,17 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
     switch (N->getOpcode()) {
     default:
       return false;
-    case NVPTXISD::LoadV2:
+    case RVGPUISD::LoadV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               NVPTX::LDV_i8_v2_avar, NVPTX::LDV_i16_v2_avar,
-                               NVPTX::LDV_i32_v2_avar, NVPTX::LDV_i64_v2_avar,
-                               NVPTX::LDV_f32_v2_avar, NVPTX::LDV_f64_v2_avar);
+                               RVGPU::LDV_i8_v2_avar, RVGPU::LDV_i16_v2_avar,
+                               RVGPU::LDV_i32_v2_avar, RVGPU::LDV_i64_v2_avar,
+                               RVGPU::LDV_f32_v2_avar, RVGPU::LDV_f64_v2_avar);
       break;
-    case NVPTXISD::LoadV4:
+    case RVGPUISD::LoadV4:
       Opcode =
-          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, NVPTX::LDV_i8_v4_avar,
-                          NVPTX::LDV_i16_v4_avar, NVPTX::LDV_i32_v4_avar,
-                          std::nullopt, NVPTX::LDV_f32_v4_avar, std::nullopt);
+          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_avar,
+                          RVGPU::LDV_i16_v4_avar, RVGPU::LDV_i32_v4_avar,
+                          std::nullopt, RVGPU::LDV_f32_v4_avar, std::nullopt);
       break;
     }
     if (!Opcode)
@@ -1116,17 +1116,17 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
     switch (N->getOpcode()) {
     default:
       return false;
-    case NVPTXISD::LoadV2:
+    case RVGPUISD::LoadV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               NVPTX::LDV_i8_v2_asi, NVPTX::LDV_i16_v2_asi,
-                               NVPTX::LDV_i32_v2_asi, NVPTX::LDV_i64_v2_asi,
-                               NVPTX::LDV_f32_v2_asi, NVPTX::LDV_f64_v2_asi);
+                               RVGPU::LDV_i8_v2_asi, RVGPU::LDV_i16_v2_asi,
+                               RVGPU::LDV_i32_v2_asi, RVGPU::LDV_i64_v2_asi,
+                               RVGPU::LDV_f32_v2_asi, RVGPU::LDV_f64_v2_asi);
       break;
-    case NVPTXISD::LoadV4:
+    case RVGPUISD::LoadV4:
       Opcode =
-          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, NVPTX::LDV_i8_v4_asi,
-                          NVPTX::LDV_i16_v4_asi, NVPTX::LDV_i32_v4_asi,
-                          std::nullopt, NVPTX::LDV_f32_v4_asi, std::nullopt);
+          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_asi,
+                          RVGPU::LDV_i16_v4_asi, RVGPU::LDV_i32_v4_asi,
+                          std::nullopt, RVGPU::LDV_f32_v4_asi, std::nullopt);
       break;
     }
     if (!Opcode)
@@ -1142,35 +1142,35 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
       switch (N->getOpcode()) {
       default:
         return false;
-      case NVPTXISD::LoadV2:
+      case RVGPUISD::LoadV2:
         Opcode =
             pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                            NVPTX::LDV_i8_v2_ari_64, NVPTX::LDV_i16_v2_ari_64,
-                            NVPTX::LDV_i32_v2_ari_64, NVPTX::LDV_i64_v2_ari_64,
-                            NVPTX::LDV_f32_v2_ari_64, NVPTX::LDV_f64_v2_ari_64);
+                            RVGPU::LDV_i8_v2_ari_64, RVGPU::LDV_i16_v2_ari_64,
+                            RVGPU::LDV_i32_v2_ari_64, RVGPU::LDV_i64_v2_ari_64,
+                            RVGPU::LDV_f32_v2_ari_64, RVGPU::LDV_f64_v2_ari_64);
         break;
-      case NVPTXISD::LoadV4:
+      case RVGPUISD::LoadV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::LDV_i8_v4_ari_64,
-            NVPTX::LDV_i16_v4_ari_64, NVPTX::LDV_i32_v4_ari_64, std::nullopt,
-            NVPTX::LDV_f32_v4_ari_64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_ari_64,
+            RVGPU::LDV_i16_v4_ari_64, RVGPU::LDV_i32_v4_ari_64, std::nullopt,
+            RVGPU::LDV_f32_v4_ari_64, std::nullopt);
         break;
       }
     } else {
       switch (N->getOpcode()) {
       default:
         return false;
-      case NVPTXISD::LoadV2:
+      case RVGPUISD::LoadV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::LDV_i8_v2_ari, NVPTX::LDV_i16_v2_ari,
-                                 NVPTX::LDV_i32_v2_ari, NVPTX::LDV_i64_v2_ari,
-                                 NVPTX::LDV_f32_v2_ari, NVPTX::LDV_f64_v2_ari);
+                                 RVGPU::LDV_i8_v2_ari, RVGPU::LDV_i16_v2_ari,
+                                 RVGPU::LDV_i32_v2_ari, RVGPU::LDV_i64_v2_ari,
+                                 RVGPU::LDV_f32_v2_ari, RVGPU::LDV_f64_v2_ari);
         break;
-      case NVPTXISD::LoadV4:
+      case RVGPUISD::LoadV4:
         Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, NVPTX::LDV_i8_v4_ari,
-                            NVPTX::LDV_i16_v4_ari, NVPTX::LDV_i32_v4_ari,
-                            std::nullopt, NVPTX::LDV_f32_v4_ari, std::nullopt);
+            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_ari,
+                            RVGPU::LDV_i16_v4_ari, RVGPU::LDV_i32_v4_ari,
+                            std::nullopt, RVGPU::LDV_f32_v4_ari, std::nullopt);
         break;
       }
     }
@@ -1186,36 +1186,36 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
       switch (N->getOpcode()) {
       default:
         return false;
-      case NVPTXISD::LoadV2:
+      case RVGPUISD::LoadV2:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::LDV_i8_v2_areg_64,
-            NVPTX::LDV_i16_v2_areg_64, NVPTX::LDV_i32_v2_areg_64,
-            NVPTX::LDV_i64_v2_areg_64, NVPTX::LDV_f32_v2_areg_64,
-            NVPTX::LDV_f64_v2_areg_64);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v2_areg_64,
+            RVGPU::LDV_i16_v2_areg_64, RVGPU::LDV_i32_v2_areg_64,
+            RVGPU::LDV_i64_v2_areg_64, RVGPU::LDV_f32_v2_areg_64,
+            RVGPU::LDV_f64_v2_areg_64);
         break;
-      case NVPTXISD::LoadV4:
+      case RVGPUISD::LoadV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::LDV_i8_v4_areg_64,
-            NVPTX::LDV_i16_v4_areg_64, NVPTX::LDV_i32_v4_areg_64, std::nullopt,
-            NVPTX::LDV_f32_v4_areg_64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_areg_64,
+            RVGPU::LDV_i16_v4_areg_64, RVGPU::LDV_i32_v4_areg_64, std::nullopt,
+            RVGPU::LDV_f32_v4_areg_64, std::nullopt);
         break;
       }
     } else {
       switch (N->getOpcode()) {
       default:
         return false;
-      case NVPTXISD::LoadV2:
+      case RVGPUISD::LoadV2:
         Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, NVPTX::LDV_i8_v2_areg,
-                            NVPTX::LDV_i16_v2_areg, NVPTX::LDV_i32_v2_areg,
-                            NVPTX::LDV_i64_v2_areg, NVPTX::LDV_f32_v2_areg,
-                            NVPTX::LDV_f64_v2_areg);
+            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v2_areg,
+                            RVGPU::LDV_i16_v2_areg, RVGPU::LDV_i32_v2_areg,
+                            RVGPU::LDV_i64_v2_areg, RVGPU::LDV_f32_v2_areg,
+                            RVGPU::LDV_f64_v2_areg);
         break;
-      case NVPTXISD::LoadV4:
+      case RVGPUISD::LoadV4:
         Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, NVPTX::LDV_i8_v4_areg,
-                            NVPTX::LDV_i16_v4_areg, NVPTX::LDV_i32_v4_areg,
-                            std::nullopt, NVPTX::LDV_f32_v4_areg, std::nullopt);
+            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_areg,
+                            RVGPU::LDV_i16_v4_areg, RVGPU::LDV_i32_v4_areg,
+                            std::nullopt, RVGPU::LDV_f32_v4_areg, std::nullopt);
         break;
       }
     }
@@ -1234,7 +1234,7 @@ bool NVPTXDAGToDAGISel::tryLoadVector(SDNode *N) {
   return true;
 }
 
-bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryLDGLDU(SDNode *N) {
 
   SDValue Chain = N->getOperand(0);
   SDValue Op1;
@@ -1292,7 +1292,7 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
 
   // Build the "promoted" result VTList for the load. If we are really loading
   // i8s, then the return type will be promoted to i16 since we do not expose
-  // 8-bit registers in NVPTX.
+  // 8-bit registers in RVGPU.
   EVT NodeVT = (EltVT == MVT::i8) ? MVT::i16 : EltVT;
   SmallVector<EVT, 5> InstVTs;
   for (unsigned i = 0; i != NumElts; ++i) {
@@ -1309,54 +1309,54 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
     case ISD::INTRINSIC_W_CHAIN:
       if (IsLDG)
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::INT_PTX_LDG_GLOBAL_i8avar,
-                                 NVPTX::INT_PTX_LDG_GLOBAL_i16avar,
-                                 NVPTX::INT_PTX_LDG_GLOBAL_i32avar,
-                                 NVPTX::INT_PTX_LDG_GLOBAL_i64avar,
-                                 NVPTX::INT_PTX_LDG_GLOBAL_f32avar,
-                                 NVPTX::INT_PTX_LDG_GLOBAL_f64avar);
+                                 RVGPU::INT_PTX_LDG_GLOBAL_i8avar,
+                                 RVGPU::INT_PTX_LDG_GLOBAL_i16avar,
+                                 RVGPU::INT_PTX_LDG_GLOBAL_i32avar,
+                                 RVGPU::INT_PTX_LDG_GLOBAL_i64avar,
+                                 RVGPU::INT_PTX_LDG_GLOBAL_f32avar,
+                                 RVGPU::INT_PTX_LDG_GLOBAL_f64avar);
       else
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::INT_PTX_LDU_GLOBAL_i8avar,
-                                 NVPTX::INT_PTX_LDU_GLOBAL_i16avar,
-                                 NVPTX::INT_PTX_LDU_GLOBAL_i32avar,
-                                 NVPTX::INT_PTX_LDU_GLOBAL_i64avar,
-                                 NVPTX::INT_PTX_LDU_GLOBAL_f32avar,
-                                 NVPTX::INT_PTX_LDU_GLOBAL_f64avar);
+                                 RVGPU::INT_PTX_LDU_GLOBAL_i8avar,
+                                 RVGPU::INT_PTX_LDU_GLOBAL_i16avar,
+                                 RVGPU::INT_PTX_LDU_GLOBAL_i32avar,
+                                 RVGPU::INT_PTX_LDU_GLOBAL_i64avar,
+                                 RVGPU::INT_PTX_LDU_GLOBAL_f32avar,
+                                 RVGPU::INT_PTX_LDU_GLOBAL_f64avar);
       break;
-    case NVPTXISD::LoadV2:
-    case NVPTXISD::LDGV2:
+    case RVGPUISD::LoadV2:
+    case RVGPUISD::LDGV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               NVPTX::INT_PTX_LDG_G_v2i8_ELE_avar,
-                               NVPTX::INT_PTX_LDG_G_v2i16_ELE_avar,
-                               NVPTX::INT_PTX_LDG_G_v2i32_ELE_avar,
-                               NVPTX::INT_PTX_LDG_G_v2i64_ELE_avar,
-                               NVPTX::INT_PTX_LDG_G_v2f32_ELE_avar,
-                               NVPTX::INT_PTX_LDG_G_v2f64_ELE_avar);
+                               RVGPU::INT_PTX_LDG_G_v2i8_ELE_avar,
+                               RVGPU::INT_PTX_LDG_G_v2i16_ELE_avar,
+                               RVGPU::INT_PTX_LDG_G_v2i32_ELE_avar,
+                               RVGPU::INT_PTX_LDG_G_v2i64_ELE_avar,
+                               RVGPU::INT_PTX_LDG_G_v2f32_ELE_avar,
+                               RVGPU::INT_PTX_LDG_G_v2f64_ELE_avar);
       break;
-    case NVPTXISD::LDUV2:
+    case RVGPUISD::LDUV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               NVPTX::INT_PTX_LDU_G_v2i8_ELE_avar,
-                               NVPTX::INT_PTX_LDU_G_v2i16_ELE_avar,
-                               NVPTX::INT_PTX_LDU_G_v2i32_ELE_avar,
-                               NVPTX::INT_PTX_LDU_G_v2i64_ELE_avar,
-                               NVPTX::INT_PTX_LDU_G_v2f32_ELE_avar,
-                               NVPTX::INT_PTX_LDU_G_v2f64_ELE_avar);
+                               RVGPU::INT_PTX_LDU_G_v2i8_ELE_avar,
+                               RVGPU::INT_PTX_LDU_G_v2i16_ELE_avar,
+                               RVGPU::INT_PTX_LDU_G_v2i32_ELE_avar,
+                               RVGPU::INT_PTX_LDU_G_v2i64_ELE_avar,
+                               RVGPU::INT_PTX_LDU_G_v2f32_ELE_avar,
+                               RVGPU::INT_PTX_LDU_G_v2f64_ELE_avar);
       break;
-    case NVPTXISD::LoadV4:
-    case NVPTXISD::LDGV4:
+    case RVGPUISD::LoadV4:
+    case RVGPUISD::LDGV4:
       Opcode = pickOpcodeForVT(
-          EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDG_G_v4i8_ELE_avar,
-          NVPTX::INT_PTX_LDG_G_v4i16_ELE_avar,
-          NVPTX::INT_PTX_LDG_G_v4i32_ELE_avar, std::nullopt,
-          NVPTX::INT_PTX_LDG_G_v4f32_ELE_avar, std::nullopt);
+          EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDG_G_v4i8_ELE_avar,
+          RVGPU::INT_PTX_LDG_G_v4i16_ELE_avar,
+          RVGPU::INT_PTX_LDG_G_v4i32_ELE_avar, std::nullopt,
+          RVGPU::INT_PTX_LDG_G_v4f32_ELE_avar, std::nullopt);
       break;
-    case NVPTXISD::LDUV4:
+    case RVGPUISD::LDUV4:
       Opcode = pickOpcodeForVT(
-          EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDU_G_v4i8_ELE_avar,
-          NVPTX::INT_PTX_LDU_G_v4i16_ELE_avar,
-          NVPTX::INT_PTX_LDU_G_v4i32_ELE_avar, std::nullopt,
-          NVPTX::INT_PTX_LDU_G_v4f32_ELE_avar, std::nullopt);
+          EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDU_G_v4i8_ELE_avar,
+          RVGPU::INT_PTX_LDU_G_v4i16_ELE_avar,
+          RVGPU::INT_PTX_LDU_G_v4i32_ELE_avar, std::nullopt,
+          RVGPU::INT_PTX_LDU_G_v4f32_ELE_avar, std::nullopt);
       break;
     }
     if (!Opcode)
@@ -1373,54 +1373,54 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
       case ISD::INTRINSIC_W_CHAIN:
         if (IsLDG)
           Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_i8ari64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_i16ari64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_i32ari64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_i64ari64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_f32ari64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_f64ari64);
+                                       RVGPU::INT_PTX_LDG_GLOBAL_i8ari64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_i16ari64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_i32ari64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_i64ari64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_f32ari64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_f64ari64);
         else
           Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_i8ari64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_i16ari64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_i32ari64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_i64ari64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_f32ari64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_f64ari64);
+                                       RVGPU::INT_PTX_LDU_GLOBAL_i8ari64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_i16ari64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_i32ari64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_i64ari64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_f32ari64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_f64ari64);
         break;
-      case NVPTXISD::LoadV2:
-      case NVPTXISD::LDGV2:
+      case RVGPUISD::LoadV2:
+      case RVGPUISD::LDGV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                     NVPTX::INT_PTX_LDG_G_v2i8_ELE_ari64,
-                                     NVPTX::INT_PTX_LDG_G_v2i16_ELE_ari64,
-                                     NVPTX::INT_PTX_LDG_G_v2i32_ELE_ari64,
-                                     NVPTX::INT_PTX_LDG_G_v2i64_ELE_ari64,
-                                     NVPTX::INT_PTX_LDG_G_v2f32_ELE_ari64,
-                                     NVPTX::INT_PTX_LDG_G_v2f64_ELE_ari64);
+                                     RVGPU::INT_PTX_LDG_G_v2i8_ELE_ari64,
+                                     RVGPU::INT_PTX_LDG_G_v2i16_ELE_ari64,
+                                     RVGPU::INT_PTX_LDG_G_v2i32_ELE_ari64,
+                                     RVGPU::INT_PTX_LDG_G_v2i64_ELE_ari64,
+                                     RVGPU::INT_PTX_LDG_G_v2f32_ELE_ari64,
+                                     RVGPU::INT_PTX_LDG_G_v2f64_ELE_ari64);
         break;
-      case NVPTXISD::LDUV2:
+      case RVGPUISD::LDUV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                     NVPTX::INT_PTX_LDU_G_v2i8_ELE_ari64,
-                                     NVPTX::INT_PTX_LDU_G_v2i16_ELE_ari64,
-                                     NVPTX::INT_PTX_LDU_G_v2i32_ELE_ari64,
-                                     NVPTX::INT_PTX_LDU_G_v2i64_ELE_ari64,
-                                     NVPTX::INT_PTX_LDU_G_v2f32_ELE_ari64,
-                                     NVPTX::INT_PTX_LDU_G_v2f64_ELE_ari64);
+                                     RVGPU::INT_PTX_LDU_G_v2i8_ELE_ari64,
+                                     RVGPU::INT_PTX_LDU_G_v2i16_ELE_ari64,
+                                     RVGPU::INT_PTX_LDU_G_v2i32_ELE_ari64,
+                                     RVGPU::INT_PTX_LDU_G_v2i64_ELE_ari64,
+                                     RVGPU::INT_PTX_LDU_G_v2f32_ELE_ari64,
+                                     RVGPU::INT_PTX_LDU_G_v2f64_ELE_ari64);
         break;
-      case NVPTXISD::LoadV4:
-      case NVPTXISD::LDGV4:
+      case RVGPUISD::LoadV4:
+      case RVGPUISD::LDGV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDG_G_v4i8_ELE_ari64,
-            NVPTX::INT_PTX_LDG_G_v4i16_ELE_ari64,
-            NVPTX::INT_PTX_LDG_G_v4i32_ELE_ari64, std::nullopt,
-            NVPTX::INT_PTX_LDG_G_v4f32_ELE_ari64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDG_G_v4i8_ELE_ari64,
+            RVGPU::INT_PTX_LDG_G_v4i16_ELE_ari64,
+            RVGPU::INT_PTX_LDG_G_v4i32_ELE_ari64, std::nullopt,
+            RVGPU::INT_PTX_LDG_G_v4f32_ELE_ari64, std::nullopt);
         break;
-      case NVPTXISD::LDUV4:
+      case RVGPUISD::LDUV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDU_G_v4i8_ELE_ari64,
-            NVPTX::INT_PTX_LDU_G_v4i16_ELE_ari64,
-            NVPTX::INT_PTX_LDU_G_v4i32_ELE_ari64, std::nullopt,
-            NVPTX::INT_PTX_LDU_G_v4f32_ELE_ari64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDU_G_v4i8_ELE_ari64,
+            RVGPU::INT_PTX_LDU_G_v4i16_ELE_ari64,
+            RVGPU::INT_PTX_LDU_G_v4i32_ELE_ari64, std::nullopt,
+            RVGPU::INT_PTX_LDU_G_v4f32_ELE_ari64, std::nullopt);
         break;
       }
     } else {
@@ -1431,54 +1431,54 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
       case ISD::INTRINSIC_W_CHAIN:
         if (IsLDG)
           Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_i8ari,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_i16ari,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_i32ari,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_i64ari,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_f32ari,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_f64ari);
+                                   RVGPU::INT_PTX_LDG_GLOBAL_i8ari,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_i16ari,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_i32ari,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_i64ari,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_f32ari,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_f64ari);
         else
           Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_i8ari,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_i16ari,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_i32ari,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_i64ari,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_f32ari,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_f64ari);
+                                   RVGPU::INT_PTX_LDU_GLOBAL_i8ari,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_i16ari,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_i32ari,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_i64ari,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_f32ari,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_f64ari);
         break;
-      case NVPTXISD::LoadV2:
-      case NVPTXISD::LDGV2:
+      case RVGPUISD::LoadV2:
+      case RVGPUISD::LDGV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::INT_PTX_LDG_G_v2i8_ELE_ari32,
-                                 NVPTX::INT_PTX_LDG_G_v2i16_ELE_ari32,
-                                 NVPTX::INT_PTX_LDG_G_v2i32_ELE_ari32,
-                                 NVPTX::INT_PTX_LDG_G_v2i64_ELE_ari32,
-                                 NVPTX::INT_PTX_LDG_G_v2f32_ELE_ari32,
-                                 NVPTX::INT_PTX_LDG_G_v2f64_ELE_ari32);
+                                 RVGPU::INT_PTX_LDG_G_v2i8_ELE_ari32,
+                                 RVGPU::INT_PTX_LDG_G_v2i16_ELE_ari32,
+                                 RVGPU::INT_PTX_LDG_G_v2i32_ELE_ari32,
+                                 RVGPU::INT_PTX_LDG_G_v2i64_ELE_ari32,
+                                 RVGPU::INT_PTX_LDG_G_v2f32_ELE_ari32,
+                                 RVGPU::INT_PTX_LDG_G_v2f64_ELE_ari32);
         break;
-      case NVPTXISD::LDUV2:
+      case RVGPUISD::LDUV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::INT_PTX_LDU_G_v2i8_ELE_ari32,
-                                 NVPTX::INT_PTX_LDU_G_v2i16_ELE_ari32,
-                                 NVPTX::INT_PTX_LDU_G_v2i32_ELE_ari32,
-                                 NVPTX::INT_PTX_LDU_G_v2i64_ELE_ari32,
-                                 NVPTX::INT_PTX_LDU_G_v2f32_ELE_ari32,
-                                 NVPTX::INT_PTX_LDU_G_v2f64_ELE_ari32);
+                                 RVGPU::INT_PTX_LDU_G_v2i8_ELE_ari32,
+                                 RVGPU::INT_PTX_LDU_G_v2i16_ELE_ari32,
+                                 RVGPU::INT_PTX_LDU_G_v2i32_ELE_ari32,
+                                 RVGPU::INT_PTX_LDU_G_v2i64_ELE_ari32,
+                                 RVGPU::INT_PTX_LDU_G_v2f32_ELE_ari32,
+                                 RVGPU::INT_PTX_LDU_G_v2f64_ELE_ari32);
         break;
-      case NVPTXISD::LoadV4:
-      case NVPTXISD::LDGV4:
+      case RVGPUISD::LoadV4:
+      case RVGPUISD::LDGV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDG_G_v4i8_ELE_ari32,
-            NVPTX::INT_PTX_LDG_G_v4i16_ELE_ari32,
-            NVPTX::INT_PTX_LDG_G_v4i32_ELE_ari32, std::nullopt,
-            NVPTX::INT_PTX_LDG_G_v4f32_ELE_ari32, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDG_G_v4i8_ELE_ari32,
+            RVGPU::INT_PTX_LDG_G_v4i16_ELE_ari32,
+            RVGPU::INT_PTX_LDG_G_v4i32_ELE_ari32, std::nullopt,
+            RVGPU::INT_PTX_LDG_G_v4f32_ELE_ari32, std::nullopt);
         break;
-      case NVPTXISD::LDUV4:
+      case RVGPUISD::LDUV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDU_G_v4i8_ELE_ari32,
-            NVPTX::INT_PTX_LDU_G_v4i16_ELE_ari32,
-            NVPTX::INT_PTX_LDU_G_v4i32_ELE_ari32, std::nullopt,
-            NVPTX::INT_PTX_LDU_G_v4f32_ELE_ari32, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDU_G_v4i8_ELE_ari32,
+            RVGPU::INT_PTX_LDU_G_v4i16_ELE_ari32,
+            RVGPU::INT_PTX_LDU_G_v4i32_ELE_ari32, std::nullopt,
+            RVGPU::INT_PTX_LDU_G_v4f32_ELE_ari32, std::nullopt);
         break;
       }
     }
@@ -1495,54 +1495,54 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
       case ISD::INTRINSIC_W_CHAIN:
         if (IsLDG)
           Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_i8areg64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_i16areg64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_i32areg64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_i64areg64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_f32areg64,
-                                       NVPTX::INT_PTX_LDG_GLOBAL_f64areg64);
+                                       RVGPU::INT_PTX_LDG_GLOBAL_i8areg64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_i16areg64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_i32areg64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_i64areg64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_f32areg64,
+                                       RVGPU::INT_PTX_LDG_GLOBAL_f64areg64);
         else
           Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_i8areg64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_i16areg64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_i32areg64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_i64areg64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_f32areg64,
-                                       NVPTX::INT_PTX_LDU_GLOBAL_f64areg64);
+                                       RVGPU::INT_PTX_LDU_GLOBAL_i8areg64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_i16areg64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_i32areg64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_i64areg64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_f32areg64,
+                                       RVGPU::INT_PTX_LDU_GLOBAL_f64areg64);
         break;
-      case NVPTXISD::LoadV2:
-      case NVPTXISD::LDGV2:
+      case RVGPUISD::LoadV2:
+      case RVGPUISD::LDGV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                     NVPTX::INT_PTX_LDG_G_v2i8_ELE_areg64,
-                                     NVPTX::INT_PTX_LDG_G_v2i16_ELE_areg64,
-                                     NVPTX::INT_PTX_LDG_G_v2i32_ELE_areg64,
-                                     NVPTX::INT_PTX_LDG_G_v2i64_ELE_areg64,
-                                     NVPTX::INT_PTX_LDG_G_v2f32_ELE_areg64,
-                                     NVPTX::INT_PTX_LDG_G_v2f64_ELE_areg64);
+                                     RVGPU::INT_PTX_LDG_G_v2i8_ELE_areg64,
+                                     RVGPU::INT_PTX_LDG_G_v2i16_ELE_areg64,
+                                     RVGPU::INT_PTX_LDG_G_v2i32_ELE_areg64,
+                                     RVGPU::INT_PTX_LDG_G_v2i64_ELE_areg64,
+                                     RVGPU::INT_PTX_LDG_G_v2f32_ELE_areg64,
+                                     RVGPU::INT_PTX_LDG_G_v2f64_ELE_areg64);
         break;
-      case NVPTXISD::LDUV2:
+      case RVGPUISD::LDUV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                     NVPTX::INT_PTX_LDU_G_v2i8_ELE_areg64,
-                                     NVPTX::INT_PTX_LDU_G_v2i16_ELE_areg64,
-                                     NVPTX::INT_PTX_LDU_G_v2i32_ELE_areg64,
-                                     NVPTX::INT_PTX_LDU_G_v2i64_ELE_areg64,
-                                     NVPTX::INT_PTX_LDU_G_v2f32_ELE_areg64,
-                                     NVPTX::INT_PTX_LDU_G_v2f64_ELE_areg64);
+                                     RVGPU::INT_PTX_LDU_G_v2i8_ELE_areg64,
+                                     RVGPU::INT_PTX_LDU_G_v2i16_ELE_areg64,
+                                     RVGPU::INT_PTX_LDU_G_v2i32_ELE_areg64,
+                                     RVGPU::INT_PTX_LDU_G_v2i64_ELE_areg64,
+                                     RVGPU::INT_PTX_LDU_G_v2f32_ELE_areg64,
+                                     RVGPU::INT_PTX_LDU_G_v2f64_ELE_areg64);
         break;
-      case NVPTXISD::LoadV4:
-      case NVPTXISD::LDGV4:
+      case RVGPUISD::LoadV4:
+      case RVGPUISD::LDGV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDG_G_v4i8_ELE_areg64,
-            NVPTX::INT_PTX_LDG_G_v4i16_ELE_areg64,
-            NVPTX::INT_PTX_LDG_G_v4i32_ELE_areg64, std::nullopt,
-            NVPTX::INT_PTX_LDG_G_v4f32_ELE_areg64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDG_G_v4i8_ELE_areg64,
+            RVGPU::INT_PTX_LDG_G_v4i16_ELE_areg64,
+            RVGPU::INT_PTX_LDG_G_v4i32_ELE_areg64, std::nullopt,
+            RVGPU::INT_PTX_LDG_G_v4f32_ELE_areg64, std::nullopt);
         break;
-      case NVPTXISD::LDUV4:
+      case RVGPUISD::LDUV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDU_G_v4i8_ELE_areg64,
-            NVPTX::INT_PTX_LDU_G_v4i16_ELE_areg64,
-            NVPTX::INT_PTX_LDU_G_v4i32_ELE_areg64, std::nullopt,
-            NVPTX::INT_PTX_LDU_G_v4f32_ELE_areg64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDU_G_v4i8_ELE_areg64,
+            RVGPU::INT_PTX_LDU_G_v4i16_ELE_areg64,
+            RVGPU::INT_PTX_LDU_G_v4i32_ELE_areg64, std::nullopt,
+            RVGPU::INT_PTX_LDU_G_v4f32_ELE_areg64, std::nullopt);
         break;
       }
     } else {
@@ -1553,54 +1553,54 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
       case ISD::INTRINSIC_W_CHAIN:
         if (IsLDG)
           Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_i8areg,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_i16areg,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_i32areg,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_i64areg,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_f32areg,
-                                   NVPTX::INT_PTX_LDG_GLOBAL_f64areg);
+                                   RVGPU::INT_PTX_LDG_GLOBAL_i8areg,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_i16areg,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_i32areg,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_i64areg,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_f32areg,
+                                   RVGPU::INT_PTX_LDG_GLOBAL_f64areg);
         else
           Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_i8areg,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_i16areg,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_i32areg,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_i64areg,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_f32areg,
-                                   NVPTX::INT_PTX_LDU_GLOBAL_f64areg);
+                                   RVGPU::INT_PTX_LDU_GLOBAL_i8areg,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_i16areg,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_i32areg,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_i64areg,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_f32areg,
+                                   RVGPU::INT_PTX_LDU_GLOBAL_f64areg);
         break;
-      case NVPTXISD::LoadV2:
-      case NVPTXISD::LDGV2:
+      case RVGPUISD::LoadV2:
+      case RVGPUISD::LDGV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::INT_PTX_LDG_G_v2i8_ELE_areg32,
-                                 NVPTX::INT_PTX_LDG_G_v2i16_ELE_areg32,
-                                 NVPTX::INT_PTX_LDG_G_v2i32_ELE_areg32,
-                                 NVPTX::INT_PTX_LDG_G_v2i64_ELE_areg32,
-                                 NVPTX::INT_PTX_LDG_G_v2f32_ELE_areg32,
-                                 NVPTX::INT_PTX_LDG_G_v2f64_ELE_areg32);
+                                 RVGPU::INT_PTX_LDG_G_v2i8_ELE_areg32,
+                                 RVGPU::INT_PTX_LDG_G_v2i16_ELE_areg32,
+                                 RVGPU::INT_PTX_LDG_G_v2i32_ELE_areg32,
+                                 RVGPU::INT_PTX_LDG_G_v2i64_ELE_areg32,
+                                 RVGPU::INT_PTX_LDG_G_v2f32_ELE_areg32,
+                                 RVGPU::INT_PTX_LDG_G_v2f64_ELE_areg32);
         break;
-      case NVPTXISD::LDUV2:
+      case RVGPUISD::LDUV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::INT_PTX_LDU_G_v2i8_ELE_areg32,
-                                 NVPTX::INT_PTX_LDU_G_v2i16_ELE_areg32,
-                                 NVPTX::INT_PTX_LDU_G_v2i32_ELE_areg32,
-                                 NVPTX::INT_PTX_LDU_G_v2i64_ELE_areg32,
-                                 NVPTX::INT_PTX_LDU_G_v2f32_ELE_areg32,
-                                 NVPTX::INT_PTX_LDU_G_v2f64_ELE_areg32);
+                                 RVGPU::INT_PTX_LDU_G_v2i8_ELE_areg32,
+                                 RVGPU::INT_PTX_LDU_G_v2i16_ELE_areg32,
+                                 RVGPU::INT_PTX_LDU_G_v2i32_ELE_areg32,
+                                 RVGPU::INT_PTX_LDU_G_v2i64_ELE_areg32,
+                                 RVGPU::INT_PTX_LDU_G_v2f32_ELE_areg32,
+                                 RVGPU::INT_PTX_LDU_G_v2f64_ELE_areg32);
         break;
-      case NVPTXISD::LoadV4:
-      case NVPTXISD::LDGV4:
+      case RVGPUISD::LoadV4:
+      case RVGPUISD::LDGV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDG_G_v4i8_ELE_areg32,
-            NVPTX::INT_PTX_LDG_G_v4i16_ELE_areg32,
-            NVPTX::INT_PTX_LDG_G_v4i32_ELE_areg32, std::nullopt,
-            NVPTX::INT_PTX_LDG_G_v4f32_ELE_areg32, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDG_G_v4i8_ELE_areg32,
+            RVGPU::INT_PTX_LDG_G_v4i16_ELE_areg32,
+            RVGPU::INT_PTX_LDG_G_v4i32_ELE_areg32, std::nullopt,
+            RVGPU::INT_PTX_LDG_G_v4f32_ELE_areg32, std::nullopt);
         break;
-      case NVPTXISD::LDUV4:
+      case RVGPUISD::LDUV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::INT_PTX_LDU_G_v4i8_ELE_areg32,
-            NVPTX::INT_PTX_LDU_G_v4i16_ELE_areg32,
-            NVPTX::INT_PTX_LDU_G_v4i32_ELE_areg32, std::nullopt,
-            NVPTX::INT_PTX_LDU_G_v4f32_ELE_areg32, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::INT_PTX_LDU_G_v4i8_ELE_areg32,
+            RVGPU::INT_PTX_LDU_G_v4i16_ELE_areg32,
+            RVGPU::INT_PTX_LDU_G_v4i32_ELE_areg32, std::nullopt,
+            RVGPU::INT_PTX_LDU_G_v4f32_ELE_areg32, std::nullopt);
         break;
       }
     }
@@ -1639,7 +1639,7 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
 
       SDNode *CvtNode =
         CurDAG->getMachineNode(CvtOpc, DL, OrigType, Res,
-                               CurDAG->getTargetConstant(NVPTX::PTXCvtMode::NONE,
+                               CurDAG->getTargetConstant(RVGPU::PTXCvtMode::NONE,
                                                          DL, MVT::i32));
       ReplaceUses(OrigVal, SDValue(CvtNode, 0));
     }
@@ -1649,7 +1649,7 @@ bool NVPTXDAGToDAGISel::tryLDGLDU(SDNode *N) {
   return true;
 }
 
-bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryStore(SDNode *N) {
   SDLoc dl(N);
   MemSDNode *ST = cast<MemSDNode>(N);
   assert(ST->writeMem() && "Expected store");
@@ -1657,7 +1657,7 @@ bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
   AtomicSDNode *AtomicStore = dyn_cast<AtomicSDNode>(N);
   assert((PlainStore || AtomicStore) && "Expected store");
   EVT StoreVT = ST->getMemoryVT();
-  SDNode *NVPTXST = nullptr;
+  SDNode *RVGPUST = nullptr;
 
   // do not support pre/post inc/dec
   if (PlainStore && PlainStore->isIndexed())
@@ -1683,14 +1683,14 @@ bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
   // - .volatile is only available for .global and .shared
   // - .volatile has the same memory synchronization semantics as .relaxed.sys
   bool isVolatile = ST->isVolatile() || Ordering == AtomicOrdering::Monotonic;
-  if (CodeAddrSpace != NVPTX::PTXLdStInstCode::GLOBAL &&
-      CodeAddrSpace != NVPTX::PTXLdStInstCode::SHARED &&
-      CodeAddrSpace != NVPTX::PTXLdStInstCode::GENERIC)
+  if (CodeAddrSpace != RVGPU::PTXLdStInstCode::GLOBAL &&
+      CodeAddrSpace != RVGPU::PTXLdStInstCode::SHARED &&
+      CodeAddrSpace != RVGPU::PTXLdStInstCode::GENERIC)
     isVolatile = false;
 
   // Vector Setting
   MVT SimpleVT = StoreVT.getSimpleVT();
-  unsigned vecType = NVPTX::PTXLdStInstCode::Scalar;
+  unsigned vecType = RVGPU::PTXLdStInstCode::Scalar;
 
   // Type Setting: toType + toTypeWidth
   // - for integer type, always use 'u'
@@ -1717,9 +1717,9 @@ bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
       Value.getNode()->getSimpleValueType(0).SimpleTy;
 
   if (SelectDirectAddr(BasePtr, Addr)) {
-    Opcode = pickOpcodeForVT(SourceVT, NVPTX::ST_i8_avar, NVPTX::ST_i16_avar,
-                             NVPTX::ST_i32_avar, NVPTX::ST_i64_avar,
-                             NVPTX::ST_f32_avar, NVPTX::ST_f64_avar);
+    Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_i8_avar, RVGPU::ST_i16_avar,
+                             RVGPU::ST_i32_avar, RVGPU::ST_i64_avar,
+                             RVGPU::ST_f32_avar, RVGPU::ST_f64_avar);
     if (!Opcode)
       return false;
     SDValue Ops[] = {Value,
@@ -1730,13 +1730,13 @@ bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
                      getI32Imm(toTypeWidth, dl),
                      Addr,
                      Chain};
-    NVPTXST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
+    RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
   } else if (PointerSize == 64
                  ? SelectADDRsi64(BasePtr.getNode(), BasePtr, Base, Offset)
                  : SelectADDRsi(BasePtr.getNode(), BasePtr, Base, Offset)) {
-    Opcode = pickOpcodeForVT(SourceVT, NVPTX::ST_i8_asi, NVPTX::ST_i16_asi,
-                             NVPTX::ST_i32_asi, NVPTX::ST_i64_asi,
-                             NVPTX::ST_f32_asi, NVPTX::ST_f64_asi);
+    Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_i8_asi, RVGPU::ST_i16_asi,
+                             RVGPU::ST_i32_asi, RVGPU::ST_i64_asi,
+                             RVGPU::ST_f32_asi, RVGPU::ST_f64_asi);
     if (!Opcode)
       return false;
     SDValue Ops[] = {Value,
@@ -1748,19 +1748,19 @@ bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
                      Base,
                      Offset,
                      Chain};
-    NVPTXST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
+    RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
   } else if (PointerSize == 64
                  ? SelectADDRri64(BasePtr.getNode(), BasePtr, Base, Offset)
                  : SelectADDRri(BasePtr.getNode(), BasePtr, Base, Offset)) {
     if (PointerSize == 64)
       Opcode =
-          pickOpcodeForVT(SourceVT, NVPTX::ST_i8_ari_64, NVPTX::ST_i16_ari_64,
-                          NVPTX::ST_i32_ari_64, NVPTX::ST_i64_ari_64,
-                          NVPTX::ST_f32_ari_64, NVPTX::ST_f64_ari_64);
+          pickOpcodeForVT(SourceVT, RVGPU::ST_i8_ari_64, RVGPU::ST_i16_ari_64,
+                          RVGPU::ST_i32_ari_64, RVGPU::ST_i64_ari_64,
+                          RVGPU::ST_f32_ari_64, RVGPU::ST_f64_ari_64);
     else
-      Opcode = pickOpcodeForVT(SourceVT, NVPTX::ST_i8_ari, NVPTX::ST_i16_ari,
-                               NVPTX::ST_i32_ari, NVPTX::ST_i64_ari,
-                               NVPTX::ST_f32_ari, NVPTX::ST_f64_ari);
+      Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_i8_ari, RVGPU::ST_i16_ari,
+                               RVGPU::ST_i32_ari, RVGPU::ST_i64_ari,
+                               RVGPU::ST_f32_ari, RVGPU::ST_f64_ari);
     if (!Opcode)
       return false;
 
@@ -1773,17 +1773,17 @@ bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
                      Base,
                      Offset,
                      Chain};
-    NVPTXST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
+    RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
   } else {
     if (PointerSize == 64)
       Opcode =
-          pickOpcodeForVT(SourceVT, NVPTX::ST_i8_areg_64, NVPTX::ST_i16_areg_64,
-                          NVPTX::ST_i32_areg_64, NVPTX::ST_i64_areg_64,
-                          NVPTX::ST_f32_areg_64, NVPTX::ST_f64_areg_64);
+          pickOpcodeForVT(SourceVT, RVGPU::ST_i8_areg_64, RVGPU::ST_i16_areg_64,
+                          RVGPU::ST_i32_areg_64, RVGPU::ST_i64_areg_64,
+                          RVGPU::ST_f32_areg_64, RVGPU::ST_f64_areg_64);
     else
-      Opcode = pickOpcodeForVT(SourceVT, NVPTX::ST_i8_areg, NVPTX::ST_i16_areg,
-                               NVPTX::ST_i32_areg, NVPTX::ST_i64_areg,
-                               NVPTX::ST_f32_areg, NVPTX::ST_f64_areg);
+      Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_i8_areg, RVGPU::ST_i16_areg,
+                               RVGPU::ST_i32_areg, RVGPU::ST_i64_areg,
+                               RVGPU::ST_f32_areg, RVGPU::ST_f64_areg);
     if (!Opcode)
       return false;
     SDValue Ops[] = {Value,
@@ -1794,19 +1794,19 @@ bool NVPTXDAGToDAGISel::tryStore(SDNode *N) {
                      getI32Imm(toTypeWidth, dl),
                      BasePtr,
                      Chain};
-    NVPTXST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
+    RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
   }
 
-  if (!NVPTXST)
+  if (!RVGPUST)
     return false;
 
   MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
-  CurDAG->setNodeMemRefs(cast<MachineSDNode>(NVPTXST), {MemRef});
-  ReplaceNode(N, NVPTXST);
+  CurDAG->setNodeMemRefs(cast<MachineSDNode>(RVGPUST), {MemRef});
+  ReplaceNode(N, RVGPUST);
   return true;
 }
 
-bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryStoreVector(SDNode *N) {
   SDValue Chain = N->getOperand(0);
   SDValue Op1 = N->getOperand(1);
   SDValue Addr, Offset, Base;
@@ -1819,7 +1819,7 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
 
   // Address Space Setting
   unsigned CodeAddrSpace = getCodeAddrSpace(MemSD);
-  if (CodeAddrSpace == NVPTX::PTXLdStInstCode::CONSTANT) {
+  if (CodeAddrSpace == RVGPU::PTXLdStInstCode::CONSTANT) {
     report_fatal_error("Cannot store to pointer that points to constant "
                        "memory space");
   }
@@ -1829,9 +1829,9 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
   // Volatile Setting
   // - .volatile is only availalble for .global and .shared
   bool IsVolatile = MemSD->isVolatile();
-  if (CodeAddrSpace != NVPTX::PTXLdStInstCode::GLOBAL &&
-      CodeAddrSpace != NVPTX::PTXLdStInstCode::SHARED &&
-      CodeAddrSpace != NVPTX::PTXLdStInstCode::GENERIC)
+  if (CodeAddrSpace != RVGPU::PTXLdStInstCode::GLOBAL &&
+      CodeAddrSpace != RVGPU::PTXLdStInstCode::SHARED &&
+      CodeAddrSpace != RVGPU::PTXLdStInstCode::GENERIC)
     IsVolatile = false;
 
   // Type Setting: toType + toTypeWidth
@@ -1846,14 +1846,14 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
   unsigned VecType;
 
   switch (N->getOpcode()) {
-  case NVPTXISD::StoreV2:
-    VecType = NVPTX::PTXLdStInstCode::V2;
+  case RVGPUISD::StoreV2:
+    VecType = RVGPU::PTXLdStInstCode::V2;
     StOps.push_back(N->getOperand(1));
     StOps.push_back(N->getOperand(2));
     N2 = N->getOperand(3);
     break;
-  case NVPTXISD::StoreV4:
-    VecType = NVPTX::PTXLdStInstCode::V4;
+  case RVGPUISD::StoreV4:
+    VecType = RVGPU::PTXLdStInstCode::V4;
     StOps.push_back(N->getOperand(1));
     StOps.push_back(N->getOperand(2));
     StOps.push_back(N->getOperand(3));
@@ -1868,9 +1868,9 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
   // instruction. Instead, we split the vector into v2x16 chunks and
   // store them with st.v4.b32.
   if (Isv2x16VT(EltVT)) {
-    assert(N->getOpcode() == NVPTXISD::StoreV4 && "Unexpected load opcode.");
+    assert(N->getOpcode() == RVGPUISD::StoreV4 && "Unexpected load opcode.");
     EltVT = MVT::i32;
-    ToType = NVPTX::PTXLdStInstCode::Untyped;
+    ToType = RVGPU::PTXLdStInstCode::Untyped;
     ToTypeWidth = 32;
   }
 
@@ -1884,17 +1884,17 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
     switch (N->getOpcode()) {
     default:
       return false;
-    case NVPTXISD::StoreV2:
+    case RVGPUISD::StoreV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               NVPTX::STV_i8_v2_avar, NVPTX::STV_i16_v2_avar,
-                               NVPTX::STV_i32_v2_avar, NVPTX::STV_i64_v2_avar,
-                               NVPTX::STV_f32_v2_avar, NVPTX::STV_f64_v2_avar);
+                               RVGPU::STV_i8_v2_avar, RVGPU::STV_i16_v2_avar,
+                               RVGPU::STV_i32_v2_avar, RVGPU::STV_i64_v2_avar,
+                               RVGPU::STV_f32_v2_avar, RVGPU::STV_f64_v2_avar);
       break;
-    case NVPTXISD::StoreV4:
+    case RVGPUISD::StoreV4:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               NVPTX::STV_i8_v4_avar, NVPTX::STV_i16_v4_avar,
-                               NVPTX::STV_i32_v4_avar, std::nullopt,
-                               NVPTX::STV_f32_v4_avar, std::nullopt);
+                               RVGPU::STV_i8_v4_avar, RVGPU::STV_i16_v4_avar,
+                               RVGPU::STV_i32_v4_avar, std::nullopt,
+                               RVGPU::STV_f32_v4_avar, std::nullopt);
       break;
     }
     StOps.push_back(Addr);
@@ -1903,17 +1903,17 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
     switch (N->getOpcode()) {
     default:
       return false;
-    case NVPTXISD::StoreV2:
+    case RVGPUISD::StoreV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               NVPTX::STV_i8_v2_asi, NVPTX::STV_i16_v2_asi,
-                               NVPTX::STV_i32_v2_asi, NVPTX::STV_i64_v2_asi,
-                               NVPTX::STV_f32_v2_asi, NVPTX::STV_f64_v2_asi);
+                               RVGPU::STV_i8_v2_asi, RVGPU::STV_i16_v2_asi,
+                               RVGPU::STV_i32_v2_asi, RVGPU::STV_i64_v2_asi,
+                               RVGPU::STV_f32_v2_asi, RVGPU::STV_f64_v2_asi);
       break;
-    case NVPTXISD::StoreV4:
+    case RVGPUISD::StoreV4:
       Opcode =
-          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, NVPTX::STV_i8_v4_asi,
-                          NVPTX::STV_i16_v4_asi, NVPTX::STV_i32_v4_asi,
-                          std::nullopt, NVPTX::STV_f32_v4_asi, std::nullopt);
+          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v4_asi,
+                          RVGPU::STV_i16_v4_asi, RVGPU::STV_i32_v4_asi,
+                          std::nullopt, RVGPU::STV_f32_v4_asi, std::nullopt);
       break;
     }
     StOps.push_back(Base);
@@ -1924,35 +1924,35 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
       switch (N->getOpcode()) {
       default:
         return false;
-      case NVPTXISD::StoreV2:
+      case RVGPUISD::StoreV2:
         Opcode =
             pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                            NVPTX::STV_i8_v2_ari_64, NVPTX::STV_i16_v2_ari_64,
-                            NVPTX::STV_i32_v2_ari_64, NVPTX::STV_i64_v2_ari_64,
-                            NVPTX::STV_f32_v2_ari_64, NVPTX::STV_f64_v2_ari_64);
+                            RVGPU::STV_i8_v2_ari_64, RVGPU::STV_i16_v2_ari_64,
+                            RVGPU::STV_i32_v2_ari_64, RVGPU::STV_i64_v2_ari_64,
+                            RVGPU::STV_f32_v2_ari_64, RVGPU::STV_f64_v2_ari_64);
         break;
-      case NVPTXISD::StoreV4:
+      case RVGPUISD::StoreV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::STV_i8_v4_ari_64,
-            NVPTX::STV_i16_v4_ari_64, NVPTX::STV_i32_v4_ari_64, std::nullopt,
-            NVPTX::STV_f32_v4_ari_64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v4_ari_64,
+            RVGPU::STV_i16_v4_ari_64, RVGPU::STV_i32_v4_ari_64, std::nullopt,
+            RVGPU::STV_f32_v4_ari_64, std::nullopt);
         break;
       }
     } else {
       switch (N->getOpcode()) {
       default:
         return false;
-      case NVPTXISD::StoreV2:
+      case RVGPUISD::StoreV2:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::STV_i8_v2_ari, NVPTX::STV_i16_v2_ari,
-                                 NVPTX::STV_i32_v2_ari, NVPTX::STV_i64_v2_ari,
-                                 NVPTX::STV_f32_v2_ari, NVPTX::STV_f64_v2_ari);
+                                 RVGPU::STV_i8_v2_ari, RVGPU::STV_i16_v2_ari,
+                                 RVGPU::STV_i32_v2_ari, RVGPU::STV_i64_v2_ari,
+                                 RVGPU::STV_f32_v2_ari, RVGPU::STV_f64_v2_ari);
         break;
-      case NVPTXISD::StoreV4:
+      case RVGPUISD::StoreV4:
         Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 NVPTX::STV_i8_v4_ari, NVPTX::STV_i16_v4_ari,
-                                 NVPTX::STV_i32_v4_ari, std::nullopt,
-                                 NVPTX::STV_f32_v4_ari, std::nullopt);
+                                 RVGPU::STV_i8_v4_ari, RVGPU::STV_i16_v4_ari,
+                                 RVGPU::STV_i32_v4_ari, std::nullopt,
+                                 RVGPU::STV_f32_v4_ari, std::nullopt);
         break;
       }
     }
@@ -1963,36 +1963,36 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
       switch (N->getOpcode()) {
       default:
         return false;
-      case NVPTXISD::StoreV2:
+      case RVGPUISD::StoreV2:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::STV_i8_v2_areg_64,
-            NVPTX::STV_i16_v2_areg_64, NVPTX::STV_i32_v2_areg_64,
-            NVPTX::STV_i64_v2_areg_64, NVPTX::STV_f32_v2_areg_64,
-            NVPTX::STV_f64_v2_areg_64);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v2_areg_64,
+            RVGPU::STV_i16_v2_areg_64, RVGPU::STV_i32_v2_areg_64,
+            RVGPU::STV_i64_v2_areg_64, RVGPU::STV_f32_v2_areg_64,
+            RVGPU::STV_f64_v2_areg_64);
         break;
-      case NVPTXISD::StoreV4:
+      case RVGPUISD::StoreV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, NVPTX::STV_i8_v4_areg_64,
-            NVPTX::STV_i16_v4_areg_64, NVPTX::STV_i32_v4_areg_64, std::nullopt,
-            NVPTX::STV_f32_v4_areg_64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v4_areg_64,
+            RVGPU::STV_i16_v4_areg_64, RVGPU::STV_i32_v4_areg_64, std::nullopt,
+            RVGPU::STV_f32_v4_areg_64, std::nullopt);
         break;
       }
     } else {
       switch (N->getOpcode()) {
       default:
         return false;
-      case NVPTXISD::StoreV2:
+      case RVGPUISD::StoreV2:
         Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, NVPTX::STV_i8_v2_areg,
-                            NVPTX::STV_i16_v2_areg, NVPTX::STV_i32_v2_areg,
-                            NVPTX::STV_i64_v2_areg, NVPTX::STV_f32_v2_areg,
-                            NVPTX::STV_f64_v2_areg);
+            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v2_areg,
+                            RVGPU::STV_i16_v2_areg, RVGPU::STV_i32_v2_areg,
+                            RVGPU::STV_i64_v2_areg, RVGPU::STV_f32_v2_areg,
+                            RVGPU::STV_f64_v2_areg);
         break;
-      case NVPTXISD::StoreV4:
+      case RVGPUISD::StoreV4:
         Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, NVPTX::STV_i8_v4_areg,
-                            NVPTX::STV_i16_v4_areg, NVPTX::STV_i32_v4_areg,
-                            std::nullopt, NVPTX::STV_f32_v4_areg, std::nullopt);
+            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v4_areg,
+                            RVGPU::STV_i16_v4_areg, RVGPU::STV_i32_v4_areg,
+                            std::nullopt, RVGPU::STV_f32_v4_areg, std::nullopt);
         break;
       }
     }
@@ -2013,7 +2013,7 @@ bool NVPTXDAGToDAGISel::tryStoreVector(SDNode *N) {
   return true;
 }
 
-bool NVPTXDAGToDAGISel::tryLoadParam(SDNode *Node) {
+bool RVGPUDAGToDAGISel::tryLoadParam(SDNode *Node) {
   SDValue Chain = Node->getOperand(0);
   SDValue Offset = Node->getOperand(2);
   SDValue Glue = Node->getOperand(3);
@@ -2024,13 +2024,13 @@ bool NVPTXDAGToDAGISel::tryLoadParam(SDNode *Node) {
   switch (Node->getOpcode()) {
   default:
     return false;
-  case NVPTXISD::LoadParam:
+  case RVGPUISD::LoadParam:
     VecSize = 1;
     break;
-  case NVPTXISD::LoadParamV2:
+  case RVGPUISD::LoadParamV2:
     VecSize = 2;
     break;
-  case NVPTXISD::LoadParamV4:
+  case RVGPUISD::LoadParamV4:
     VecSize = 4;
     break;
   }
@@ -2045,22 +2045,22 @@ bool NVPTXDAGToDAGISel::tryLoadParam(SDNode *Node) {
     return false;
   case 1:
     Opcode = pickOpcodeForVT(MemVT.getSimpleVT().SimpleTy,
-                             NVPTX::LoadParamMemI8, NVPTX::LoadParamMemI16,
-                             NVPTX::LoadParamMemI32, NVPTX::LoadParamMemI64,
-                             NVPTX::LoadParamMemF32, NVPTX::LoadParamMemF64);
+                             RVGPU::LoadParamMemI8, RVGPU::LoadParamMemI16,
+                             RVGPU::LoadParamMemI32, RVGPU::LoadParamMemI64,
+                             RVGPU::LoadParamMemF32, RVGPU::LoadParamMemF64);
     break;
   case 2:
     Opcode =
-        pickOpcodeForVT(MemVT.getSimpleVT().SimpleTy, NVPTX::LoadParamMemV2I8,
-                        NVPTX::LoadParamMemV2I16, NVPTX::LoadParamMemV2I32,
-                        NVPTX::LoadParamMemV2I64, NVPTX::LoadParamMemV2F32,
-                        NVPTX::LoadParamMemV2F64);
+        pickOpcodeForVT(MemVT.getSimpleVT().SimpleTy, RVGPU::LoadParamMemV2I8,
+                        RVGPU::LoadParamMemV2I16, RVGPU::LoadParamMemV2I32,
+                        RVGPU::LoadParamMemV2I64, RVGPU::LoadParamMemV2F32,
+                        RVGPU::LoadParamMemV2F64);
     break;
   case 4:
     Opcode =
-        pickOpcodeForVT(MemVT.getSimpleVT().SimpleTy, NVPTX::LoadParamMemV4I8,
-                        NVPTX::LoadParamMemV4I16, NVPTX::LoadParamMemV4I32,
-                        std::nullopt, NVPTX::LoadParamMemV4F32, std::nullopt);
+        pickOpcodeForVT(MemVT.getSimpleVT().SimpleTy, RVGPU::LoadParamMemV4I8,
+                        RVGPU::LoadParamMemV4I16, RVGPU::LoadParamMemV4I32,
+                        std::nullopt, RVGPU::LoadParamMemV4F32, std::nullopt);
     break;
   }
   if (!Opcode)
@@ -2087,7 +2087,7 @@ bool NVPTXDAGToDAGISel::tryLoadParam(SDNode *Node) {
   return true;
 }
 
-bool NVPTXDAGToDAGISel::tryStoreRetval(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryStoreRetval(SDNode *N) {
   SDLoc DL(N);
   SDValue Chain = N->getOperand(0);
   SDValue Offset = N->getOperand(1);
@@ -2099,13 +2099,13 @@ bool NVPTXDAGToDAGISel::tryStoreRetval(SDNode *N) {
   switch (N->getOpcode()) {
   default:
     return false;
-  case NVPTXISD::StoreRetval:
+  case RVGPUISD::StoreRetval:
     NumElts = 1;
     break;
-  case NVPTXISD::StoreRetvalV2:
+  case RVGPUISD::StoreRetvalV2:
     NumElts = 2;
     break;
-  case NVPTXISD::StoreRetvalV4:
+  case RVGPUISD::StoreRetvalV4:
     NumElts = 4;
     break;
   }
@@ -2119,28 +2119,28 @@ bool NVPTXDAGToDAGISel::tryStoreRetval(SDNode *N) {
 
   // Determine target opcode
   // If we have an i1, use an 8-bit store. The lowering code in
-  // NVPTXISelLowering will have already emitted an upcast.
+  // RVGPUISelLowering will have already emitted an upcast.
   std::optional<unsigned> Opcode = 0;
   switch (NumElts) {
   default:
     return false;
   case 1:
     Opcode = pickOpcodeForVT(Mem->getMemoryVT().getSimpleVT().SimpleTy,
-                             NVPTX::StoreRetvalI8, NVPTX::StoreRetvalI16,
-                             NVPTX::StoreRetvalI32, NVPTX::StoreRetvalI64,
-                             NVPTX::StoreRetvalF32, NVPTX::StoreRetvalF64);
+                             RVGPU::StoreRetvalI8, RVGPU::StoreRetvalI16,
+                             RVGPU::StoreRetvalI32, RVGPU::StoreRetvalI64,
+                             RVGPU::StoreRetvalF32, RVGPU::StoreRetvalF64);
     break;
   case 2:
     Opcode = pickOpcodeForVT(Mem->getMemoryVT().getSimpleVT().SimpleTy,
-                             NVPTX::StoreRetvalV2I8, NVPTX::StoreRetvalV2I16,
-                             NVPTX::StoreRetvalV2I32, NVPTX::StoreRetvalV2I64,
-                             NVPTX::StoreRetvalV2F32, NVPTX::StoreRetvalV2F64);
+                             RVGPU::StoreRetvalV2I8, RVGPU::StoreRetvalV2I16,
+                             RVGPU::StoreRetvalV2I32, RVGPU::StoreRetvalV2I64,
+                             RVGPU::StoreRetvalV2F32, RVGPU::StoreRetvalV2F64);
     break;
   case 4:
     Opcode = pickOpcodeForVT(Mem->getMemoryVT().getSimpleVT().SimpleTy,
-                             NVPTX::StoreRetvalV4I8, NVPTX::StoreRetvalV4I16,
-                             NVPTX::StoreRetvalV4I32, std::nullopt,
-                             NVPTX::StoreRetvalV4F32, std::nullopt);
+                             RVGPU::StoreRetvalV4I8, RVGPU::StoreRetvalV4I16,
+                             RVGPU::StoreRetvalV4I32, std::nullopt,
+                             RVGPU::StoreRetvalV4F32, std::nullopt);
     break;
   }
   if (!Opcode)
@@ -2154,7 +2154,7 @@ bool NVPTXDAGToDAGISel::tryStoreRetval(SDNode *N) {
   return true;
 }
 
-bool NVPTXDAGToDAGISel::tryStoreParam(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryStoreParam(SDNode *N) {
   SDLoc DL(N);
   SDValue Chain = N->getOperand(0);
   SDValue Param = N->getOperand(1);
@@ -2169,15 +2169,15 @@ bool NVPTXDAGToDAGISel::tryStoreParam(SDNode *N) {
   switch (N->getOpcode()) {
   default:
     return false;
-  case NVPTXISD::StoreParamU32:
-  case NVPTXISD::StoreParamS32:
-  case NVPTXISD::StoreParam:
+  case RVGPUISD::StoreParamU32:
+  case RVGPUISD::StoreParamS32:
+  case RVGPUISD::StoreParam:
     NumElts = 1;
     break;
-  case NVPTXISD::StoreParamV2:
+  case RVGPUISD::StoreParamV2:
     NumElts = 2;
     break;
-  case NVPTXISD::StoreParamV4:
+  case RVGPUISD::StoreParamV4:
     NumElts = 4;
     break;
   }
@@ -2193,7 +2193,7 @@ bool NVPTXDAGToDAGISel::tryStoreParam(SDNode *N) {
 
   // Determine target opcode
   // If we have an i1, use an 8-bit store. The lowering code in
-  // NVPTXISelLowering will have already emitted an upcast.
+  // RVGPUISelLowering will have already emitted an upcast.
   std::optional<unsigned> Opcode = 0;
   switch (N->getOpcode()) {
   default:
@@ -2202,21 +2202,21 @@ bool NVPTXDAGToDAGISel::tryStoreParam(SDNode *N) {
       return false;
     case 1:
       Opcode = pickOpcodeForVT(Mem->getMemoryVT().getSimpleVT().SimpleTy,
-                               NVPTX::StoreParamI8, NVPTX::StoreParamI16,
-                               NVPTX::StoreParamI32, NVPTX::StoreParamI64,
-                               NVPTX::StoreParamF32, NVPTX::StoreParamF64);
+                               RVGPU::StoreParamI8, RVGPU::StoreParamI16,
+                               RVGPU::StoreParamI32, RVGPU::StoreParamI64,
+                               RVGPU::StoreParamF32, RVGPU::StoreParamF64);
       break;
     case 2:
       Opcode = pickOpcodeForVT(Mem->getMemoryVT().getSimpleVT().SimpleTy,
-                               NVPTX::StoreParamV2I8, NVPTX::StoreParamV2I16,
-                               NVPTX::StoreParamV2I32, NVPTX::StoreParamV2I64,
-                               NVPTX::StoreParamV2F32, NVPTX::StoreParamV2F64);
+                               RVGPU::StoreParamV2I8, RVGPU::StoreParamV2I16,
+                               RVGPU::StoreParamV2I32, RVGPU::StoreParamV2I64,
+                               RVGPU::StoreParamV2F32, RVGPU::StoreParamV2F64);
       break;
     case 4:
       Opcode = pickOpcodeForVT(Mem->getMemoryVT().getSimpleVT().SimpleTy,
-                               NVPTX::StoreParamV4I8, NVPTX::StoreParamV4I16,
-                               NVPTX::StoreParamV4I32, std::nullopt,
-                               NVPTX::StoreParamV4F32, std::nullopt);
+                               RVGPU::StoreParamV4I8, RVGPU::StoreParamV4I16,
+                               RVGPU::StoreParamV4I32, std::nullopt,
+                               RVGPU::StoreParamV4F32, std::nullopt);
       break;
     }
     if (!Opcode)
@@ -2225,20 +2225,20 @@ bool NVPTXDAGToDAGISel::tryStoreParam(SDNode *N) {
   // Special case: if we have a sign-extend/zero-extend node, insert the
   // conversion instruction first, and use that as the value operand to
   // the selected StoreParam node.
-  case NVPTXISD::StoreParamU32: {
-    Opcode = NVPTX::StoreParamI32;
-    SDValue CvtNone = CurDAG->getTargetConstant(NVPTX::PTXCvtMode::NONE, DL,
+  case RVGPUISD::StoreParamU32: {
+    Opcode = RVGPU::StoreParamI32;
+    SDValue CvtNone = CurDAG->getTargetConstant(RVGPU::PTXCvtMode::NONE, DL,
                                                 MVT::i32);
-    SDNode *Cvt = CurDAG->getMachineNode(NVPTX::CVT_u32_u16, DL,
+    SDNode *Cvt = CurDAG->getMachineNode(RVGPU::CVT_u32_u16, DL,
                                          MVT::i32, Ops[0], CvtNone);
     Ops[0] = SDValue(Cvt, 0);
     break;
   }
-  case NVPTXISD::StoreParamS32: {
-    Opcode = NVPTX::StoreParamI32;
-    SDValue CvtNone = CurDAG->getTargetConstant(NVPTX::PTXCvtMode::NONE, DL,
+  case RVGPUISD::StoreParamS32: {
+    Opcode = RVGPU::StoreParamI32;
+    SDValue CvtNone = CurDAG->getTargetConstant(RVGPU::PTXCvtMode::NONE, DL,
                                                 MVT::i32);
-    SDNode *Cvt = CurDAG->getMachineNode(NVPTX::CVT_s32_s16, DL,
+    SDNode *Cvt = CurDAG->getMachineNode(RVGPU::CVT_s32_s16, DL,
                                          MVT::i32, Ops[0], CvtNone);
     Ops[0] = SDValue(Cvt, 0);
     break;
@@ -2254,514 +2254,514 @@ bool NVPTXDAGToDAGISel::tryStoreParam(SDNode *N) {
   return true;
 }
 
-bool NVPTXDAGToDAGISel::tryTextureIntrinsic(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryTextureIntrinsic(SDNode *N) {
   unsigned Opc = 0;
 
   switch (N->getOpcode()) {
   default: return false;
-  case NVPTXISD::Tex1DFloatS32:
-    Opc = NVPTX::TEX_1D_F32_S32_RR;
+  case RVGPUISD::Tex1DFloatS32:
+    Opc = RVGPU::TEX_1D_F32_S32_RR;
     break;
-  case NVPTXISD::Tex1DFloatFloat:
-    Opc = NVPTX::TEX_1D_F32_F32_RR;
+  case RVGPUISD::Tex1DFloatFloat:
+    Opc = RVGPU::TEX_1D_F32_F32_RR;
     break;
-  case NVPTXISD::Tex1DFloatFloatLevel:
-    Opc = NVPTX::TEX_1D_F32_F32_LEVEL_RR;
+  case RVGPUISD::Tex1DFloatFloatLevel:
+    Opc = RVGPU::TEX_1D_F32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex1DFloatFloatGrad:
-    Opc = NVPTX::TEX_1D_F32_F32_GRAD_RR;
+  case RVGPUISD::Tex1DFloatFloatGrad:
+    Opc = RVGPU::TEX_1D_F32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex1DS32S32:
-    Opc = NVPTX::TEX_1D_S32_S32_RR;
+  case RVGPUISD::Tex1DS32S32:
+    Opc = RVGPU::TEX_1D_S32_S32_RR;
     break;
-  case NVPTXISD::Tex1DS32Float:
-    Opc = NVPTX::TEX_1D_S32_F32_RR;
+  case RVGPUISD::Tex1DS32Float:
+    Opc = RVGPU::TEX_1D_S32_F32_RR;
     break;
-  case NVPTXISD::Tex1DS32FloatLevel:
-    Opc = NVPTX::TEX_1D_S32_F32_LEVEL_RR;
+  case RVGPUISD::Tex1DS32FloatLevel:
+    Opc = RVGPU::TEX_1D_S32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex1DS32FloatGrad:
-    Opc = NVPTX::TEX_1D_S32_F32_GRAD_RR;
+  case RVGPUISD::Tex1DS32FloatGrad:
+    Opc = RVGPU::TEX_1D_S32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex1DU32S32:
-    Opc = NVPTX::TEX_1D_U32_S32_RR;
+  case RVGPUISD::Tex1DU32S32:
+    Opc = RVGPU::TEX_1D_U32_S32_RR;
     break;
-  case NVPTXISD::Tex1DU32Float:
-    Opc = NVPTX::TEX_1D_U32_F32_RR;
+  case RVGPUISD::Tex1DU32Float:
+    Opc = RVGPU::TEX_1D_U32_F32_RR;
     break;
-  case NVPTXISD::Tex1DU32FloatLevel:
-    Opc = NVPTX::TEX_1D_U32_F32_LEVEL_RR;
+  case RVGPUISD::Tex1DU32FloatLevel:
+    Opc = RVGPU::TEX_1D_U32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex1DU32FloatGrad:
-    Opc = NVPTX::TEX_1D_U32_F32_GRAD_RR;
+  case RVGPUISD::Tex1DU32FloatGrad:
+    Opc = RVGPU::TEX_1D_U32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex1DArrayFloatS32:
-    Opc = NVPTX::TEX_1D_ARRAY_F32_S32_RR;
+  case RVGPUISD::Tex1DArrayFloatS32:
+    Opc = RVGPU::TEX_1D_ARRAY_F32_S32_RR;
     break;
-  case NVPTXISD::Tex1DArrayFloatFloat:
-    Opc = NVPTX::TEX_1D_ARRAY_F32_F32_RR;
+  case RVGPUISD::Tex1DArrayFloatFloat:
+    Opc = RVGPU::TEX_1D_ARRAY_F32_F32_RR;
     break;
-  case NVPTXISD::Tex1DArrayFloatFloatLevel:
-    Opc = NVPTX::TEX_1D_ARRAY_F32_F32_LEVEL_RR;
+  case RVGPUISD::Tex1DArrayFloatFloatLevel:
+    Opc = RVGPU::TEX_1D_ARRAY_F32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex1DArrayFloatFloatGrad:
-    Opc = NVPTX::TEX_1D_ARRAY_F32_F32_GRAD_RR;
+  case RVGPUISD::Tex1DArrayFloatFloatGrad:
+    Opc = RVGPU::TEX_1D_ARRAY_F32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex1DArrayS32S32:
-    Opc = NVPTX::TEX_1D_ARRAY_S32_S32_RR;
+  case RVGPUISD::Tex1DArrayS32S32:
+    Opc = RVGPU::TEX_1D_ARRAY_S32_S32_RR;
     break;
-  case NVPTXISD::Tex1DArrayS32Float:
-    Opc = NVPTX::TEX_1D_ARRAY_S32_F32_RR;
+  case RVGPUISD::Tex1DArrayS32Float:
+    Opc = RVGPU::TEX_1D_ARRAY_S32_F32_RR;
     break;
-  case NVPTXISD::Tex1DArrayS32FloatLevel:
-    Opc = NVPTX::TEX_1D_ARRAY_S32_F32_LEVEL_RR;
+  case RVGPUISD::Tex1DArrayS32FloatLevel:
+    Opc = RVGPU::TEX_1D_ARRAY_S32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex1DArrayS32FloatGrad:
-    Opc = NVPTX::TEX_1D_ARRAY_S32_F32_GRAD_RR;
+  case RVGPUISD::Tex1DArrayS32FloatGrad:
+    Opc = RVGPU::TEX_1D_ARRAY_S32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex1DArrayU32S32:
-    Opc = NVPTX::TEX_1D_ARRAY_U32_S32_RR;
+  case RVGPUISD::Tex1DArrayU32S32:
+    Opc = RVGPU::TEX_1D_ARRAY_U32_S32_RR;
     break;
-  case NVPTXISD::Tex1DArrayU32Float:
-    Opc = NVPTX::TEX_1D_ARRAY_U32_F32_RR;
+  case RVGPUISD::Tex1DArrayU32Float:
+    Opc = RVGPU::TEX_1D_ARRAY_U32_F32_RR;
     break;
-  case NVPTXISD::Tex1DArrayU32FloatLevel:
-    Opc = NVPTX::TEX_1D_ARRAY_U32_F32_LEVEL_RR;
+  case RVGPUISD::Tex1DArrayU32FloatLevel:
+    Opc = RVGPU::TEX_1D_ARRAY_U32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex1DArrayU32FloatGrad:
-    Opc = NVPTX::TEX_1D_ARRAY_U32_F32_GRAD_RR;
+  case RVGPUISD::Tex1DArrayU32FloatGrad:
+    Opc = RVGPU::TEX_1D_ARRAY_U32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex2DFloatS32:
-    Opc = NVPTX::TEX_2D_F32_S32_RR;
+  case RVGPUISD::Tex2DFloatS32:
+    Opc = RVGPU::TEX_2D_F32_S32_RR;
     break;
-  case NVPTXISD::Tex2DFloatFloat:
-    Opc = NVPTX::TEX_2D_F32_F32_RR;
+  case RVGPUISD::Tex2DFloatFloat:
+    Opc = RVGPU::TEX_2D_F32_F32_RR;
     break;
-  case NVPTXISD::Tex2DFloatFloatLevel:
-    Opc = NVPTX::TEX_2D_F32_F32_LEVEL_RR;
+  case RVGPUISD::Tex2DFloatFloatLevel:
+    Opc = RVGPU::TEX_2D_F32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex2DFloatFloatGrad:
-    Opc = NVPTX::TEX_2D_F32_F32_GRAD_RR;
+  case RVGPUISD::Tex2DFloatFloatGrad:
+    Opc = RVGPU::TEX_2D_F32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex2DS32S32:
-    Opc = NVPTX::TEX_2D_S32_S32_RR;
+  case RVGPUISD::Tex2DS32S32:
+    Opc = RVGPU::TEX_2D_S32_S32_RR;
     break;
-  case NVPTXISD::Tex2DS32Float:
-    Opc = NVPTX::TEX_2D_S32_F32_RR;
+  case RVGPUISD::Tex2DS32Float:
+    Opc = RVGPU::TEX_2D_S32_F32_RR;
     break;
-  case NVPTXISD::Tex2DS32FloatLevel:
-    Opc = NVPTX::TEX_2D_S32_F32_LEVEL_RR;
+  case RVGPUISD::Tex2DS32FloatLevel:
+    Opc = RVGPU::TEX_2D_S32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex2DS32FloatGrad:
-    Opc = NVPTX::TEX_2D_S32_F32_GRAD_RR;
+  case RVGPUISD::Tex2DS32FloatGrad:
+    Opc = RVGPU::TEX_2D_S32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex2DU32S32:
-    Opc = NVPTX::TEX_2D_U32_S32_RR;
+  case RVGPUISD::Tex2DU32S32:
+    Opc = RVGPU::TEX_2D_U32_S32_RR;
     break;
-  case NVPTXISD::Tex2DU32Float:
-    Opc = NVPTX::TEX_2D_U32_F32_RR;
+  case RVGPUISD::Tex2DU32Float:
+    Opc = RVGPU::TEX_2D_U32_F32_RR;
     break;
-  case NVPTXISD::Tex2DU32FloatLevel:
-    Opc = NVPTX::TEX_2D_U32_F32_LEVEL_RR;
+  case RVGPUISD::Tex2DU32FloatLevel:
+    Opc = RVGPU::TEX_2D_U32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex2DU32FloatGrad:
-    Opc = NVPTX::TEX_2D_U32_F32_GRAD_RR;
+  case RVGPUISD::Tex2DU32FloatGrad:
+    Opc = RVGPU::TEX_2D_U32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex2DArrayFloatS32:
-    Opc = NVPTX::TEX_2D_ARRAY_F32_S32_RR;
+  case RVGPUISD::Tex2DArrayFloatS32:
+    Opc = RVGPU::TEX_2D_ARRAY_F32_S32_RR;
     break;
-  case NVPTXISD::Tex2DArrayFloatFloat:
-    Opc = NVPTX::TEX_2D_ARRAY_F32_F32_RR;
+  case RVGPUISD::Tex2DArrayFloatFloat:
+    Opc = RVGPU::TEX_2D_ARRAY_F32_F32_RR;
     break;
-  case NVPTXISD::Tex2DArrayFloatFloatLevel:
-    Opc = NVPTX::TEX_2D_ARRAY_F32_F32_LEVEL_RR;
+  case RVGPUISD::Tex2DArrayFloatFloatLevel:
+    Opc = RVGPU::TEX_2D_ARRAY_F32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex2DArrayFloatFloatGrad:
-    Opc = NVPTX::TEX_2D_ARRAY_F32_F32_GRAD_RR;
+  case RVGPUISD::Tex2DArrayFloatFloatGrad:
+    Opc = RVGPU::TEX_2D_ARRAY_F32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex2DArrayS32S32:
-    Opc = NVPTX::TEX_2D_ARRAY_S32_S32_RR;
+  case RVGPUISD::Tex2DArrayS32S32:
+    Opc = RVGPU::TEX_2D_ARRAY_S32_S32_RR;
     break;
-  case NVPTXISD::Tex2DArrayS32Float:
-    Opc = NVPTX::TEX_2D_ARRAY_S32_F32_RR;
+  case RVGPUISD::Tex2DArrayS32Float:
+    Opc = RVGPU::TEX_2D_ARRAY_S32_F32_RR;
     break;
-  case NVPTXISD::Tex2DArrayS32FloatLevel:
-    Opc = NVPTX::TEX_2D_ARRAY_S32_F32_LEVEL_RR;
+  case RVGPUISD::Tex2DArrayS32FloatLevel:
+    Opc = RVGPU::TEX_2D_ARRAY_S32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex2DArrayS32FloatGrad:
-    Opc = NVPTX::TEX_2D_ARRAY_S32_F32_GRAD_RR;
+  case RVGPUISD::Tex2DArrayS32FloatGrad:
+    Opc = RVGPU::TEX_2D_ARRAY_S32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex2DArrayU32S32:
-    Opc = NVPTX::TEX_2D_ARRAY_U32_S32_RR;
+  case RVGPUISD::Tex2DArrayU32S32:
+    Opc = RVGPU::TEX_2D_ARRAY_U32_S32_RR;
     break;
-  case NVPTXISD::Tex2DArrayU32Float:
-    Opc = NVPTX::TEX_2D_ARRAY_U32_F32_RR;
+  case RVGPUISD::Tex2DArrayU32Float:
+    Opc = RVGPU::TEX_2D_ARRAY_U32_F32_RR;
     break;
-  case NVPTXISD::Tex2DArrayU32FloatLevel:
-    Opc = NVPTX::TEX_2D_ARRAY_U32_F32_LEVEL_RR;
+  case RVGPUISD::Tex2DArrayU32FloatLevel:
+    Opc = RVGPU::TEX_2D_ARRAY_U32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex2DArrayU32FloatGrad:
-    Opc = NVPTX::TEX_2D_ARRAY_U32_F32_GRAD_RR;
+  case RVGPUISD::Tex2DArrayU32FloatGrad:
+    Opc = RVGPU::TEX_2D_ARRAY_U32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex3DFloatS32:
-    Opc = NVPTX::TEX_3D_F32_S32_RR;
+  case RVGPUISD::Tex3DFloatS32:
+    Opc = RVGPU::TEX_3D_F32_S32_RR;
     break;
-  case NVPTXISD::Tex3DFloatFloat:
-    Opc = NVPTX::TEX_3D_F32_F32_RR;
+  case RVGPUISD::Tex3DFloatFloat:
+    Opc = RVGPU::TEX_3D_F32_F32_RR;
     break;
-  case NVPTXISD::Tex3DFloatFloatLevel:
-    Opc = NVPTX::TEX_3D_F32_F32_LEVEL_RR;
+  case RVGPUISD::Tex3DFloatFloatLevel:
+    Opc = RVGPU::TEX_3D_F32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex3DFloatFloatGrad:
-    Opc = NVPTX::TEX_3D_F32_F32_GRAD_RR;
+  case RVGPUISD::Tex3DFloatFloatGrad:
+    Opc = RVGPU::TEX_3D_F32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex3DS32S32:
-    Opc = NVPTX::TEX_3D_S32_S32_RR;
+  case RVGPUISD::Tex3DS32S32:
+    Opc = RVGPU::TEX_3D_S32_S32_RR;
     break;
-  case NVPTXISD::Tex3DS32Float:
-    Opc = NVPTX::TEX_3D_S32_F32_RR;
+  case RVGPUISD::Tex3DS32Float:
+    Opc = RVGPU::TEX_3D_S32_F32_RR;
     break;
-  case NVPTXISD::Tex3DS32FloatLevel:
-    Opc = NVPTX::TEX_3D_S32_F32_LEVEL_RR;
+  case RVGPUISD::Tex3DS32FloatLevel:
+    Opc = RVGPU::TEX_3D_S32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex3DS32FloatGrad:
-    Opc = NVPTX::TEX_3D_S32_F32_GRAD_RR;
+  case RVGPUISD::Tex3DS32FloatGrad:
+    Opc = RVGPU::TEX_3D_S32_F32_GRAD_RR;
     break;
-  case NVPTXISD::Tex3DU32S32:
-    Opc = NVPTX::TEX_3D_U32_S32_RR;
+  case RVGPUISD::Tex3DU32S32:
+    Opc = RVGPU::TEX_3D_U32_S32_RR;
     break;
-  case NVPTXISD::Tex3DU32Float:
-    Opc = NVPTX::TEX_3D_U32_F32_RR;
+  case RVGPUISD::Tex3DU32Float:
+    Opc = RVGPU::TEX_3D_U32_F32_RR;
     break;
-  case NVPTXISD::Tex3DU32FloatLevel:
-    Opc = NVPTX::TEX_3D_U32_F32_LEVEL_RR;
+  case RVGPUISD::Tex3DU32FloatLevel:
+    Opc = RVGPU::TEX_3D_U32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tex3DU32FloatGrad:
-    Opc = NVPTX::TEX_3D_U32_F32_GRAD_RR;
+  case RVGPUISD::Tex3DU32FloatGrad:
+    Opc = RVGPU::TEX_3D_U32_F32_GRAD_RR;
     break;
-  case NVPTXISD::TexCubeFloatFloat:
-    Opc = NVPTX::TEX_CUBE_F32_F32_RR;
+  case RVGPUISD::TexCubeFloatFloat:
+    Opc = RVGPU::TEX_CUBE_F32_F32_RR;
     break;
-  case NVPTXISD::TexCubeFloatFloatLevel:
-    Opc = NVPTX::TEX_CUBE_F32_F32_LEVEL_RR;
+  case RVGPUISD::TexCubeFloatFloatLevel:
+    Opc = RVGPU::TEX_CUBE_F32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::TexCubeS32Float:
-    Opc = NVPTX::TEX_CUBE_S32_F32_RR;
+  case RVGPUISD::TexCubeS32Float:
+    Opc = RVGPU::TEX_CUBE_S32_F32_RR;
     break;
-  case NVPTXISD::TexCubeS32FloatLevel:
-    Opc = NVPTX::TEX_CUBE_S32_F32_LEVEL_RR;
+  case RVGPUISD::TexCubeS32FloatLevel:
+    Opc = RVGPU::TEX_CUBE_S32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::TexCubeU32Float:
-    Opc = NVPTX::TEX_CUBE_U32_F32_RR;
+  case RVGPUISD::TexCubeU32Float:
+    Opc = RVGPU::TEX_CUBE_U32_F32_RR;
     break;
-  case NVPTXISD::TexCubeU32FloatLevel:
-    Opc = NVPTX::TEX_CUBE_U32_F32_LEVEL_RR;
+  case RVGPUISD::TexCubeU32FloatLevel:
+    Opc = RVGPU::TEX_CUBE_U32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::TexCubeArrayFloatFloat:
-    Opc = NVPTX::TEX_CUBE_ARRAY_F32_F32_RR;
+  case RVGPUISD::TexCubeArrayFloatFloat:
+    Opc = RVGPU::TEX_CUBE_ARRAY_F32_F32_RR;
     break;
-  case NVPTXISD::TexCubeArrayFloatFloatLevel:
-    Opc = NVPTX::TEX_CUBE_ARRAY_F32_F32_LEVEL_RR;
+  case RVGPUISD::TexCubeArrayFloatFloatLevel:
+    Opc = RVGPU::TEX_CUBE_ARRAY_F32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::TexCubeArrayS32Float:
-    Opc = NVPTX::TEX_CUBE_ARRAY_S32_F32_RR;
+  case RVGPUISD::TexCubeArrayS32Float:
+    Opc = RVGPU::TEX_CUBE_ARRAY_S32_F32_RR;
     break;
-  case NVPTXISD::TexCubeArrayS32FloatLevel:
-    Opc = NVPTX::TEX_CUBE_ARRAY_S32_F32_LEVEL_RR;
+  case RVGPUISD::TexCubeArrayS32FloatLevel:
+    Opc = RVGPU::TEX_CUBE_ARRAY_S32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::TexCubeArrayU32Float:
-    Opc = NVPTX::TEX_CUBE_ARRAY_U32_F32_RR;
+  case RVGPUISD::TexCubeArrayU32Float:
+    Opc = RVGPU::TEX_CUBE_ARRAY_U32_F32_RR;
     break;
-  case NVPTXISD::TexCubeArrayU32FloatLevel:
-    Opc = NVPTX::TEX_CUBE_ARRAY_U32_F32_LEVEL_RR;
+  case RVGPUISD::TexCubeArrayU32FloatLevel:
+    Opc = RVGPU::TEX_CUBE_ARRAY_U32_F32_LEVEL_RR;
     break;
-  case NVPTXISD::Tld4R2DFloatFloat:
-    Opc = NVPTX::TLD4_R_2D_F32_F32_RR;
+  case RVGPUISD::Tld4R2DFloatFloat:
+    Opc = RVGPU::TLD4_R_2D_F32_F32_RR;
     break;
-  case NVPTXISD::Tld4G2DFloatFloat:
-    Opc = NVPTX::TLD4_G_2D_F32_F32_RR;
+  case RVGPUISD::Tld4G2DFloatFloat:
+    Opc = RVGPU::TLD4_G_2D_F32_F32_RR;
     break;
-  case NVPTXISD::Tld4B2DFloatFloat:
-    Opc = NVPTX::TLD4_B_2D_F32_F32_RR;
+  case RVGPUISD::Tld4B2DFloatFloat:
+    Opc = RVGPU::TLD4_B_2D_F32_F32_RR;
     break;
-  case NVPTXISD::Tld4A2DFloatFloat:
-    Opc = NVPTX::TLD4_A_2D_F32_F32_RR;
+  case RVGPUISD::Tld4A2DFloatFloat:
+    Opc = RVGPU::TLD4_A_2D_F32_F32_RR;
     break;
-  case NVPTXISD::Tld4R2DS64Float:
-    Opc = NVPTX::TLD4_R_2D_S32_F32_RR;
+  case RVGPUISD::Tld4R2DS64Float:
+    Opc = RVGPU::TLD4_R_2D_S32_F32_RR;
     break;
-  case NVPTXISD::Tld4G2DS64Float:
-    Opc = NVPTX::TLD4_G_2D_S32_F32_RR;
+  case RVGPUISD::Tld4G2DS64Float:
+    Opc = RVGPU::TLD4_G_2D_S32_F32_RR;
     break;
-  case NVPTXISD::Tld4B2DS64Float:
-    Opc = NVPTX::TLD4_B_2D_S32_F32_RR;
+  case RVGPUISD::Tld4B2DS64Float:
+    Opc = RVGPU::TLD4_B_2D_S32_F32_RR;
     break;
-  case NVPTXISD::Tld4A2DS64Float:
-    Opc = NVPTX::TLD4_A_2D_S32_F32_RR;
+  case RVGPUISD::Tld4A2DS64Float:
+    Opc = RVGPU::TLD4_A_2D_S32_F32_RR;
     break;
-  case NVPTXISD::Tld4R2DU64Float:
-    Opc = NVPTX::TLD4_R_2D_U32_F32_RR;
+  case RVGPUISD::Tld4R2DU64Float:
+    Opc = RVGPU::TLD4_R_2D_U32_F32_RR;
     break;
-  case NVPTXISD::Tld4G2DU64Float:
-    Opc = NVPTX::TLD4_G_2D_U32_F32_RR;
+  case RVGPUISD::Tld4G2DU64Float:
+    Opc = RVGPU::TLD4_G_2D_U32_F32_RR;
     break;
-  case NVPTXISD::Tld4B2DU64Float:
-    Opc = NVPTX::TLD4_B_2D_U32_F32_RR;
+  case RVGPUISD::Tld4B2DU64Float:
+    Opc = RVGPU::TLD4_B_2D_U32_F32_RR;
     break;
-  case NVPTXISD::Tld4A2DU64Float:
-    Opc = NVPTX::TLD4_A_2D_U32_F32_RR;
+  case RVGPUISD::Tld4A2DU64Float:
+    Opc = RVGPU::TLD4_A_2D_U32_F32_RR;
     break;
-  case NVPTXISD::TexUnified1DFloatS32:
-    Opc = NVPTX::TEX_UNIFIED_1D_F32_S32_R;
+  case RVGPUISD::TexUnified1DFloatS32:
+    Opc = RVGPU::TEX_UNIFIED_1D_F32_S32_R;
     break;
-  case NVPTXISD::TexUnified1DFloatFloat:
-    Opc = NVPTX::TEX_UNIFIED_1D_F32_F32_R;
+  case RVGPUISD::TexUnified1DFloatFloat:
+    Opc = RVGPU::TEX_UNIFIED_1D_F32_F32_R;
     break;
-  case NVPTXISD::TexUnified1DFloatFloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_1D_F32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified1DFloatFloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_1D_F32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified1DFloatFloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_1D_F32_F32_GRAD_R;
+  case RVGPUISD::TexUnified1DFloatFloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_1D_F32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified1DS32S32:
-    Opc = NVPTX::TEX_UNIFIED_1D_S32_S32_R;
+  case RVGPUISD::TexUnified1DS32S32:
+    Opc = RVGPU::TEX_UNIFIED_1D_S32_S32_R;
     break;
-  case NVPTXISD::TexUnified1DS32Float:
-    Opc = NVPTX::TEX_UNIFIED_1D_S32_F32_R;
+  case RVGPUISD::TexUnified1DS32Float:
+    Opc = RVGPU::TEX_UNIFIED_1D_S32_F32_R;
     break;
-  case NVPTXISD::TexUnified1DS32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_1D_S32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified1DS32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_1D_S32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified1DS32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_1D_S32_F32_GRAD_R;
+  case RVGPUISD::TexUnified1DS32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_1D_S32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified1DU32S32:
-    Opc = NVPTX::TEX_UNIFIED_1D_U32_S32_R;
+  case RVGPUISD::TexUnified1DU32S32:
+    Opc = RVGPU::TEX_UNIFIED_1D_U32_S32_R;
     break;
-  case NVPTXISD::TexUnified1DU32Float:
-    Opc = NVPTX::TEX_UNIFIED_1D_U32_F32_R;
+  case RVGPUISD::TexUnified1DU32Float:
+    Opc = RVGPU::TEX_UNIFIED_1D_U32_F32_R;
     break;
-  case NVPTXISD::TexUnified1DU32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_1D_U32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified1DU32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_1D_U32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified1DU32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_1D_U32_F32_GRAD_R;
+  case RVGPUISD::TexUnified1DU32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_1D_U32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified1DArrayFloatS32:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_F32_S32_R;
+  case RVGPUISD::TexUnified1DArrayFloatS32:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_F32_S32_R;
     break;
-  case NVPTXISD::TexUnified1DArrayFloatFloat:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_F32_F32_R;
+  case RVGPUISD::TexUnified1DArrayFloatFloat:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_F32_F32_R;
     break;
-  case NVPTXISD::TexUnified1DArrayFloatFloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_F32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified1DArrayFloatFloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_F32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified1DArrayFloatFloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_F32_F32_GRAD_R;
+  case RVGPUISD::TexUnified1DArrayFloatFloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_F32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified1DArrayS32S32:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_S32_S32_R;
+  case RVGPUISD::TexUnified1DArrayS32S32:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_S32_S32_R;
     break;
-  case NVPTXISD::TexUnified1DArrayS32Float:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_S32_F32_R;
+  case RVGPUISD::TexUnified1DArrayS32Float:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_S32_F32_R;
     break;
-  case NVPTXISD::TexUnified1DArrayS32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_S32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified1DArrayS32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_S32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified1DArrayS32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_S32_F32_GRAD_R;
+  case RVGPUISD::TexUnified1DArrayS32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_S32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified1DArrayU32S32:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_U32_S32_R;
+  case RVGPUISD::TexUnified1DArrayU32S32:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_U32_S32_R;
     break;
-  case NVPTXISD::TexUnified1DArrayU32Float:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_U32_F32_R;
+  case RVGPUISD::TexUnified1DArrayU32Float:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_U32_F32_R;
     break;
-  case NVPTXISD::TexUnified1DArrayU32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_U32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified1DArrayU32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_U32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified1DArrayU32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_1D_ARRAY_U32_F32_GRAD_R;
+  case RVGPUISD::TexUnified1DArrayU32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_1D_ARRAY_U32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified2DFloatS32:
-    Opc = NVPTX::TEX_UNIFIED_2D_F32_S32_R;
+  case RVGPUISD::TexUnified2DFloatS32:
+    Opc = RVGPU::TEX_UNIFIED_2D_F32_S32_R;
     break;
-  case NVPTXISD::TexUnified2DFloatFloat:
-    Opc = NVPTX::TEX_UNIFIED_2D_F32_F32_R;
+  case RVGPUISD::TexUnified2DFloatFloat:
+    Opc = RVGPU::TEX_UNIFIED_2D_F32_F32_R;
     break;
-  case NVPTXISD::TexUnified2DFloatFloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_2D_F32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified2DFloatFloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_2D_F32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified2DFloatFloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_2D_F32_F32_GRAD_R;
+  case RVGPUISD::TexUnified2DFloatFloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_2D_F32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified2DS32S32:
-    Opc = NVPTX::TEX_UNIFIED_2D_S32_S32_R;
+  case RVGPUISD::TexUnified2DS32S32:
+    Opc = RVGPU::TEX_UNIFIED_2D_S32_S32_R;
     break;
-  case NVPTXISD::TexUnified2DS32Float:
-    Opc = NVPTX::TEX_UNIFIED_2D_S32_F32_R;
+  case RVGPUISD::TexUnified2DS32Float:
+    Opc = RVGPU::TEX_UNIFIED_2D_S32_F32_R;
     break;
-  case NVPTXISD::TexUnified2DS32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_2D_S32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified2DS32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_2D_S32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified2DS32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_2D_S32_F32_GRAD_R;
+  case RVGPUISD::TexUnified2DS32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_2D_S32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified2DU32S32:
-    Opc = NVPTX::TEX_UNIFIED_2D_U32_S32_R;
+  case RVGPUISD::TexUnified2DU32S32:
+    Opc = RVGPU::TEX_UNIFIED_2D_U32_S32_R;
     break;
-  case NVPTXISD::TexUnified2DU32Float:
-    Opc = NVPTX::TEX_UNIFIED_2D_U32_F32_R;
+  case RVGPUISD::TexUnified2DU32Float:
+    Opc = RVGPU::TEX_UNIFIED_2D_U32_F32_R;
     break;
-  case NVPTXISD::TexUnified2DU32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_2D_U32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified2DU32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_2D_U32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified2DU32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_2D_U32_F32_GRAD_R;
+  case RVGPUISD::TexUnified2DU32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_2D_U32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified2DArrayFloatS32:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_F32_S32_R;
+  case RVGPUISD::TexUnified2DArrayFloatS32:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_F32_S32_R;
     break;
-  case NVPTXISD::TexUnified2DArrayFloatFloat:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_F32_F32_R;
+  case RVGPUISD::TexUnified2DArrayFloatFloat:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_F32_F32_R;
     break;
-  case NVPTXISD::TexUnified2DArrayFloatFloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_F32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified2DArrayFloatFloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_F32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified2DArrayFloatFloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_F32_F32_GRAD_R;
+  case RVGPUISD::TexUnified2DArrayFloatFloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_F32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified2DArrayS32S32:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_S32_S32_R;
+  case RVGPUISD::TexUnified2DArrayS32S32:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_S32_S32_R;
     break;
-  case NVPTXISD::TexUnified2DArrayS32Float:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_S32_F32_R;
+  case RVGPUISD::TexUnified2DArrayS32Float:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_S32_F32_R;
     break;
-  case NVPTXISD::TexUnified2DArrayS32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_S32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified2DArrayS32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_S32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified2DArrayS32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_S32_F32_GRAD_R;
+  case RVGPUISD::TexUnified2DArrayS32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_S32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified2DArrayU32S32:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_U32_S32_R;
+  case RVGPUISD::TexUnified2DArrayU32S32:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_U32_S32_R;
     break;
-  case NVPTXISD::TexUnified2DArrayU32Float:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_U32_F32_R;
+  case RVGPUISD::TexUnified2DArrayU32Float:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_U32_F32_R;
     break;
-  case NVPTXISD::TexUnified2DArrayU32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_U32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified2DArrayU32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_U32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified2DArrayU32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_2D_ARRAY_U32_F32_GRAD_R;
+  case RVGPUISD::TexUnified2DArrayU32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_2D_ARRAY_U32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified3DFloatS32:
-    Opc = NVPTX::TEX_UNIFIED_3D_F32_S32_R;
+  case RVGPUISD::TexUnified3DFloatS32:
+    Opc = RVGPU::TEX_UNIFIED_3D_F32_S32_R;
     break;
-  case NVPTXISD::TexUnified3DFloatFloat:
-    Opc = NVPTX::TEX_UNIFIED_3D_F32_F32_R;
+  case RVGPUISD::TexUnified3DFloatFloat:
+    Opc = RVGPU::TEX_UNIFIED_3D_F32_F32_R;
     break;
-  case NVPTXISD::TexUnified3DFloatFloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_3D_F32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified3DFloatFloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_3D_F32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified3DFloatFloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_3D_F32_F32_GRAD_R;
+  case RVGPUISD::TexUnified3DFloatFloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_3D_F32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified3DS32S32:
-    Opc = NVPTX::TEX_UNIFIED_3D_S32_S32_R;
+  case RVGPUISD::TexUnified3DS32S32:
+    Opc = RVGPU::TEX_UNIFIED_3D_S32_S32_R;
     break;
-  case NVPTXISD::TexUnified3DS32Float:
-    Opc = NVPTX::TEX_UNIFIED_3D_S32_F32_R;
+  case RVGPUISD::TexUnified3DS32Float:
+    Opc = RVGPU::TEX_UNIFIED_3D_S32_F32_R;
     break;
-  case NVPTXISD::TexUnified3DS32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_3D_S32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified3DS32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_3D_S32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified3DS32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_3D_S32_F32_GRAD_R;
+  case RVGPUISD::TexUnified3DS32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_3D_S32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnified3DU32S32:
-    Opc = NVPTX::TEX_UNIFIED_3D_U32_S32_R;
+  case RVGPUISD::TexUnified3DU32S32:
+    Opc = RVGPU::TEX_UNIFIED_3D_U32_S32_R;
     break;
-  case NVPTXISD::TexUnified3DU32Float:
-    Opc = NVPTX::TEX_UNIFIED_3D_U32_F32_R;
+  case RVGPUISD::TexUnified3DU32Float:
+    Opc = RVGPU::TEX_UNIFIED_3D_U32_F32_R;
     break;
-  case NVPTXISD::TexUnified3DU32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_3D_U32_F32_LEVEL_R;
+  case RVGPUISD::TexUnified3DU32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_3D_U32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnified3DU32FloatGrad:
-    Opc = NVPTX::TEX_UNIFIED_3D_U32_F32_GRAD_R;
+  case RVGPUISD::TexUnified3DU32FloatGrad:
+    Opc = RVGPU::TEX_UNIFIED_3D_U32_F32_GRAD_R;
     break;
-  case NVPTXISD::TexUnifiedCubeFloatFloat:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_F32_F32_R;
+  case RVGPUISD::TexUnifiedCubeFloatFloat:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_F32_F32_R;
     break;
-  case NVPTXISD::TexUnifiedCubeFloatFloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_F32_F32_LEVEL_R;
+  case RVGPUISD::TexUnifiedCubeFloatFloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_F32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnifiedCubeS32Float:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_S32_F32_R;
+  case RVGPUISD::TexUnifiedCubeS32Float:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_S32_F32_R;
     break;
-  case NVPTXISD::TexUnifiedCubeS32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_S32_F32_LEVEL_R;
+  case RVGPUISD::TexUnifiedCubeS32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_S32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnifiedCubeU32Float:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_U32_F32_R;
+  case RVGPUISD::TexUnifiedCubeU32Float:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_U32_F32_R;
     break;
-  case NVPTXISD::TexUnifiedCubeU32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_U32_F32_LEVEL_R;
+  case RVGPUISD::TexUnifiedCubeU32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_U32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnifiedCubeArrayFloatFloat:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_ARRAY_F32_F32_R;
+  case RVGPUISD::TexUnifiedCubeArrayFloatFloat:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_ARRAY_F32_F32_R;
     break;
-  case NVPTXISD::TexUnifiedCubeArrayFloatFloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_ARRAY_F32_F32_LEVEL_R;
+  case RVGPUISD::TexUnifiedCubeArrayFloatFloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_ARRAY_F32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnifiedCubeArrayS32Float:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_ARRAY_S32_F32_R;
+  case RVGPUISD::TexUnifiedCubeArrayS32Float:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_ARRAY_S32_F32_R;
     break;
-  case NVPTXISD::TexUnifiedCubeArrayS32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_ARRAY_S32_F32_LEVEL_R;
+  case RVGPUISD::TexUnifiedCubeArrayS32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_ARRAY_S32_F32_LEVEL_R;
     break;
-  case NVPTXISD::TexUnifiedCubeArrayU32Float:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_ARRAY_U32_F32_R;
+  case RVGPUISD::TexUnifiedCubeArrayU32Float:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_ARRAY_U32_F32_R;
     break;
-  case NVPTXISD::TexUnifiedCubeArrayU32FloatLevel:
-    Opc = NVPTX::TEX_UNIFIED_CUBE_ARRAY_U32_F32_LEVEL_R;
+  case RVGPUISD::TexUnifiedCubeArrayU32FloatLevel:
+    Opc = RVGPU::TEX_UNIFIED_CUBE_ARRAY_U32_F32_LEVEL_R;
     break;
-  case NVPTXISD::Tld4UnifiedR2DFloatFloat:
-    Opc = NVPTX::TLD4_UNIFIED_R_2D_F32_F32_R;
+  case RVGPUISD::Tld4UnifiedR2DFloatFloat:
+    Opc = RVGPU::TLD4_UNIFIED_R_2D_F32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedG2DFloatFloat:
-    Opc = NVPTX::TLD4_UNIFIED_G_2D_F32_F32_R;
+  case RVGPUISD::Tld4UnifiedG2DFloatFloat:
+    Opc = RVGPU::TLD4_UNIFIED_G_2D_F32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedB2DFloatFloat:
-    Opc = NVPTX::TLD4_UNIFIED_B_2D_F32_F32_R;
+  case RVGPUISD::Tld4UnifiedB2DFloatFloat:
+    Opc = RVGPU::TLD4_UNIFIED_B_2D_F32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedA2DFloatFloat:
-    Opc = NVPTX::TLD4_UNIFIED_A_2D_F32_F32_R;
+  case RVGPUISD::Tld4UnifiedA2DFloatFloat:
+    Opc = RVGPU::TLD4_UNIFIED_A_2D_F32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedR2DS64Float:
-    Opc = NVPTX::TLD4_UNIFIED_R_2D_S32_F32_R;
+  case RVGPUISD::Tld4UnifiedR2DS64Float:
+    Opc = RVGPU::TLD4_UNIFIED_R_2D_S32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedG2DS64Float:
-    Opc = NVPTX::TLD4_UNIFIED_G_2D_S32_F32_R;
+  case RVGPUISD::Tld4UnifiedG2DS64Float:
+    Opc = RVGPU::TLD4_UNIFIED_G_2D_S32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedB2DS64Float:
-    Opc = NVPTX::TLD4_UNIFIED_B_2D_S32_F32_R;
+  case RVGPUISD::Tld4UnifiedB2DS64Float:
+    Opc = RVGPU::TLD4_UNIFIED_B_2D_S32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedA2DS64Float:
-    Opc = NVPTX::TLD4_UNIFIED_A_2D_S32_F32_R;
+  case RVGPUISD::Tld4UnifiedA2DS64Float:
+    Opc = RVGPU::TLD4_UNIFIED_A_2D_S32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedR2DU64Float:
-    Opc = NVPTX::TLD4_UNIFIED_R_2D_U32_F32_R;
+  case RVGPUISD::Tld4UnifiedR2DU64Float:
+    Opc = RVGPU::TLD4_UNIFIED_R_2D_U32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedG2DU64Float:
-    Opc = NVPTX::TLD4_UNIFIED_G_2D_U32_F32_R;
+  case RVGPUISD::Tld4UnifiedG2DU64Float:
+    Opc = RVGPU::TLD4_UNIFIED_G_2D_U32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedB2DU64Float:
-    Opc = NVPTX::TLD4_UNIFIED_B_2D_U32_F32_R;
+  case RVGPUISD::Tld4UnifiedB2DU64Float:
+    Opc = RVGPU::TLD4_UNIFIED_B_2D_U32_F32_R;
     break;
-  case NVPTXISD::Tld4UnifiedA2DU64Float:
-    Opc = NVPTX::TLD4_UNIFIED_A_2D_U32_F32_R;
+  case RVGPUISD::Tld4UnifiedA2DU64Float:
+    Opc = RVGPU::TLD4_UNIFIED_A_2D_U32_F32_R;
     break;
   }
 
@@ -2773,504 +2773,504 @@ bool NVPTXDAGToDAGISel::tryTextureIntrinsic(SDNode *N) {
   return true;
 }
 
-bool NVPTXDAGToDAGISel::trySurfaceIntrinsic(SDNode *N) {
+bool RVGPUDAGToDAGISel::trySurfaceIntrinsic(SDNode *N) {
   unsigned Opc = 0;
   switch (N->getOpcode()) {
   default: return false;
-  case NVPTXISD::Suld1DI8Clamp:
-    Opc = NVPTX::SULD_1D_I8_CLAMP_R;
+  case RVGPUISD::Suld1DI8Clamp:
+    Opc = RVGPU::SULD_1D_I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DI16Clamp:
-    Opc = NVPTX::SULD_1D_I16_CLAMP_R;
+  case RVGPUISD::Suld1DI16Clamp:
+    Opc = RVGPU::SULD_1D_I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DI32Clamp:
-    Opc = NVPTX::SULD_1D_I32_CLAMP_R;
+  case RVGPUISD::Suld1DI32Clamp:
+    Opc = RVGPU::SULD_1D_I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DI64Clamp:
-    Opc = NVPTX::SULD_1D_I64_CLAMP_R;
+  case RVGPUISD::Suld1DI64Clamp:
+    Opc = RVGPU::SULD_1D_I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DV2I8Clamp:
-    Opc = NVPTX::SULD_1D_V2I8_CLAMP_R;
+  case RVGPUISD::Suld1DV2I8Clamp:
+    Opc = RVGPU::SULD_1D_V2I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DV2I16Clamp:
-    Opc = NVPTX::SULD_1D_V2I16_CLAMP_R;
+  case RVGPUISD::Suld1DV2I16Clamp:
+    Opc = RVGPU::SULD_1D_V2I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DV2I32Clamp:
-    Opc = NVPTX::SULD_1D_V2I32_CLAMP_R;
+  case RVGPUISD::Suld1DV2I32Clamp:
+    Opc = RVGPU::SULD_1D_V2I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DV2I64Clamp:
-    Opc = NVPTX::SULD_1D_V2I64_CLAMP_R;
+  case RVGPUISD::Suld1DV2I64Clamp:
+    Opc = RVGPU::SULD_1D_V2I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DV4I8Clamp:
-    Opc = NVPTX::SULD_1D_V4I8_CLAMP_R;
+  case RVGPUISD::Suld1DV4I8Clamp:
+    Opc = RVGPU::SULD_1D_V4I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DV4I16Clamp:
-    Opc = NVPTX::SULD_1D_V4I16_CLAMP_R;
+  case RVGPUISD::Suld1DV4I16Clamp:
+    Opc = RVGPU::SULD_1D_V4I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DV4I32Clamp:
-    Opc = NVPTX::SULD_1D_V4I32_CLAMP_R;
+  case RVGPUISD::Suld1DV4I32Clamp:
+    Opc = RVGPU::SULD_1D_V4I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayI8Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_I8_CLAMP_R;
+  case RVGPUISD::Suld1DArrayI8Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayI16Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_I16_CLAMP_R;
+  case RVGPUISD::Suld1DArrayI16Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayI32Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_I32_CLAMP_R;
+  case RVGPUISD::Suld1DArrayI32Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayI64Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_I64_CLAMP_R;
+  case RVGPUISD::Suld1DArrayI64Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I8Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I8_CLAMP_R;
+  case RVGPUISD::Suld1DArrayV2I8Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I16Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I16_CLAMP_R;
+  case RVGPUISD::Suld1DArrayV2I16Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I32Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I32_CLAMP_R;
+  case RVGPUISD::Suld1DArrayV2I32Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I64Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I64_CLAMP_R;
+  case RVGPUISD::Suld1DArrayV2I64Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I8Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I8_CLAMP_R;
+  case RVGPUISD::Suld1DArrayV4I8Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I16Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I16_CLAMP_R;
+  case RVGPUISD::Suld1DArrayV4I16Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I32Clamp:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I32_CLAMP_R;
+  case RVGPUISD::Suld1DArrayV4I32Clamp:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DI8Clamp:
-    Opc = NVPTX::SULD_2D_I8_CLAMP_R;
+  case RVGPUISD::Suld2DI8Clamp:
+    Opc = RVGPU::SULD_2D_I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DI16Clamp:
-    Opc = NVPTX::SULD_2D_I16_CLAMP_R;
+  case RVGPUISD::Suld2DI16Clamp:
+    Opc = RVGPU::SULD_2D_I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DI32Clamp:
-    Opc = NVPTX::SULD_2D_I32_CLAMP_R;
+  case RVGPUISD::Suld2DI32Clamp:
+    Opc = RVGPU::SULD_2D_I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DI64Clamp:
-    Opc = NVPTX::SULD_2D_I64_CLAMP_R;
+  case RVGPUISD::Suld2DI64Clamp:
+    Opc = RVGPU::SULD_2D_I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DV2I8Clamp:
-    Opc = NVPTX::SULD_2D_V2I8_CLAMP_R;
+  case RVGPUISD::Suld2DV2I8Clamp:
+    Opc = RVGPU::SULD_2D_V2I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DV2I16Clamp:
-    Opc = NVPTX::SULD_2D_V2I16_CLAMP_R;
+  case RVGPUISD::Suld2DV2I16Clamp:
+    Opc = RVGPU::SULD_2D_V2I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DV2I32Clamp:
-    Opc = NVPTX::SULD_2D_V2I32_CLAMP_R;
+  case RVGPUISD::Suld2DV2I32Clamp:
+    Opc = RVGPU::SULD_2D_V2I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DV2I64Clamp:
-    Opc = NVPTX::SULD_2D_V2I64_CLAMP_R;
+  case RVGPUISD::Suld2DV2I64Clamp:
+    Opc = RVGPU::SULD_2D_V2I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DV4I8Clamp:
-    Opc = NVPTX::SULD_2D_V4I8_CLAMP_R;
+  case RVGPUISD::Suld2DV4I8Clamp:
+    Opc = RVGPU::SULD_2D_V4I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DV4I16Clamp:
-    Opc = NVPTX::SULD_2D_V4I16_CLAMP_R;
+  case RVGPUISD::Suld2DV4I16Clamp:
+    Opc = RVGPU::SULD_2D_V4I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DV4I32Clamp:
-    Opc = NVPTX::SULD_2D_V4I32_CLAMP_R;
+  case RVGPUISD::Suld2DV4I32Clamp:
+    Opc = RVGPU::SULD_2D_V4I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayI8Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_I8_CLAMP_R;
+  case RVGPUISD::Suld2DArrayI8Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayI16Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_I16_CLAMP_R;
+  case RVGPUISD::Suld2DArrayI16Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayI32Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_I32_CLAMP_R;
+  case RVGPUISD::Suld2DArrayI32Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayI64Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_I64_CLAMP_R;
+  case RVGPUISD::Suld2DArrayI64Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I8Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I8_CLAMP_R;
+  case RVGPUISD::Suld2DArrayV2I8Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I16Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I16_CLAMP_R;
+  case RVGPUISD::Suld2DArrayV2I16Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I32Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I32_CLAMP_R;
+  case RVGPUISD::Suld2DArrayV2I32Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I64Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I64_CLAMP_R;
+  case RVGPUISD::Suld2DArrayV2I64Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I8Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I8_CLAMP_R;
+  case RVGPUISD::Suld2DArrayV4I8Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I16Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I16_CLAMP_R;
+  case RVGPUISD::Suld2DArrayV4I16Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I32Clamp:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I32_CLAMP_R;
+  case RVGPUISD::Suld2DArrayV4I32Clamp:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DI8Clamp:
-    Opc = NVPTX::SULD_3D_I8_CLAMP_R;
+  case RVGPUISD::Suld3DI8Clamp:
+    Opc = RVGPU::SULD_3D_I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DI16Clamp:
-    Opc = NVPTX::SULD_3D_I16_CLAMP_R;
+  case RVGPUISD::Suld3DI16Clamp:
+    Opc = RVGPU::SULD_3D_I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DI32Clamp:
-    Opc = NVPTX::SULD_3D_I32_CLAMP_R;
+  case RVGPUISD::Suld3DI32Clamp:
+    Opc = RVGPU::SULD_3D_I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DI64Clamp:
-    Opc = NVPTX::SULD_3D_I64_CLAMP_R;
+  case RVGPUISD::Suld3DI64Clamp:
+    Opc = RVGPU::SULD_3D_I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DV2I8Clamp:
-    Opc = NVPTX::SULD_3D_V2I8_CLAMP_R;
+  case RVGPUISD::Suld3DV2I8Clamp:
+    Opc = RVGPU::SULD_3D_V2I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DV2I16Clamp:
-    Opc = NVPTX::SULD_3D_V2I16_CLAMP_R;
+  case RVGPUISD::Suld3DV2I16Clamp:
+    Opc = RVGPU::SULD_3D_V2I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DV2I32Clamp:
-    Opc = NVPTX::SULD_3D_V2I32_CLAMP_R;
+  case RVGPUISD::Suld3DV2I32Clamp:
+    Opc = RVGPU::SULD_3D_V2I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DV2I64Clamp:
-    Opc = NVPTX::SULD_3D_V2I64_CLAMP_R;
+  case RVGPUISD::Suld3DV2I64Clamp:
+    Opc = RVGPU::SULD_3D_V2I64_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DV4I8Clamp:
-    Opc = NVPTX::SULD_3D_V4I8_CLAMP_R;
+  case RVGPUISD::Suld3DV4I8Clamp:
+    Opc = RVGPU::SULD_3D_V4I8_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DV4I16Clamp:
-    Opc = NVPTX::SULD_3D_V4I16_CLAMP_R;
+  case RVGPUISD::Suld3DV4I16Clamp:
+    Opc = RVGPU::SULD_3D_V4I16_CLAMP_R;
     break;
-  case NVPTXISD::Suld3DV4I32Clamp:
-    Opc = NVPTX::SULD_3D_V4I32_CLAMP_R;
+  case RVGPUISD::Suld3DV4I32Clamp:
+    Opc = RVGPU::SULD_3D_V4I32_CLAMP_R;
     break;
-  case NVPTXISD::Suld1DI8Trap:
-    Opc = NVPTX::SULD_1D_I8_TRAP_R;
+  case RVGPUISD::Suld1DI8Trap:
+    Opc = RVGPU::SULD_1D_I8_TRAP_R;
     break;
-  case NVPTXISD::Suld1DI16Trap:
-    Opc = NVPTX::SULD_1D_I16_TRAP_R;
+  case RVGPUISD::Suld1DI16Trap:
+    Opc = RVGPU::SULD_1D_I16_TRAP_R;
     break;
-  case NVPTXISD::Suld1DI32Trap:
-    Opc = NVPTX::SULD_1D_I32_TRAP_R;
+  case RVGPUISD::Suld1DI32Trap:
+    Opc = RVGPU::SULD_1D_I32_TRAP_R;
     break;
-  case NVPTXISD::Suld1DI64Trap:
-    Opc = NVPTX::SULD_1D_I64_TRAP_R;
+  case RVGPUISD::Suld1DI64Trap:
+    Opc = RVGPU::SULD_1D_I64_TRAP_R;
     break;
-  case NVPTXISD::Suld1DV2I8Trap:
-    Opc = NVPTX::SULD_1D_V2I8_TRAP_R;
+  case RVGPUISD::Suld1DV2I8Trap:
+    Opc = RVGPU::SULD_1D_V2I8_TRAP_R;
     break;
-  case NVPTXISD::Suld1DV2I16Trap:
-    Opc = NVPTX::SULD_1D_V2I16_TRAP_R;
+  case RVGPUISD::Suld1DV2I16Trap:
+    Opc = RVGPU::SULD_1D_V2I16_TRAP_R;
     break;
-  case NVPTXISD::Suld1DV2I32Trap:
-    Opc = NVPTX::SULD_1D_V2I32_TRAP_R;
+  case RVGPUISD::Suld1DV2I32Trap:
+    Opc = RVGPU::SULD_1D_V2I32_TRAP_R;
     break;
-  case NVPTXISD::Suld1DV2I64Trap:
-    Opc = NVPTX::SULD_1D_V2I64_TRAP_R;
+  case RVGPUISD::Suld1DV2I64Trap:
+    Opc = RVGPU::SULD_1D_V2I64_TRAP_R;
     break;
-  case NVPTXISD::Suld1DV4I8Trap:
-    Opc = NVPTX::SULD_1D_V4I8_TRAP_R;
+  case RVGPUISD::Suld1DV4I8Trap:
+    Opc = RVGPU::SULD_1D_V4I8_TRAP_R;
     break;
-  case NVPTXISD::Suld1DV4I16Trap:
-    Opc = NVPTX::SULD_1D_V4I16_TRAP_R;
+  case RVGPUISD::Suld1DV4I16Trap:
+    Opc = RVGPU::SULD_1D_V4I16_TRAP_R;
     break;
-  case NVPTXISD::Suld1DV4I32Trap:
-    Opc = NVPTX::SULD_1D_V4I32_TRAP_R;
+  case RVGPUISD::Suld1DV4I32Trap:
+    Opc = RVGPU::SULD_1D_V4I32_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayI8Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_I8_TRAP_R;
+  case RVGPUISD::Suld1DArrayI8Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_I8_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayI16Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_I16_TRAP_R;
+  case RVGPUISD::Suld1DArrayI16Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_I16_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayI32Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_I32_TRAP_R;
+  case RVGPUISD::Suld1DArrayI32Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_I32_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayI64Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_I64_TRAP_R;
+  case RVGPUISD::Suld1DArrayI64Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_I64_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I8Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I8_TRAP_R;
+  case RVGPUISD::Suld1DArrayV2I8Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I8_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I16Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I16_TRAP_R;
+  case RVGPUISD::Suld1DArrayV2I16Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I16_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I32Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I32_TRAP_R;
+  case RVGPUISD::Suld1DArrayV2I32Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I32_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I64Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I64_TRAP_R;
+  case RVGPUISD::Suld1DArrayV2I64Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I64_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I8Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I8_TRAP_R;
+  case RVGPUISD::Suld1DArrayV4I8Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I8_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I16Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I16_TRAP_R;
+  case RVGPUISD::Suld1DArrayV4I16Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I16_TRAP_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I32Trap:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I32_TRAP_R;
+  case RVGPUISD::Suld1DArrayV4I32Trap:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I32_TRAP_R;
     break;
-  case NVPTXISD::Suld2DI8Trap:
-    Opc = NVPTX::SULD_2D_I8_TRAP_R;
+  case RVGPUISD::Suld2DI8Trap:
+    Opc = RVGPU::SULD_2D_I8_TRAP_R;
     break;
-  case NVPTXISD::Suld2DI16Trap:
-    Opc = NVPTX::SULD_2D_I16_TRAP_R;
+  case RVGPUISD::Suld2DI16Trap:
+    Opc = RVGPU::SULD_2D_I16_TRAP_R;
     break;
-  case NVPTXISD::Suld2DI32Trap:
-    Opc = NVPTX::SULD_2D_I32_TRAP_R;
+  case RVGPUISD::Suld2DI32Trap:
+    Opc = RVGPU::SULD_2D_I32_TRAP_R;
     break;
-  case NVPTXISD::Suld2DI64Trap:
-    Opc = NVPTX::SULD_2D_I64_TRAP_R;
+  case RVGPUISD::Suld2DI64Trap:
+    Opc = RVGPU::SULD_2D_I64_TRAP_R;
     break;
-  case NVPTXISD::Suld2DV2I8Trap:
-    Opc = NVPTX::SULD_2D_V2I8_TRAP_R;
+  case RVGPUISD::Suld2DV2I8Trap:
+    Opc = RVGPU::SULD_2D_V2I8_TRAP_R;
     break;
-  case NVPTXISD::Suld2DV2I16Trap:
-    Opc = NVPTX::SULD_2D_V2I16_TRAP_R;
+  case RVGPUISD::Suld2DV2I16Trap:
+    Opc = RVGPU::SULD_2D_V2I16_TRAP_R;
     break;
-  case NVPTXISD::Suld2DV2I32Trap:
-    Opc = NVPTX::SULD_2D_V2I32_TRAP_R;
+  case RVGPUISD::Suld2DV2I32Trap:
+    Opc = RVGPU::SULD_2D_V2I32_TRAP_R;
     break;
-  case NVPTXISD::Suld2DV2I64Trap:
-    Opc = NVPTX::SULD_2D_V2I64_TRAP_R;
+  case RVGPUISD::Suld2DV2I64Trap:
+    Opc = RVGPU::SULD_2D_V2I64_TRAP_R;
     break;
-  case NVPTXISD::Suld2DV4I8Trap:
-    Opc = NVPTX::SULD_2D_V4I8_TRAP_R;
+  case RVGPUISD::Suld2DV4I8Trap:
+    Opc = RVGPU::SULD_2D_V4I8_TRAP_R;
     break;
-  case NVPTXISD::Suld2DV4I16Trap:
-    Opc = NVPTX::SULD_2D_V4I16_TRAP_R;
+  case RVGPUISD::Suld2DV4I16Trap:
+    Opc = RVGPU::SULD_2D_V4I16_TRAP_R;
     break;
-  case NVPTXISD::Suld2DV4I32Trap:
-    Opc = NVPTX::SULD_2D_V4I32_TRAP_R;
+  case RVGPUISD::Suld2DV4I32Trap:
+    Opc = RVGPU::SULD_2D_V4I32_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayI8Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_I8_TRAP_R;
+  case RVGPUISD::Suld2DArrayI8Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_I8_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayI16Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_I16_TRAP_R;
+  case RVGPUISD::Suld2DArrayI16Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_I16_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayI32Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_I32_TRAP_R;
+  case RVGPUISD::Suld2DArrayI32Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_I32_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayI64Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_I64_TRAP_R;
+  case RVGPUISD::Suld2DArrayI64Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_I64_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I8Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I8_TRAP_R;
+  case RVGPUISD::Suld2DArrayV2I8Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I8_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I16Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I16_TRAP_R;
+  case RVGPUISD::Suld2DArrayV2I16Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I16_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I32Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I32_TRAP_R;
+  case RVGPUISD::Suld2DArrayV2I32Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I32_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I64Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I64_TRAP_R;
+  case RVGPUISD::Suld2DArrayV2I64Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I64_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I8Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I8_TRAP_R;
+  case RVGPUISD::Suld2DArrayV4I8Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I8_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I16Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I16_TRAP_R;
+  case RVGPUISD::Suld2DArrayV4I16Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I16_TRAP_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I32Trap:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I32_TRAP_R;
+  case RVGPUISD::Suld2DArrayV4I32Trap:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I32_TRAP_R;
     break;
-  case NVPTXISD::Suld3DI8Trap:
-    Opc = NVPTX::SULD_3D_I8_TRAP_R;
+  case RVGPUISD::Suld3DI8Trap:
+    Opc = RVGPU::SULD_3D_I8_TRAP_R;
     break;
-  case NVPTXISD::Suld3DI16Trap:
-    Opc = NVPTX::SULD_3D_I16_TRAP_R;
+  case RVGPUISD::Suld3DI16Trap:
+    Opc = RVGPU::SULD_3D_I16_TRAP_R;
     break;
-  case NVPTXISD::Suld3DI32Trap:
-    Opc = NVPTX::SULD_3D_I32_TRAP_R;
+  case RVGPUISD::Suld3DI32Trap:
+    Opc = RVGPU::SULD_3D_I32_TRAP_R;
     break;
-  case NVPTXISD::Suld3DI64Trap:
-    Opc = NVPTX::SULD_3D_I64_TRAP_R;
+  case RVGPUISD::Suld3DI64Trap:
+    Opc = RVGPU::SULD_3D_I64_TRAP_R;
     break;
-  case NVPTXISD::Suld3DV2I8Trap:
-    Opc = NVPTX::SULD_3D_V2I8_TRAP_R;
+  case RVGPUISD::Suld3DV2I8Trap:
+    Opc = RVGPU::SULD_3D_V2I8_TRAP_R;
     break;
-  case NVPTXISD::Suld3DV2I16Trap:
-    Opc = NVPTX::SULD_3D_V2I16_TRAP_R;
+  case RVGPUISD::Suld3DV2I16Trap:
+    Opc = RVGPU::SULD_3D_V2I16_TRAP_R;
     break;
-  case NVPTXISD::Suld3DV2I32Trap:
-    Opc = NVPTX::SULD_3D_V2I32_TRAP_R;
+  case RVGPUISD::Suld3DV2I32Trap:
+    Opc = RVGPU::SULD_3D_V2I32_TRAP_R;
     break;
-  case NVPTXISD::Suld3DV2I64Trap:
-    Opc = NVPTX::SULD_3D_V2I64_TRAP_R;
+  case RVGPUISD::Suld3DV2I64Trap:
+    Opc = RVGPU::SULD_3D_V2I64_TRAP_R;
     break;
-  case NVPTXISD::Suld3DV4I8Trap:
-    Opc = NVPTX::SULD_3D_V4I8_TRAP_R;
+  case RVGPUISD::Suld3DV4I8Trap:
+    Opc = RVGPU::SULD_3D_V4I8_TRAP_R;
     break;
-  case NVPTXISD::Suld3DV4I16Trap:
-    Opc = NVPTX::SULD_3D_V4I16_TRAP_R;
+  case RVGPUISD::Suld3DV4I16Trap:
+    Opc = RVGPU::SULD_3D_V4I16_TRAP_R;
     break;
-  case NVPTXISD::Suld3DV4I32Trap:
-    Opc = NVPTX::SULD_3D_V4I32_TRAP_R;
+  case RVGPUISD::Suld3DV4I32Trap:
+    Opc = RVGPU::SULD_3D_V4I32_TRAP_R;
     break;
-  case NVPTXISD::Suld1DI8Zero:
-    Opc = NVPTX::SULD_1D_I8_ZERO_R;
+  case RVGPUISD::Suld1DI8Zero:
+    Opc = RVGPU::SULD_1D_I8_ZERO_R;
     break;
-  case NVPTXISD::Suld1DI16Zero:
-    Opc = NVPTX::SULD_1D_I16_ZERO_R;
+  case RVGPUISD::Suld1DI16Zero:
+    Opc = RVGPU::SULD_1D_I16_ZERO_R;
     break;
-  case NVPTXISD::Suld1DI32Zero:
-    Opc = NVPTX::SULD_1D_I32_ZERO_R;
+  case RVGPUISD::Suld1DI32Zero:
+    Opc = RVGPU::SULD_1D_I32_ZERO_R;
     break;
-  case NVPTXISD::Suld1DI64Zero:
-    Opc = NVPTX::SULD_1D_I64_ZERO_R;
+  case RVGPUISD::Suld1DI64Zero:
+    Opc = RVGPU::SULD_1D_I64_ZERO_R;
     break;
-  case NVPTXISD::Suld1DV2I8Zero:
-    Opc = NVPTX::SULD_1D_V2I8_ZERO_R;
+  case RVGPUISD::Suld1DV2I8Zero:
+    Opc = RVGPU::SULD_1D_V2I8_ZERO_R;
     break;
-  case NVPTXISD::Suld1DV2I16Zero:
-    Opc = NVPTX::SULD_1D_V2I16_ZERO_R;
+  case RVGPUISD::Suld1DV2I16Zero:
+    Opc = RVGPU::SULD_1D_V2I16_ZERO_R;
     break;
-  case NVPTXISD::Suld1DV2I32Zero:
-    Opc = NVPTX::SULD_1D_V2I32_ZERO_R;
+  case RVGPUISD::Suld1DV2I32Zero:
+    Opc = RVGPU::SULD_1D_V2I32_ZERO_R;
     break;
-  case NVPTXISD::Suld1DV2I64Zero:
-    Opc = NVPTX::SULD_1D_V2I64_ZERO_R;
+  case RVGPUISD::Suld1DV2I64Zero:
+    Opc = RVGPU::SULD_1D_V2I64_ZERO_R;
     break;
-  case NVPTXISD::Suld1DV4I8Zero:
-    Opc = NVPTX::SULD_1D_V4I8_ZERO_R;
+  case RVGPUISD::Suld1DV4I8Zero:
+    Opc = RVGPU::SULD_1D_V4I8_ZERO_R;
     break;
-  case NVPTXISD::Suld1DV4I16Zero:
-    Opc = NVPTX::SULD_1D_V4I16_ZERO_R;
+  case RVGPUISD::Suld1DV4I16Zero:
+    Opc = RVGPU::SULD_1D_V4I16_ZERO_R;
     break;
-  case NVPTXISD::Suld1DV4I32Zero:
-    Opc = NVPTX::SULD_1D_V4I32_ZERO_R;
+  case RVGPUISD::Suld1DV4I32Zero:
+    Opc = RVGPU::SULD_1D_V4I32_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayI8Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_I8_ZERO_R;
+  case RVGPUISD::Suld1DArrayI8Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_I8_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayI16Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_I16_ZERO_R;
+  case RVGPUISD::Suld1DArrayI16Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_I16_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayI32Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_I32_ZERO_R;
+  case RVGPUISD::Suld1DArrayI32Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_I32_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayI64Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_I64_ZERO_R;
+  case RVGPUISD::Suld1DArrayI64Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_I64_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I8Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I8_ZERO_R;
+  case RVGPUISD::Suld1DArrayV2I8Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I8_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I16Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I16_ZERO_R;
+  case RVGPUISD::Suld1DArrayV2I16Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I16_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I32Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I32_ZERO_R;
+  case RVGPUISD::Suld1DArrayV2I32Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I32_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayV2I64Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_V2I64_ZERO_R;
+  case RVGPUISD::Suld1DArrayV2I64Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_V2I64_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I8Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I8_ZERO_R;
+  case RVGPUISD::Suld1DArrayV4I8Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I8_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I16Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I16_ZERO_R;
+  case RVGPUISD::Suld1DArrayV4I16Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I16_ZERO_R;
     break;
-  case NVPTXISD::Suld1DArrayV4I32Zero:
-    Opc = NVPTX::SULD_1D_ARRAY_V4I32_ZERO_R;
+  case RVGPUISD::Suld1DArrayV4I32Zero:
+    Opc = RVGPU::SULD_1D_ARRAY_V4I32_ZERO_R;
     break;
-  case NVPTXISD::Suld2DI8Zero:
-    Opc = NVPTX::SULD_2D_I8_ZERO_R;
+  case RVGPUISD::Suld2DI8Zero:
+    Opc = RVGPU::SULD_2D_I8_ZERO_R;
     break;
-  case NVPTXISD::Suld2DI16Zero:
-    Opc = NVPTX::SULD_2D_I16_ZERO_R;
+  case RVGPUISD::Suld2DI16Zero:
+    Opc = RVGPU::SULD_2D_I16_ZERO_R;
     break;
-  case NVPTXISD::Suld2DI32Zero:
-    Opc = NVPTX::SULD_2D_I32_ZERO_R;
+  case RVGPUISD::Suld2DI32Zero:
+    Opc = RVGPU::SULD_2D_I32_ZERO_R;
     break;
-  case NVPTXISD::Suld2DI64Zero:
-    Opc = NVPTX::SULD_2D_I64_ZERO_R;
+  case RVGPUISD::Suld2DI64Zero:
+    Opc = RVGPU::SULD_2D_I64_ZERO_R;
     break;
-  case NVPTXISD::Suld2DV2I8Zero:
-    Opc = NVPTX::SULD_2D_V2I8_ZERO_R;
+  case RVGPUISD::Suld2DV2I8Zero:
+    Opc = RVGPU::SULD_2D_V2I8_ZERO_R;
     break;
-  case NVPTXISD::Suld2DV2I16Zero:
-    Opc = NVPTX::SULD_2D_V2I16_ZERO_R;
+  case RVGPUISD::Suld2DV2I16Zero:
+    Opc = RVGPU::SULD_2D_V2I16_ZERO_R;
     break;
-  case NVPTXISD::Suld2DV2I32Zero:
-    Opc = NVPTX::SULD_2D_V2I32_ZERO_R;
+  case RVGPUISD::Suld2DV2I32Zero:
+    Opc = RVGPU::SULD_2D_V2I32_ZERO_R;
     break;
-  case NVPTXISD::Suld2DV2I64Zero:
-    Opc = NVPTX::SULD_2D_V2I64_ZERO_R;
+  case RVGPUISD::Suld2DV2I64Zero:
+    Opc = RVGPU::SULD_2D_V2I64_ZERO_R;
     break;
-  case NVPTXISD::Suld2DV4I8Zero:
-    Opc = NVPTX::SULD_2D_V4I8_ZERO_R;
+  case RVGPUISD::Suld2DV4I8Zero:
+    Opc = RVGPU::SULD_2D_V4I8_ZERO_R;
     break;
-  case NVPTXISD::Suld2DV4I16Zero:
-    Opc = NVPTX::SULD_2D_V4I16_ZERO_R;
+  case RVGPUISD::Suld2DV4I16Zero:
+    Opc = RVGPU::SULD_2D_V4I16_ZERO_R;
     break;
-  case NVPTXISD::Suld2DV4I32Zero:
-    Opc = NVPTX::SULD_2D_V4I32_ZERO_R;
+  case RVGPUISD::Suld2DV4I32Zero:
+    Opc = RVGPU::SULD_2D_V4I32_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayI8Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_I8_ZERO_R;
+  case RVGPUISD::Suld2DArrayI8Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_I8_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayI16Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_I16_ZERO_R;
+  case RVGPUISD::Suld2DArrayI16Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_I16_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayI32Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_I32_ZERO_R;
+  case RVGPUISD::Suld2DArrayI32Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_I32_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayI64Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_I64_ZERO_R;
+  case RVGPUISD::Suld2DArrayI64Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_I64_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I8Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I8_ZERO_R;
+  case RVGPUISD::Suld2DArrayV2I8Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I8_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I16Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I16_ZERO_R;
+  case RVGPUISD::Suld2DArrayV2I16Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I16_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I32Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I32_ZERO_R;
+  case RVGPUISD::Suld2DArrayV2I32Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I32_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayV2I64Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_V2I64_ZERO_R;
+  case RVGPUISD::Suld2DArrayV2I64Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_V2I64_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I8Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I8_ZERO_R;
+  case RVGPUISD::Suld2DArrayV4I8Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I8_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I16Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I16_ZERO_R;
+  case RVGPUISD::Suld2DArrayV4I16Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I16_ZERO_R;
     break;
-  case NVPTXISD::Suld2DArrayV4I32Zero:
-    Opc = NVPTX::SULD_2D_ARRAY_V4I32_ZERO_R;
+  case RVGPUISD::Suld2DArrayV4I32Zero:
+    Opc = RVGPU::SULD_2D_ARRAY_V4I32_ZERO_R;
     break;
-  case NVPTXISD::Suld3DI8Zero:
-    Opc = NVPTX::SULD_3D_I8_ZERO_R;
+  case RVGPUISD::Suld3DI8Zero:
+    Opc = RVGPU::SULD_3D_I8_ZERO_R;
     break;
-  case NVPTXISD::Suld3DI16Zero:
-    Opc = NVPTX::SULD_3D_I16_ZERO_R;
+  case RVGPUISD::Suld3DI16Zero:
+    Opc = RVGPU::SULD_3D_I16_ZERO_R;
     break;
-  case NVPTXISD::Suld3DI32Zero:
-    Opc = NVPTX::SULD_3D_I32_ZERO_R;
+  case RVGPUISD::Suld3DI32Zero:
+    Opc = RVGPU::SULD_3D_I32_ZERO_R;
     break;
-  case NVPTXISD::Suld3DI64Zero:
-    Opc = NVPTX::SULD_3D_I64_ZERO_R;
+  case RVGPUISD::Suld3DI64Zero:
+    Opc = RVGPU::SULD_3D_I64_ZERO_R;
     break;
-  case NVPTXISD::Suld3DV2I8Zero:
-    Opc = NVPTX::SULD_3D_V2I8_ZERO_R;
+  case RVGPUISD::Suld3DV2I8Zero:
+    Opc = RVGPU::SULD_3D_V2I8_ZERO_R;
     break;
-  case NVPTXISD::Suld3DV2I16Zero:
-    Opc = NVPTX::SULD_3D_V2I16_ZERO_R;
+  case RVGPUISD::Suld3DV2I16Zero:
+    Opc = RVGPU::SULD_3D_V2I16_ZERO_R;
     break;
-  case NVPTXISD::Suld3DV2I32Zero:
-    Opc = NVPTX::SULD_3D_V2I32_ZERO_R;
+  case RVGPUISD::Suld3DV2I32Zero:
+    Opc = RVGPU::SULD_3D_V2I32_ZERO_R;
     break;
-  case NVPTXISD::Suld3DV2I64Zero:
-    Opc = NVPTX::SULD_3D_V2I64_ZERO_R;
+  case RVGPUISD::Suld3DV2I64Zero:
+    Opc = RVGPU::SULD_3D_V2I64_ZERO_R;
     break;
-  case NVPTXISD::Suld3DV4I8Zero:
-    Opc = NVPTX::SULD_3D_V4I8_ZERO_R;
+  case RVGPUISD::Suld3DV4I8Zero:
+    Opc = RVGPU::SULD_3D_V4I8_ZERO_R;
     break;
-  case NVPTXISD::Suld3DV4I16Zero:
-    Opc = NVPTX::SULD_3D_V4I16_ZERO_R;
+  case RVGPUISD::Suld3DV4I16Zero:
+    Opc = RVGPU::SULD_3D_V4I16_ZERO_R;
     break;
-  case NVPTXISD::Suld3DV4I32Zero:
-    Opc = NVPTX::SULD_3D_V4I32_ZERO_R;
+  case RVGPUISD::Suld3DV4I32Zero:
+    Opc = RVGPU::SULD_3D_V4I32_ZERO_R;
     break;
   }
 
@@ -3285,7 +3285,7 @@ bool NVPTXDAGToDAGISel::trySurfaceIntrinsic(SDNode *N) {
 
 /// SelectBFE - Look for instruction sequences that can be made more efficient
 /// by using the 'bfe' (bit-field extract) PTX instruction
-bool NVPTXDAGToDAGISel::tryBFE(SDNode *N) {
+bool RVGPUDAGToDAGISel::tryBFE(SDNode *N) {
   SDLoc DL(N);
   SDValue LHS = N->getOperand(0);
   SDValue RHS = N->getOperand(1);
@@ -3466,15 +3466,15 @@ bool NVPTXDAGToDAGISel::tryBFE(SDNode *N) {
   // unsigned variants.
   if (Val.getValueType() == MVT::i32) {
     if (IsSigned) {
-      Opc = NVPTX::BFE_S32rii;
+      Opc = RVGPU::BFE_S32rii;
     } else {
-      Opc = NVPTX::BFE_U32rii;
+      Opc = RVGPU::BFE_U32rii;
     }
   } else if (Val.getValueType() == MVT::i64) {
     if (IsSigned) {
-      Opc = NVPTX::BFE_S64rii;
+      Opc = RVGPU::BFE_S64rii;
     } else {
-      Opc = NVPTX::BFE_U64rii;
+      Opc = RVGPU::BFE_U64rii;
     }
   } else {
     // We cannot handle this type
@@ -3491,14 +3491,14 @@ bool NVPTXDAGToDAGISel::tryBFE(SDNode *N) {
 
 // SelectDirectAddr - Match a direct address for DAG.
 // A direct address could be a globaladdress or externalsymbol.
-bool NVPTXDAGToDAGISel::SelectDirectAddr(SDValue N, SDValue &Address) {
+bool RVGPUDAGToDAGISel::SelectDirectAddr(SDValue N, SDValue &Address) {
   // Return true if TGA or ES.
   if (N.getOpcode() == ISD::TargetGlobalAddress ||
       N.getOpcode() == ISD::TargetExternalSymbol) {
     Address = N;
     return true;
   }
-  if (N.getOpcode() == NVPTXISD::Wrapper) {
+  if (N.getOpcode() == RVGPUISD::Wrapper) {
     Address = N.getOperand(0);
     return true;
   }
@@ -3506,14 +3506,14 @@ bool NVPTXDAGToDAGISel::SelectDirectAddr(SDValue N, SDValue &Address) {
   if (AddrSpaceCastSDNode *CastN = dyn_cast<AddrSpaceCastSDNode>(N)) {
     if (CastN->getSrcAddressSpace() == ADDRESS_SPACE_GENERIC &&
         CastN->getDestAddressSpace() == ADDRESS_SPACE_PARAM &&
-        CastN->getOperand(0).getOpcode() == NVPTXISD::MoveParam)
+        CastN->getOperand(0).getOpcode() == RVGPUISD::MoveParam)
       return SelectDirectAddr(CastN->getOperand(0).getOperand(0), Address);
   }
   return false;
 }
 
 // symbol+offset
-bool NVPTXDAGToDAGISel::SelectADDRsi_imp(
+bool RVGPUDAGToDAGISel::SelectADDRsi_imp(
     SDNode *OpNode, SDValue Addr, SDValue &Base, SDValue &Offset, MVT mvt) {
   if (Addr.getOpcode() == ISD::ADD) {
     if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Addr.getOperand(1))) {
@@ -3529,19 +3529,19 @@ bool NVPTXDAGToDAGISel::SelectADDRsi_imp(
 }
 
 // symbol+offset
-bool NVPTXDAGToDAGISel::SelectADDRsi(SDNode *OpNode, SDValue Addr,
+bool RVGPUDAGToDAGISel::SelectADDRsi(SDNode *OpNode, SDValue Addr,
                                      SDValue &Base, SDValue &Offset) {
   return SelectADDRsi_imp(OpNode, Addr, Base, Offset, MVT::i32);
 }
 
 // symbol+offset
-bool NVPTXDAGToDAGISel::SelectADDRsi64(SDNode *OpNode, SDValue Addr,
+bool RVGPUDAGToDAGISel::SelectADDRsi64(SDNode *OpNode, SDValue Addr,
                                        SDValue &Base, SDValue &Offset) {
   return SelectADDRsi_imp(OpNode, Addr, Base, Offset, MVT::i64);
 }
 
 // register+offset
-bool NVPTXDAGToDAGISel::SelectADDRri_imp(
+bool RVGPUDAGToDAGISel::SelectADDRri_imp(
     SDNode *OpNode, SDValue Addr, SDValue &Base, SDValue &Offset, MVT mvt) {
   if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
     Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), mvt);
@@ -3572,18 +3572,18 @@ bool NVPTXDAGToDAGISel::SelectADDRri_imp(
 }
 
 // register+offset
-bool NVPTXDAGToDAGISel::SelectADDRri(SDNode *OpNode, SDValue Addr,
+bool RVGPUDAGToDAGISel::SelectADDRri(SDNode *OpNode, SDValue Addr,
                                      SDValue &Base, SDValue &Offset) {
   return SelectADDRri_imp(OpNode, Addr, Base, Offset, MVT::i32);
 }
 
 // register+offset
-bool NVPTXDAGToDAGISel::SelectADDRri64(SDNode *OpNode, SDValue Addr,
+bool RVGPUDAGToDAGISel::SelectADDRri64(SDNode *OpNode, SDValue Addr,
                                        SDValue &Base, SDValue &Offset) {
   return SelectADDRri_imp(OpNode, Addr, Base, Offset, MVT::i64);
 }
 
-bool NVPTXDAGToDAGISel::ChkMemSDNodeAddressSpace(SDNode *N,
+bool RVGPUDAGToDAGISel::ChkMemSDNodeAddressSpace(SDNode *N,
                                                  unsigned int spN) const {
   const Value *Src = nullptr;
   if (MemSDNode *mN = dyn_cast<MemSDNode>(N)) {
@@ -3600,7 +3600,7 @@ bool NVPTXDAGToDAGISel::ChkMemSDNodeAddressSpace(SDNode *N,
 
 /// SelectInlineAsmMemoryOperand - Implement addressing mode selection for
 /// inline asm expressions.
-bool NVPTXDAGToDAGISel::SelectInlineAsmMemoryOperand(
+bool RVGPUDAGToDAGISel::SelectInlineAsmMemoryOperand(
     const SDValue &Op, InlineAsm::ConstraintCode ConstraintID,
     std::vector<SDValue> &OutOps) {
   SDValue Op0, Op1;
@@ -3625,7 +3625,7 @@ bool NVPTXDAGToDAGISel::SelectInlineAsmMemoryOperand(
 
 /// GetConvertOpcode - Returns the CVT_ instruction opcode that implements a
 /// conversion from \p SrcTy to \p DestTy.
-unsigned NVPTXDAGToDAGISel::GetConvertOpcode(MVT DestTy, MVT SrcTy,
+unsigned RVGPUDAGToDAGISel::GetConvertOpcode(MVT DestTy, MVT SrcTy,
                                              LoadSDNode *LdNode) {
   bool IsSigned = LdNode && LdNode->getExtensionType() == ISD::SEXTLOAD;
   switch (SrcTy.SimpleTy) {
@@ -3636,53 +3636,53 @@ unsigned NVPTXDAGToDAGISel::GetConvertOpcode(MVT DestTy, MVT SrcTy,
     default:
       llvm_unreachable("Unhandled dest type");
     case MVT::i16:
-      return IsSigned ? NVPTX::CVT_s16_s8 : NVPTX::CVT_u16_u8;
+      return IsSigned ? RVGPU::CVT_s16_s8 : RVGPU::CVT_u16_u8;
     case MVT::i32:
-      return IsSigned ? NVPTX::CVT_s32_s8 : NVPTX::CVT_u32_u8;
+      return IsSigned ? RVGPU::CVT_s32_s8 : RVGPU::CVT_u32_u8;
     case MVT::i64:
-      return IsSigned ? NVPTX::CVT_s64_s8 : NVPTX::CVT_u64_u8;
+      return IsSigned ? RVGPU::CVT_s64_s8 : RVGPU::CVT_u64_u8;
     }
   case MVT::i16:
     switch (DestTy.SimpleTy) {
     default:
       llvm_unreachable("Unhandled dest type");
     case MVT::i8:
-      return IsSigned ? NVPTX::CVT_s8_s16 : NVPTX::CVT_u8_u16;
+      return IsSigned ? RVGPU::CVT_s8_s16 : RVGPU::CVT_u8_u16;
     case MVT::i32:
-      return IsSigned ? NVPTX::CVT_s32_s16 : NVPTX::CVT_u32_u16;
+      return IsSigned ? RVGPU::CVT_s32_s16 : RVGPU::CVT_u32_u16;
     case MVT::i64:
-      return IsSigned ? NVPTX::CVT_s64_s16 : NVPTX::CVT_u64_u16;
+      return IsSigned ? RVGPU::CVT_s64_s16 : RVGPU::CVT_u64_u16;
     }
   case MVT::i32:
     switch (DestTy.SimpleTy) {
     default:
       llvm_unreachable("Unhandled dest type");
     case MVT::i8:
-      return IsSigned ? NVPTX::CVT_s8_s32 : NVPTX::CVT_u8_u32;
+      return IsSigned ? RVGPU::CVT_s8_s32 : RVGPU::CVT_u8_u32;
     case MVT::i16:
-      return IsSigned ? NVPTX::CVT_s16_s32 : NVPTX::CVT_u16_u32;
+      return IsSigned ? RVGPU::CVT_s16_s32 : RVGPU::CVT_u16_u32;
     case MVT::i64:
-      return IsSigned ? NVPTX::CVT_s64_s32 : NVPTX::CVT_u64_u32;
+      return IsSigned ? RVGPU::CVT_s64_s32 : RVGPU::CVT_u64_u32;
     }
   case MVT::i64:
     switch (DestTy.SimpleTy) {
     default:
       llvm_unreachable("Unhandled dest type");
     case MVT::i8:
-      return IsSigned ? NVPTX::CVT_s8_s64 : NVPTX::CVT_u8_u64;
+      return IsSigned ? RVGPU::CVT_s8_s64 : RVGPU::CVT_u8_u64;
     case MVT::i16:
-      return IsSigned ? NVPTX::CVT_s16_s64 : NVPTX::CVT_u16_u64;
+      return IsSigned ? RVGPU::CVT_s16_s64 : RVGPU::CVT_u16_u64;
     case MVT::i32:
-      return IsSigned ? NVPTX::CVT_s32_s64 : NVPTX::CVT_u32_u64;
+      return IsSigned ? RVGPU::CVT_s32_s64 : RVGPU::CVT_u32_u64;
     }
   case MVT::f16:
     switch (DestTy.SimpleTy) {
     default:
       llvm_unreachable("Unhandled dest type");
     case MVT::f32:
-      return NVPTX::CVT_f32_f16;
+      return RVGPU::CVT_f32_f16;
     case MVT::f64:
-      return NVPTX::CVT_f64_f16;
+      return RVGPU::CVT_f64_f16;
     }
   }
 }

@@ -1,4 +1,4 @@
-//===-- NVPTXInstPrinter.cpp - PTX assembly instruction printing ----------===//
+//===-- RVGPUInstPrinter.cpp - PTX assembly instruction printing ----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/NVPTXInstPrinter.h"
-#include "MCTargetDesc/NVPTXBaseInfo.h"
-#include "NVPTX.h"
+#include "MCTargetDesc/RVGPUInstPrinter.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
+#include "RVGPU.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
@@ -25,15 +25,15 @@ using namespace llvm;
 
 #define DEBUG_TYPE "asm-printer"
 
-#include "NVPTXGenAsmWriter.inc"
+#include "RVGPUGenAsmWriter.inc"
 
-NVPTXInstPrinter::NVPTXInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
+RVGPUInstPrinter::RVGPUInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
                                    const MCRegisterInfo &MRI)
     : MCInstPrinter(MAI, MII, MRI) {}
 
-void NVPTXInstPrinter::printRegName(raw_ostream &OS, MCRegister Reg) const {
+void RVGPUInstPrinter::printRegName(raw_ostream &OS, MCRegister Reg) const {
   // Decode the virtual register
-  // Must be kept in sync with NVPTXAsmPrinter::encodeVirtualRegister
+  // Must be kept in sync with RVGPUAsmPrinter::encodeVirtualRegister
   unsigned RCId = (Reg.id() >> 28);
   switch (RCId) {
   default: report_fatal_error("Bad virtual register encoding");
@@ -66,7 +66,7 @@ void NVPTXInstPrinter::printRegName(raw_ostream &OS, MCRegister Reg) const {
   OS << VReg;
 }
 
-void NVPTXInstPrinter::printInst(const MCInst *MI, uint64_t Address,
+void RVGPUInstPrinter::printInst(const MCInst *MI, uint64_t Address,
                                  StringRef Annot, const MCSubtargetInfo &STI,
                                  raw_ostream &OS) {
   printInstruction(MI, Address, OS);
@@ -75,7 +75,7 @@ void NVPTXInstPrinter::printInst(const MCInst *MI, uint64_t Address,
   printAnnotation(OS, Annot);
 }
 
-void NVPTXInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
+void RVGPUInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                     raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isReg()) {
@@ -89,55 +89,55 @@ void NVPTXInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   }
 }
 
-void NVPTXInstPrinter::printCvtMode(const MCInst *MI, int OpNum, raw_ostream &O,
+void RVGPUInstPrinter::printCvtMode(const MCInst *MI, int OpNum, raw_ostream &O,
                                     const char *Modifier) {
   const MCOperand &MO = MI->getOperand(OpNum);
   int64_t Imm = MO.getImm();
 
   if (strcmp(Modifier, "ftz") == 0) {
     // FTZ flag
-    if (Imm & NVPTX::PTXCvtMode::FTZ_FLAG)
+    if (Imm & RVGPU::PTXCvtMode::FTZ_FLAG)
       O << ".ftz";
   } else if (strcmp(Modifier, "sat") == 0) {
     // SAT flag
-    if (Imm & NVPTX::PTXCvtMode::SAT_FLAG)
+    if (Imm & RVGPU::PTXCvtMode::SAT_FLAG)
       O << ".sat";
   } else if (strcmp(Modifier, "relu") == 0) {
     // RELU flag
-    if (Imm & NVPTX::PTXCvtMode::RELU_FLAG)
+    if (Imm & RVGPU::PTXCvtMode::RELU_FLAG)
       O << ".relu";
   } else if (strcmp(Modifier, "base") == 0) {
     // Default operand
-    switch (Imm & NVPTX::PTXCvtMode::BASE_MASK) {
+    switch (Imm & RVGPU::PTXCvtMode::BASE_MASK) {
     default:
       return;
-    case NVPTX::PTXCvtMode::NONE:
+    case RVGPU::PTXCvtMode::NONE:
       break;
-    case NVPTX::PTXCvtMode::RNI:
+    case RVGPU::PTXCvtMode::RNI:
       O << ".rni";
       break;
-    case NVPTX::PTXCvtMode::RZI:
+    case RVGPU::PTXCvtMode::RZI:
       O << ".rzi";
       break;
-    case NVPTX::PTXCvtMode::RMI:
+    case RVGPU::PTXCvtMode::RMI:
       O << ".rmi";
       break;
-    case NVPTX::PTXCvtMode::RPI:
+    case RVGPU::PTXCvtMode::RPI:
       O << ".rpi";
       break;
-    case NVPTX::PTXCvtMode::RN:
+    case RVGPU::PTXCvtMode::RN:
       O << ".rn";
       break;
-    case NVPTX::PTXCvtMode::RZ:
+    case RVGPU::PTXCvtMode::RZ:
       O << ".rz";
       break;
-    case NVPTX::PTXCvtMode::RM:
+    case RVGPU::PTXCvtMode::RM:
       O << ".rm";
       break;
-    case NVPTX::PTXCvtMode::RP:
+    case RVGPU::PTXCvtMode::RP:
       O << ".rp";
       break;
-    case NVPTX::PTXCvtMode::RNA:
+    case RVGPU::PTXCvtMode::RNA:
       O << ".rna";
       break;
     }
@@ -146,71 +146,71 @@ void NVPTXInstPrinter::printCvtMode(const MCInst *MI, int OpNum, raw_ostream &O,
   }
 }
 
-void NVPTXInstPrinter::printCmpMode(const MCInst *MI, int OpNum, raw_ostream &O,
+void RVGPUInstPrinter::printCmpMode(const MCInst *MI, int OpNum, raw_ostream &O,
                                     const char *Modifier) {
   const MCOperand &MO = MI->getOperand(OpNum);
   int64_t Imm = MO.getImm();
 
   if (strcmp(Modifier, "ftz") == 0) {
     // FTZ flag
-    if (Imm & NVPTX::PTXCmpMode::FTZ_FLAG)
+    if (Imm & RVGPU::PTXCmpMode::FTZ_FLAG)
       O << ".ftz";
   } else if (strcmp(Modifier, "base") == 0) {
-    switch (Imm & NVPTX::PTXCmpMode::BASE_MASK) {
+    switch (Imm & RVGPU::PTXCmpMode::BASE_MASK) {
     default:
       return;
-    case NVPTX::PTXCmpMode::EQ:
+    case RVGPU::PTXCmpMode::EQ:
       O << ".eq";
       break;
-    case NVPTX::PTXCmpMode::NE:
+    case RVGPU::PTXCmpMode::NE:
       O << ".ne";
       break;
-    case NVPTX::PTXCmpMode::LT:
+    case RVGPU::PTXCmpMode::LT:
       O << ".lt";
       break;
-    case NVPTX::PTXCmpMode::LE:
+    case RVGPU::PTXCmpMode::LE:
       O << ".le";
       break;
-    case NVPTX::PTXCmpMode::GT:
+    case RVGPU::PTXCmpMode::GT:
       O << ".gt";
       break;
-    case NVPTX::PTXCmpMode::GE:
+    case RVGPU::PTXCmpMode::GE:
       O << ".ge";
       break;
-    case NVPTX::PTXCmpMode::LO:
+    case RVGPU::PTXCmpMode::LO:
       O << ".lo";
       break;
-    case NVPTX::PTXCmpMode::LS:
+    case RVGPU::PTXCmpMode::LS:
       O << ".ls";
       break;
-    case NVPTX::PTXCmpMode::HI:
+    case RVGPU::PTXCmpMode::HI:
       O << ".hi";
       break;
-    case NVPTX::PTXCmpMode::HS:
+    case RVGPU::PTXCmpMode::HS:
       O << ".hs";
       break;
-    case NVPTX::PTXCmpMode::EQU:
+    case RVGPU::PTXCmpMode::EQU:
       O << ".equ";
       break;
-    case NVPTX::PTXCmpMode::NEU:
+    case RVGPU::PTXCmpMode::NEU:
       O << ".neu";
       break;
-    case NVPTX::PTXCmpMode::LTU:
+    case RVGPU::PTXCmpMode::LTU:
       O << ".ltu";
       break;
-    case NVPTX::PTXCmpMode::LEU:
+    case RVGPU::PTXCmpMode::LEU:
       O << ".leu";
       break;
-    case NVPTX::PTXCmpMode::GTU:
+    case RVGPU::PTXCmpMode::GTU:
       O << ".gtu";
       break;
-    case NVPTX::PTXCmpMode::GEU:
+    case RVGPU::PTXCmpMode::GEU:
       O << ".geu";
       break;
-    case NVPTX::PTXCmpMode::NUM:
+    case RVGPU::PTXCmpMode::NUM:
       O << ".num";
       break;
-    case NVPTX::PTXCmpMode::NotANumber:
+    case RVGPU::PTXCmpMode::NotANumber:
       O << ".nan";
       break;
     }
@@ -219,7 +219,7 @@ void NVPTXInstPrinter::printCmpMode(const MCInst *MI, int OpNum, raw_ostream &O,
   }
 }
 
-void NVPTXInstPrinter::printLdStCode(const MCInst *MI, int OpNum,
+void RVGPUInstPrinter::printLdStCode(const MCInst *MI, int OpNum,
                                      raw_ostream &O, const char *Modifier) {
   if (Modifier) {
     const MCOperand &MO = MI->getOperand(OpNum);
@@ -229,41 +229,41 @@ void NVPTXInstPrinter::printLdStCode(const MCInst *MI, int OpNum,
         O << ".volatile";
     } else if (!strcmp(Modifier, "addsp")) {
       switch (Imm) {
-      case NVPTX::PTXLdStInstCode::GLOBAL:
+      case RVGPU::PTXLdStInstCode::GLOBAL:
         O << ".global";
         break;
-      case NVPTX::PTXLdStInstCode::SHARED:
+      case RVGPU::PTXLdStInstCode::SHARED:
         O << ".shared";
         break;
-      case NVPTX::PTXLdStInstCode::LOCAL:
+      case RVGPU::PTXLdStInstCode::LOCAL:
         O << ".local";
         break;
-      case NVPTX::PTXLdStInstCode::PARAM:
+      case RVGPU::PTXLdStInstCode::PARAM:
         O << ".param";
         break;
-      case NVPTX::PTXLdStInstCode::CONSTANT:
+      case RVGPU::PTXLdStInstCode::CONSTANT:
         O << ".const";
         break;
-      case NVPTX::PTXLdStInstCode::GENERIC:
+      case RVGPU::PTXLdStInstCode::GENERIC:
         break;
       default:
         llvm_unreachable("Wrong Address Space");
       }
     } else if (!strcmp(Modifier, "sign")) {
-      if (Imm == NVPTX::PTXLdStInstCode::Signed)
+      if (Imm == RVGPU::PTXLdStInstCode::Signed)
         O << "s";
-      else if (Imm == NVPTX::PTXLdStInstCode::Unsigned)
+      else if (Imm == RVGPU::PTXLdStInstCode::Unsigned)
         O << "u";
-      else if (Imm == NVPTX::PTXLdStInstCode::Untyped)
+      else if (Imm == RVGPU::PTXLdStInstCode::Untyped)
         O << "b";
-      else if (Imm == NVPTX::PTXLdStInstCode::Float)
+      else if (Imm == RVGPU::PTXLdStInstCode::Float)
         O << "f";
       else
         llvm_unreachable("Unknown register type");
     } else if (!strcmp(Modifier, "vec")) {
-      if (Imm == NVPTX::PTXLdStInstCode::V2)
+      if (Imm == RVGPU::PTXLdStInstCode::V2)
         O << ".v2";
-      else if (Imm == NVPTX::PTXLdStInstCode::V4)
+      else if (Imm == RVGPU::PTXLdStInstCode::V4)
         O << ".v4";
     } else
       llvm_unreachable("Unknown Modifier");
@@ -271,7 +271,7 @@ void NVPTXInstPrinter::printLdStCode(const MCInst *MI, int OpNum,
     llvm_unreachable("Empty Modifier");
 }
 
-void NVPTXInstPrinter::printMmaCode(const MCInst *MI, int OpNum, raw_ostream &O,
+void RVGPUInstPrinter::printMmaCode(const MCInst *MI, int OpNum, raw_ostream &O,
                                     const char *Modifier) {
   const MCOperand &MO = MI->getOperand(OpNum);
   int Imm = (int)MO.getImm();
@@ -285,7 +285,7 @@ void NVPTXInstPrinter::printMmaCode(const MCInst *MI, int OpNum, raw_ostream &O,
     llvm_unreachable("Unknown Modifier");
 }
 
-void NVPTXInstPrinter::printMemOperand(const MCInst *MI, int OpNum,
+void RVGPUInstPrinter::printMemOperand(const MCInst *MI, int OpNum,
                                        raw_ostream &O, const char *Modifier) {
   printOperand(MI, OpNum, O);
 
@@ -301,7 +301,7 @@ void NVPTXInstPrinter::printMemOperand(const MCInst *MI, int OpNum,
   }
 }
 
-void NVPTXInstPrinter::printProtoIdent(const MCInst *MI, int OpNum,
+void RVGPUInstPrinter::printProtoIdent(const MCInst *MI, int OpNum,
                                        raw_ostream &O, const char *Modifier) {
   const MCOperand &Op = MI->getOperand(OpNum);
   assert(Op.isExpr() && "Call prototype is not an MCExpr?");
@@ -310,7 +310,7 @@ void NVPTXInstPrinter::printProtoIdent(const MCInst *MI, int OpNum,
   O << Sym.getName();
 }
 
-void NVPTXInstPrinter::printPrmtMode(const MCInst *MI, int OpNum,
+void RVGPUInstPrinter::printPrmtMode(const MCInst *MI, int OpNum,
                                      raw_ostream &O, const char *Modifier) {
   const MCOperand &MO = MI->getOperand(OpNum);
   int64_t Imm = MO.getImm();
@@ -318,24 +318,24 @@ void NVPTXInstPrinter::printPrmtMode(const MCInst *MI, int OpNum,
   switch (Imm) {
   default:
     return;
-  case NVPTX::PTXPrmtMode::NONE:
+  case RVGPU::PTXPrmtMode::NONE:
     break;
-  case NVPTX::PTXPrmtMode::F4E:
+  case RVGPU::PTXPrmtMode::F4E:
     O << ".f4e";
     break;
-  case NVPTX::PTXPrmtMode::B4E:
+  case RVGPU::PTXPrmtMode::B4E:
     O << ".b4e";
     break;
-  case NVPTX::PTXPrmtMode::RC8:
+  case RVGPU::PTXPrmtMode::RC8:
     O << ".rc8";
     break;
-  case NVPTX::PTXPrmtMode::ECL:
+  case RVGPU::PTXPrmtMode::ECL:
     O << ".ecl";
     break;
-  case NVPTX::PTXPrmtMode::ECR:
+  case RVGPU::PTXPrmtMode::ECR:
     O << ".ecr";
     break;
-  case NVPTX::PTXPrmtMode::RC16:
+  case RVGPU::PTXPrmtMode::RC16:
     O << ".rc16";
     break;
   }

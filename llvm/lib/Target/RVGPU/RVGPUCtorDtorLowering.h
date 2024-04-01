@@ -1,4 +1,4 @@
-//===-- NVPTXCtorDtorLowering.h --------------------------------*- C++ -*-===//
+//===-- RVGPUCtorDtorLowering.h --------------------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXCTORDTORLOWERING_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXCTORDTORLOWERING_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUCTORDTORLOWERING_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUCTORDTORLOWERING_H
 
 #include "llvm/IR/PassManager.h"
 
@@ -15,16 +15,16 @@ namespace llvm {
 class Module;
 class PassRegistry;
 
-extern char &NVPTXCtorDtorLoweringLegacyPassID;
-extern void initializeNVPTXCtorDtorLoweringLegacyPass(PassRegistry &);
+extern char &RVGPUCtorDtorLoweringLegacyPassID;
+extern void initializeRVGPUCtorDtorLoweringLegacyPass(PassRegistry &);
 
 /// Lower llvm.global_ctors and llvm.global_dtors to special kernels.
-class NVPTXCtorDtorLoweringPass
-    : public PassInfoMixin<NVPTXCtorDtorLoweringPass> {
+class RVGPUCtorDtorLoweringPass
+    : public PassInfoMixin<RVGPUCtorDtorLoweringPass> {
 public:
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
 
 } // namespace llvm
 
-#endif // LLVM_LIB_TARGET_NVPTX_NVPTXCTORDTORLOWERING_H
+#endif // LLVM_LIB_TARGET_RVGPU_RVGPUCTORDTORLOWERING_H

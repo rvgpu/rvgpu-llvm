@@ -1,4 +1,4 @@
-//===-- NVPTXTargetMachine.h - Define TargetMachine for NVPTX ---*- C++ -*-===//
+//===-- RVGPUTargetMachine.h - Define TargetMachine for RVGPU ---*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,48 +6,48 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file declares the NVPTX specific subclass of TargetMachine.
+// This file declares the RVGPU specific subclass of TargetMachine.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXTARGETMACHINE_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXTARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUTARGETMACHINE_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUTARGETMACHINE_H
 
-#include "NVPTXSubtarget.h"
+#include "RVGPUSubtarget.h"
 #include "llvm/Target/TargetMachine.h"
 #include <optional>
 #include <utility>
 
 namespace llvm {
 
-/// NVPTXTargetMachine
+/// RVGPUTargetMachine
 ///
-class NVPTXTargetMachine : public LLVMTargetMachine {
+class RVGPUTargetMachine : public LLVMTargetMachine {
   bool is64bit;
   // Use 32-bit pointers for accessing const/local/short AS.
   bool UseShortPointers;
   std::unique_ptr<TargetLoweringObjectFile> TLOF;
-  NVPTX::DrvInterface drvInterface;
-  NVPTXSubtarget Subtarget;
+  RVGPU::DrvInterface drvInterface;
+  RVGPUSubtarget Subtarget;
 
-  // Hold Strings that can be free'd all together with NVPTXTargetMachine
+  // Hold Strings that can be free'd all together with RVGPUTargetMachine
   BumpPtrAllocator StrAlloc;
   UniqueStringSaver StrPool;
 
 public:
-  NVPTXTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
+  RVGPUTargetMachine(const Target &T, const Triple &TT, StringRef CPU,
                      StringRef FS, const TargetOptions &Options,
                      std::optional<Reloc::Model> RM,
                      std::optional<CodeModel::Model> CM, CodeGenOptLevel OP,
                      bool is64bit);
-  ~NVPTXTargetMachine() override;
-  const NVPTXSubtarget *getSubtargetImpl(const Function &) const override {
+  ~RVGPUTargetMachine() override;
+  const RVGPUSubtarget *getSubtargetImpl(const Function &) const override {
     return &Subtarget;
   }
-  const NVPTXSubtarget *getSubtargetImpl() const { return &Subtarget; }
+  const RVGPUSubtarget *getSubtargetImpl() const { return &Subtarget; }
   bool is64Bit() const { return is64bit; }
   bool useShortPointers() const { return UseShortPointers; }
-  NVPTX::DrvInterface getDrvInterface() const { return drvInterface; }
+  RVGPU::DrvInterface getDrvInterface() const { return drvInterface; }
   UniqueStringSaver &getStrPool() const {
     return const_cast<UniqueStringSaver &>(StrPool);
   }
@@ -79,24 +79,24 @@ public:
 
   std::pair<const Value *, unsigned>
   getPredicatedAddrSpace(const Value *V) const override;
-}; // NVPTXTargetMachine.
+}; // RVGPUTargetMachine.
 
-class NVPTXTargetMachine32 : public NVPTXTargetMachine {
+class RVGPUTargetMachine32 : public RVGPUTargetMachine {
   virtual void anchor();
 
 public:
-  NVPTXTargetMachine32(const Target &T, const Triple &TT, StringRef CPU,
+  RVGPUTargetMachine32(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        std::optional<Reloc::Model> RM,
                        std::optional<CodeModel::Model> CM, CodeGenOptLevel OL,
                        bool JIT);
 };
 
-class NVPTXTargetMachine64 : public NVPTXTargetMachine {
+class RVGPUTargetMachine64 : public RVGPUTargetMachine {
   virtual void anchor();
 
 public:
-  NVPTXTargetMachine64(const Target &T, const Triple &TT, StringRef CPU,
+  RVGPUTargetMachine64(const Target &T, const Triple &TT, StringRef CPU,
                        StringRef FS, const TargetOptions &Options,
                        std::optional<Reloc::Model> RM,
                        std::optional<CodeModel::Model> CM, CodeGenOptLevel OL,

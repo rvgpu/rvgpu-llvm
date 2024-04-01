@@ -1,4 +1,4 @@
-//===-- NVPTXCtorDtorLowering.cpp - Handle global ctors and dtors --------===//
+//===-- RVGPUCtorDtorLowering.cpp - Handle global ctors and dtors --------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,9 +10,9 @@
 /// This pass creates a unified init and fini kernel with the required metadata
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXCtorDtorLowering.h"
-#include "MCTargetDesc/NVPTXBaseInfo.h"
-#include "NVPTX.h"
+#include "RVGPUCtorDtorLowering.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
+#include "RVGPU.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
@@ -209,7 +209,7 @@ static bool createInitOrFiniGlobals(Module &M, GlobalVariable *GV,
   if (!GA || GA->getNumOperands() == 0)
     return false;
 
-  // NVPTX has no way to emit variables at specific sections or support for
+  // RVGPU has no way to emit variables at specific sections or support for
   // the traditional constructor sections. Instead, we emit mangled global
   // names so the runtime can build the list manually.
   for (Value *V : GA->operands()) {
@@ -271,26 +271,26 @@ static bool lowerCtorsAndDtors(Module &M) {
   return Modified;
 }
 
-class NVPTXCtorDtorLoweringLegacy final : public ModulePass {
+class RVGPUCtorDtorLoweringLegacy final : public ModulePass {
 public:
   static char ID;
-  NVPTXCtorDtorLoweringLegacy() : ModulePass(ID) {}
+  RVGPUCtorDtorLoweringLegacy() : ModulePass(ID) {}
   bool runOnModule(Module &M) override { return lowerCtorsAndDtors(M); }
 };
 
 } // End anonymous namespace
 
-PreservedAnalyses NVPTXCtorDtorLoweringPass::run(Module &M,
+PreservedAnalyses RVGPUCtorDtorLoweringPass::run(Module &M,
                                                  ModuleAnalysisManager &AM) {
   return lowerCtorsAndDtors(M) ? PreservedAnalyses::none()
                                : PreservedAnalyses::all();
 }
 
-char NVPTXCtorDtorLoweringLegacy::ID = 0;
-char &llvm::NVPTXCtorDtorLoweringLegacyPassID = NVPTXCtorDtorLoweringLegacy::ID;
-INITIALIZE_PASS(NVPTXCtorDtorLoweringLegacy, DEBUG_TYPE,
-                "Lower ctors and dtors for NVPTX", false, false)
+char RVGPUCtorDtorLoweringLegacy::ID = 0;
+char &llvm::RVGPUCtorDtorLoweringLegacyPassID = RVGPUCtorDtorLoweringLegacy::ID;
+INITIALIZE_PASS(RVGPUCtorDtorLoweringLegacy, DEBUG_TYPE,
+                "Lower ctors and dtors for RVGPU", false, false)
 
-ModulePass *llvm::createNVPTXCtorDtorLoweringLegacyPass() {
-  return new NVPTXCtorDtorLoweringLegacy();
+ModulePass *llvm::createRVGPUCtorDtorLoweringLegacyPass() {
+  return new RVGPUCtorDtorLoweringLegacy();
 }

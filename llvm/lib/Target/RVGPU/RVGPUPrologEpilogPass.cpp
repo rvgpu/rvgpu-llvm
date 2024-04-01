@@ -1,4 +1,4 @@
-//===-- NVPTXPrologEpilogPass.cpp - NVPTX prolog/epilog inserter ----------===//
+//===-- RVGPUPrologEpilogPass.cpp - RVGPU prolog/epilog inserter ----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTX.h"
+#include "RVGPU.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -29,27 +29,27 @@ using namespace llvm;
 #define DEBUG_TYPE "nvptx-prolog-epilog"
 
 namespace {
-class NVPTXPrologEpilogPass : public MachineFunctionPass {
+class RVGPUPrologEpilogPass : public MachineFunctionPass {
 public:
   static char ID;
-  NVPTXPrologEpilogPass() : MachineFunctionPass(ID) {}
+  RVGPUPrologEpilogPass() : MachineFunctionPass(ID) {}
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
-  StringRef getPassName() const override { return "NVPTX Prolog Epilog Pass"; }
+  StringRef getPassName() const override { return "RVGPU Prolog Epilog Pass"; }
 
 private:
   void calculateFrameObjectOffsets(MachineFunction &Fn);
 };
 }
 
-MachineFunctionPass *llvm::createNVPTXPrologEpilogPass() {
-  return new NVPTXPrologEpilogPass();
+MachineFunctionPass *llvm::createRVGPUPrologEpilogPass() {
+  return new RVGPUPrologEpilogPass();
 }
 
-char NVPTXPrologEpilogPass::ID = 0;
+char RVGPUPrologEpilogPass::ID = 0;
 
-bool NVPTXPrologEpilogPass::runOnMachineFunction(MachineFunction &MF) {
+bool RVGPUPrologEpilogPass::runOnMachineFunction(MachineFunction &MF) {
   const TargetSubtargetInfo &STI = MF.getSubtarget();
   const TargetFrameLowering &TFI = *STI.getFrameLowering();
   const TargetRegisterInfo &TRI = *STI.getRegisterInfo();
@@ -137,7 +137,7 @@ static inline void AdjustStackOffset(MachineFrameInfo &MFI, int FrameIdx,
 }
 
 void
-NVPTXPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
+RVGPUPrologEpilogPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
   const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
   const TargetRegisterInfo *RegInfo = Fn.getSubtarget().getRegisterInfo();
 

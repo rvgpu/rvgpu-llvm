@@ -1,4 +1,4 @@
-//===- NVPTXInstrInfo.h - NVPTX Instruction Information----------*- C++ -*-===//
+//===- RVGPUInstrInfo.h - RVGPU Instruction Information----------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,29 +6,29 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the NVPTX implementation of the TargetInstrInfo class.
+// This file contains the RVGPU implementation of the TargetInstrInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXINSTRINFO_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXINSTRINFO_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUINSTRINFO_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUINSTRINFO_H
 
-#include "NVPTX.h"
-#include "NVPTXRegisterInfo.h"
+#include "RVGPU.h"
+#include "RVGPURegisterInfo.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 
 #define GET_INSTRINFO_HEADER
-#include "NVPTXGenInstrInfo.inc"
+#include "RVGPUGenInstrInfo.inc"
 
 namespace llvm {
 
-class NVPTXInstrInfo : public NVPTXGenInstrInfo {
-  const NVPTXRegisterInfo RegInfo;
+class RVGPUInstrInfo : public RVGPUGenInstrInfo {
+  const RVGPURegisterInfo RegInfo;
   virtual void anchor();
 public:
-  explicit NVPTXInstrInfo();
+  explicit RVGPUInstrInfo();
 
-  const NVPTXRegisterInfo &getRegisterInfo() const { return RegInfo; }
+  const RVGPURegisterInfo &getRegisterInfo() const { return RegInfo; }
 
   /* The following virtual functions are used in register allocation.
    * They are not implemented because the existing interface and the logic

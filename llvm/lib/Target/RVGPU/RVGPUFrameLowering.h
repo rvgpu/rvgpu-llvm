@@ -1,4 +1,4 @@
-//===--- NVPTXFrameLowering.h - Define frame lowering for NVPTX -*- C++ -*-===//
+//===--- RVGPUFrameLowering.h - Define frame lowering for RVGPU -*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,17 +10,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXFRAMELOWERING_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXFRAMELOWERING_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUFRAMELOWERING_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUFRAMELOWERING_H
 
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/Support/TypeSize.h"
 
 namespace llvm {
 
-class NVPTXFrameLowering : public TargetFrameLowering {
+class RVGPUFrameLowering : public TargetFrameLowering {
 public:
-  explicit NVPTXFrameLowering();
+  explicit RVGPUFrameLowering();
 
   bool hasFP(const MachineFunction &MF) const override;
   void emitPrologue(MachineFunction &MF, MachineBasicBlock &MBB) const override;

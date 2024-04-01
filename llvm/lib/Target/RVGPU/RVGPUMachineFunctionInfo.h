@@ -1,4 +1,4 @@
-//===-- NVPTXMachineFunctionInfo.h - NVPTX-specific Function Info  --------===//
+//===-- RVGPUMachineFunctionInfo.h - RVGPU-specific Function Info  --------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,26 +11,26 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXMACHINEFUNCTIONINFO_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXMACHINEFUNCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUMACHINEFUNCTIONINFO_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUMACHINEFUNCTIONINFO_H
 
 #include "llvm/CodeGen/MachineFunction.h"
 
 namespace llvm {
-class NVPTXMachineFunctionInfo : public MachineFunctionInfo {
+class RVGPUMachineFunctionInfo : public MachineFunctionInfo {
 private:
   /// Stores a mapping from index to symbol name for removing image handles
   /// on Fermi.
   SmallVector<std::string, 8> ImageHandleList;
 
 public:
-  NVPTXMachineFunctionInfo(const Function &F, const TargetSubtargetInfo *STI) {}
+  RVGPUMachineFunctionInfo(const Function &F, const TargetSubtargetInfo *STI) {}
 
   MachineFunctionInfo *
   clone(BumpPtrAllocator &Allocator, MachineFunction &DestMF,
         const DenseMap<MachineBasicBlock *, MachineBasicBlock *> &Src2DstMBB)
       const override {
-    return DestMF.cloneInfo<NVPTXMachineFunctionInfo>(*this);
+    return DestMF.cloneInfo<RVGPUMachineFunctionInfo>(*this);
   }
 
   /// Returns the index for the symbol \p Symbol. If the symbol was previously,

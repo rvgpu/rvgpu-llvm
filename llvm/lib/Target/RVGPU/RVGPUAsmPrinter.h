@@ -1,4 +1,4 @@
-//===-- NVPTXAsmPrinter.h - NVPTX LLVM assembly writer ----------*- C++ -*-===//
+//===-- RVGPUAsmPrinter.h - RVGPU LLVM assembly writer ----------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,16 +7,16 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains a printer that converts from our internal representation
-// of machine-dependent LLVM code to NVPTX assembly language.
+// of machine-dependent LLVM code to RVGPU assembly language.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXASMPRINTER_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUASMPRINTER_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUASMPRINTER_H
 
-#include "NVPTX.h"
-#include "NVPTXSubtarget.h"
-#include "NVPTXTargetMachine.h"
+#include "RVGPU.h"
+#include "RVGPUSubtarget.h"
+#include "RVGPUTargetMachine.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -58,7 +58,7 @@ namespace llvm {
 
 class MCOperand;
 
-class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
+class LLVM_LIBRARY_VISIBILITY RVGPUAsmPrinter : public AsmPrinter {
 
   class AggBuffer {
     // Used to buffer the emitted string for initializing global aggregates.
@@ -100,11 +100,11 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
     // SymbolsBeforeStripping[i].
     SmallVector<const Value *, 4> SymbolsBeforeStripping;
     unsigned curpos;
-    NVPTXAsmPrinter &AP;
+    RVGPUAsmPrinter &AP;
     bool EmitGeneric;
 
   public:
-    AggBuffer(unsigned size, NVPTXAsmPrinter &AP)
+    AggBuffer(unsigned size, RVGPUAsmPrinter &AP)
         : size(size), buffer(size), AP(AP) {
       curpos = 0;
       EmitGeneric = AP.EmitGeneric;
@@ -151,7 +151,7 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
   friend class AggBuffer;
 
 private:
-  StringRef getPassName() const override { return "NVPTX Assembly Printer"; }
+  StringRef getPassName() const override { return "RVGPU Assembly Printer"; }
 
   const Function *F;
   std::string CurrentFnName;
@@ -172,10 +172,10 @@ private:
   void printMemOperand(const MachineInstr *MI, unsigned OpNum, raw_ostream &O,
                        const char *Modifier = nullptr);
   void printModuleLevelGV(const GlobalVariable *GVar, raw_ostream &O,
-                          bool processDemoted, const NVPTXSubtarget &STI);
+                          bool processDemoted, const RVGPUSubtarget &STI);
   void emitGlobals(const Module &M);
   void emitGlobalAlias(const Module &M, const GlobalAlias &GA);
-  void emitHeader(Module &M, raw_ostream &O, const NVPTXSubtarget &STI);
+  void emitHeader(Module &M, raw_ostream &O, const RVGPUSubtarget &STI);
   void emitKernelFunctionDirectives(const Function &F, raw_ostream &O) const;
   void emitVirtualRegister(unsigned int vr, raw_ostream &);
   void emitFunctionParamList(const Function *, raw_ostream &O);
@@ -211,7 +211,7 @@ private:
   std::map<const Function *, std::vector<const GlobalVariable *>> localDecls;
 
   void emitPTXGlobalVariable(const GlobalVariable *GVar, raw_ostream &O,
-                             const NVPTXSubtarget &STI);
+                             const RVGPUSubtarget &STI);
   void emitPTXAddressSpace(unsigned int AddressSpace, raw_ostream &O) const;
   std::string getPTXFundamentalTypeStr(Type *Ty, bool = true) const;
   void printScalarConstant(const Constant *CPV, raw_ostream &O);
@@ -244,10 +244,10 @@ private:
   bool EmitGeneric;
 
 public:
-  NVPTXAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
+  RVGPUAsmPrinter(TargetMachine &TM, std::unique_ptr<MCStreamer> Streamer)
       : AsmPrinter(TM, std::move(Streamer)),
-        EmitGeneric(static_cast<NVPTXTargetMachine &>(TM).getDrvInterface() ==
-                    NVPTX::CUDA) {}
+        EmitGeneric(static_cast<RVGPUTargetMachine &>(TM).getDrvInterface() ==
+                    RVGPU::CUDA) {}
 
   bool runOnMachineFunction(MachineFunction &F) override;
 
@@ -260,12 +260,12 @@ public:
 
   const MCSymbol *getFunctionFrameSymbol() const override;
 
-  // Make emitGlobalVariable() no-op for NVPTX.
+  // Make emitGlobalVariable() no-op for RVGPU.
   // Global variables have been already emitted by the time the base AsmPrinter
-  // attempts to do so in doFinalization() (see NVPTXAsmPrinter::emitGlobals()).
+  // attempts to do so in doFinalization() (see RVGPUAsmPrinter::emitGlobals()).
   void emitGlobalVariable(const GlobalVariable *GV) override {}
 };
 
 } // end namespace llvm
 
-#endif // LLVM_LIB_TARGET_NVPTX_NVPTXASMPRINTER_H
+#endif // LLVM_LIB_TARGET_RVGPU_RVGPUASMPRINTER_H

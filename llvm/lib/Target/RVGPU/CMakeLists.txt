@@ -1,48 +1,48 @@
-add_llvm_component_group(NVPTX)
+add_llvm_component_group(RVGPU)
 
-set(LLVM_TARGET_DEFINITIONS NVPTX.td)
+set(LLVM_TARGET_DEFINITIONS RVGPU.td)
 
-tablegen(LLVM NVPTXGenAsmWriter.inc -gen-asm-writer)
-tablegen(LLVM NVPTXGenDAGISel.inc -gen-dag-isel)
-tablegen(LLVM NVPTXGenInstrInfo.inc -gen-instr-info)
-tablegen(LLVM NVPTXGenRegisterInfo.inc -gen-register-info)
-tablegen(LLVM NVPTXGenSubtargetInfo.inc -gen-subtarget)
+tablegen(LLVM RVGPUGenAsmWriter.inc -gen-asm-writer)
+tablegen(LLVM RVGPUGenDAGISel.inc -gen-dag-isel)
+tablegen(LLVM RVGPUGenInstrInfo.inc -gen-instr-info)
+tablegen(LLVM RVGPUGenRegisterInfo.inc -gen-register-info)
+tablegen(LLVM RVGPUGenSubtargetInfo.inc -gen-subtarget)
 
-add_public_tablegen_target(NVPTXCommonTableGen)
+add_public_tablegen_target(RVGPUCommonTableGen)
 
-set(NVPTXCodeGen_sources
-  NVPTXAliasAnalysis.cpp
-  NVPTXAllocaHoisting.cpp
-  NVPTXAtomicLower.cpp
-  NVPTXAsmPrinter.cpp
-  NVPTXAssignValidGlobalNames.cpp
-  NVPTXFrameLowering.cpp
-  NVPTXGenericToNVVM.cpp
-  NVPTXISelDAGToDAG.cpp
-  NVPTXISelLowering.cpp
-  NVPTXImageOptimizer.cpp
-  NVPTXInstrInfo.cpp
-  NVPTXLowerAggrCopies.cpp
-  NVPTXLowerArgs.cpp
-  NVPTXLowerAlloca.cpp
-  NVPTXLowerUnreachable.cpp
-  NVPTXPeephole.cpp
-  NVPTXMCExpr.cpp
-  NVPTXPrologEpilogPass.cpp
-  NVPTXRegisterInfo.cpp
-  NVPTXReplaceImageHandles.cpp
-  NVPTXSubtarget.cpp
-  NVPTXTargetMachine.cpp
-  NVPTXTargetTransformInfo.cpp
-  NVPTXUtilities.cpp
+set(RVGPUCodeGen_sources
+  RVGPUAliasAnalysis.cpp
+  RVGPUAllocaHoisting.cpp
+  RVGPUAtomicLower.cpp
+  RVGPUAsmPrinter.cpp
+  RVGPUAssignValidGlobalNames.cpp
+  RVGPUFrameLowering.cpp
+  RVGPUGenericToNVVM.cpp
+  RVGPUISelDAGToDAG.cpp
+  RVGPUISelLowering.cpp
+  RVGPUImageOptimizer.cpp
+  RVGPUInstrInfo.cpp
+  RVGPULowerAggrCopies.cpp
+  RVGPULowerArgs.cpp
+  RVGPULowerAlloca.cpp
+  RVGPULowerUnreachable.cpp
+  RVGPUPeephole.cpp
+  RVGPUMCExpr.cpp
+  RVGPUPrologEpilogPass.cpp
+  RVGPURegisterInfo.cpp
+  RVGPUReplaceImageHandles.cpp
+  RVGPUSubtarget.cpp
+  RVGPUTargetMachine.cpp
+  RVGPUTargetTransformInfo.cpp
+  RVGPUUtilities.cpp
   NVVMIntrRange.cpp
   NVVMReflect.cpp
-  NVPTXProxyRegErasure.cpp
-  NVPTXCtorDtorLowering.cpp
+  RVGPUProxyRegErasure.cpp
+  RVGPUCtorDtorLowering.cpp
   )
 
-add_llvm_target(NVPTXCodeGen
-  ${NVPTXCodeGen_sources}
+add_llvm_target(RVGPUCodeGen
+  ${RVGPUCodeGen_sources}
 
   LINK_COMPONENTS
   Analysis
@@ -52,8 +52,8 @@ add_llvm_target(NVPTXCodeGen
   Core
   IPO
   MC
-  NVPTXDesc
-  NVPTXInfo
+  RVGPUDesc
+  RVGPUInfo
   Scalar
   SelectionDAG
   Support
@@ -63,7 +63,7 @@ add_llvm_target(NVPTXCodeGen
   Vectorize
 
   ADD_TO_COMPONENT
-  NVPTX
+  RVGPU
   )
 
 add_subdirectory(MCTargetDesc)

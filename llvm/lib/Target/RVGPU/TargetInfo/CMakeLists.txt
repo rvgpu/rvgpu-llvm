@@ -1,10 +1,10 @@
-add_llvm_component_library(LLVMNVPTXInfo
-  NVPTXTargetInfo.cpp
+add_llvm_component_library(LLVMRVGPUInfo
+  RVGPUTargetInfo.cpp
 
   LINK_COMPONENTS
   MC
   Support
 
   ADD_TO_COMPONENT
-  NVPTX
+  RVGPU
   )

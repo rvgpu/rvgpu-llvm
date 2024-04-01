@@ -1,4 +1,4 @@
-//===-- NVPTXMCAsmInfo.h - NVPTX asm properties ----------------*- C++ -*--===//
+//===-- RVGPUMCAsmInfo.h - RVGPU asm properties ----------------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,23 +6,23 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the declaration of the NVPTXMCAsmInfo class.
+// This file contains the declaration of the RVGPUMCAsmInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXMCASMINFO_H
-#define LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXMCASMINFO_H
+#ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUMCASMINFO_H
+#define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUMCASMINFO_H
 
 #include "llvm/MC/MCAsmInfo.h"
 
 namespace llvm {
 class Triple;
 
-class NVPTXMCAsmInfo : public MCAsmInfo {
+class RVGPUMCAsmInfo : public MCAsmInfo {
   virtual void anchor();
 
 public:
-  explicit NVPTXMCAsmInfo(const Triple &TheTriple,
+  explicit RVGPUMCAsmInfo(const Triple &TheTriple,
                           const MCTargetOptions &Options);
 
   /// Return true if the .section directive should be omitted when

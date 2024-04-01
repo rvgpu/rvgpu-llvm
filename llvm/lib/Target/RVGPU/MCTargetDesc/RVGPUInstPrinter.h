@@ -1,4 +1,4 @@
-//= NVPTXInstPrinter.h - Convert NVPTX MCInst to assembly syntax --*- C++ -*-=//
+//= RVGPUInstPrinter.h - Convert RVGPU MCInst to assembly syntax --*- C++ -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This class prints an NVPTX MCInst to .ptx file syntax.
+// This class prints an RVGPU MCInst to .ptx file syntax.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXINSTPRINTER_H
-#define LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXINSTPRINTER_H
+#ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUINSTPRINTER_H
+#define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUINSTPRINTER_H
 
 #include "llvm/MC/MCInstPrinter.h"
 
@@ -19,9 +19,9 @@ namespace llvm {
 
 class MCSubtargetInfo;
 
-class NVPTXInstPrinter : public MCInstPrinter {
+class RVGPUInstPrinter : public MCInstPrinter {
 public:
-  NVPTXInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
+  RVGPUInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
                    const MCRegisterInfo &MRI);
 
   void printRegName(raw_ostream &OS, MCRegister Reg) const override;

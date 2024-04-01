@@ -1,4 +1,4 @@
-//===-- NVPTXTargetTransformInfo.cpp - NVPTX specific TTI -----------------===//
+//===-- RVGPUTargetTransformInfo.cpp - RVGPU specific TTI -----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,20 +6,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXTargetTransformInfo.h"
-#include "NVPTXUtilities.h"
+#include "RVGPUTargetTransformInfo.h"
+#include "RVGPUUtilities.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/CodeGen/CostTable.h"
 #include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/Support/Debug.h"
 #include <optional>
 using namespace llvm;
 
-#define DEBUG_TYPE "NVPTXtti"
+#define DEBUG_TYPE "RVGPUtti"
 
 // Whether the given intrinsic reads threadIdx.x/y/z.
 static bool readsThreadIndex(const IntrinsicInst *II) {
@@ -69,7 +69,7 @@ static bool isNVVMAtomic(const IntrinsicInst *II) {
   }
 }
 
-bool NVPTXTTIImpl::isSourceOfDivergence(const Value *V) {
+bool RVGPUTTIImpl::isSourceOfDivergence(const Value *V) {
   // Without inter-procedural analysis, we conservatively assume that arguments
   // to __device__ functions are divergent.
   if (const Argument *Arg = dyn_cast<Argument>(V))
@@ -97,7 +97,7 @@ bool NVPTXTTIImpl::isSourceOfDivergence(const Value *V) {
       // Instructions that read threadIdx are obviously divergent.
       if (readsThreadIndex(II) || readsLaneId(II))
         return true;
-      // Handle the NVPTX atomic intrinsics that cannot be represented as an
+      // Handle the RVGPU atomic intrinsics that cannot be represented as an
       // atomic IR instruction.
       if (isNVVMAtomic(II))
         return true;
@@ -421,14 +421,14 @@ static Instruction *simplifyNvvmIntrinsic(IntrinsicInst *II, InstCombiner &IC) {
 }
 
 std::optional<Instruction *>
-NVPTXTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
+RVGPUTTIImpl::instCombineIntrinsic(InstCombiner &IC, IntrinsicInst &II) const {
   if (Instruction *I = simplifyNvvmIntrinsic(&II, IC)) {
     return I;
   }
   return std::nullopt;
 }
 
-InstructionCost NVPTXTTIImpl::getArithmeticInstrCost(
+InstructionCost RVGPUTTIImpl::getArithmeticInstrCost(
     unsigned Opcode, Type *Ty, TTI::TargetCostKind CostKind,
     TTI::OperandValueInfo Op1Info, TTI::OperandValueInfo Op2Info,
     ArrayRef<const Value *> Args,
@@ -458,7 +458,7 @@ InstructionCost NVPTXTTIImpl::getArithmeticInstrCost(
   }
 }
 
-void NVPTXTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
+void RVGPUTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
                                            TTI::UnrollingPreferences &UP,
                                            OptimizationRemarkEmitter *ORE) {
   BaseT::getUnrollingPreferences(L, SE, UP, ORE);
@@ -471,7 +471,7 @@ void NVPTXTTIImpl::getUnrollingPreferences(Loop *L, ScalarEvolution &SE,
   UP.PartialThreshold = UP.Threshold / 4;
 }
 
-void NVPTXTTIImpl::getPeelingPreferences(Loop *L, ScalarEvolution &SE,
+void RVGPUTTIImpl::getPeelingPreferences(Loop *L, ScalarEvolution &SE,
                                          TTI::PeelingPreferences &PP) {
   BaseT::getPeelingPreferences(L, SE, PP);
 }

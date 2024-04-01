@@ -1,4 +1,4 @@
-//===-- NVPTXTargetTransformInfo.h - NVPTX specific TTI ---------*- C++ -*-===//
+//===-- RVGPUTargetTransformInfo.h - RVGPU specific TTI ---------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,17 +7,17 @@
 //===----------------------------------------------------------------------===//
 /// \file
 /// This file a TargetTransformInfo::Concept conforming object specific to the
-/// NVPTX target machine. It uses the target's detailed information to
+/// RVGPU target machine. It uses the target's detailed information to
 /// provide more precise answers to certain TTI queries, while letting the
 /// target independent and default TTI implementations handle the rest.
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXTARGETTRANSFORMINFO_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXTARGETTRANSFORMINFO_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUTARGETTRANSFORMINFO_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUTARGETTRANSFORMINFO_H
 
-#include "NVPTXTargetMachine.h"
-#include "MCTargetDesc/NVPTXBaseInfo.h"
+#include "RVGPUTargetMachine.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/CodeGen/TargetLowering.h"
@@ -25,19 +25,19 @@
 
 namespace llvm {
 
-class NVPTXTTIImpl : public BasicTTIImplBase<NVPTXTTIImpl> {
-  typedef BasicTTIImplBase<NVPTXTTIImpl> BaseT;
+class RVGPUTTIImpl : public BasicTTIImplBase<RVGPUTTIImpl> {
+  typedef BasicTTIImplBase<RVGPUTTIImpl> BaseT;
   typedef TargetTransformInfo TTI;
   friend BaseT;
 
-  const NVPTXSubtarget *ST;
-  const NVPTXTargetLowering *TLI;
+  const RVGPUSubtarget *ST;
+  const RVGPUTargetLowering *TLI;
 
-  const NVPTXSubtarget *getST() const { return ST; };
-  const NVPTXTargetLowering *getTLI() const { return TLI; };
+  const RVGPUSubtarget *getST() const { return ST; };
+  const RVGPUTargetLowering *getTLI() const { return TLI; };
 
 public:
-  explicit NVPTXTTIImpl(const NVPTXTargetMachine *TM, const Function &F)
+  explicit RVGPUTTIImpl(const RVGPUTargetMachine *TM, const Function &F)
       : BaseT(TM, F.getParent()->getDataLayout()), ST(TM->getSubtargetImpl()),
         TLI(ST->getTargetLowering()) {}
 
@@ -68,7 +68,7 @@ public:
     return isLegalToVectorizeLoadChain(ChainSizeInBytes, Alignment, AddrSpace);
   }
 
-  // NVPTX has infinite registers of all kinds, but the actual machine doesn't.
+  // RVGPU has infinite registers of all kinds, but the actual machine doesn't.
   // We conservatively return 1 here which is just enough to enable the
   // vectorizers but disables heuristics based on the number of registers.
   // FIXME: Return a more reasonable number, while keeping an eye on
@@ -91,7 +91,7 @@ public:
   }
 
   // Increase the inlining cost threshold by a factor of 11, reflecting that
-  // calls are particularly expensive in NVPTX.
+  // calls are particularly expensive in RVGPU.
   unsigned getInliningThresholdMultiplier() const { return 11; }
 
   InstructionCost getArithmeticInstrCost(

@@ -1,4 +1,4 @@
-//===-------------------- NVPTXAliasAnalysis.h ------------------*- C++ -*-===//
+//===-------------------- RVGPUAliasAnalysis.h ------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,11 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 /// \file
-/// This is the NVPTX address space based alias analysis pass.
+/// This is the RVGPU address space based alias analysis pass.
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXALIASANALYSIS_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXALIASANALYSIS_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUALIASANALYSIS_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUALIASANALYSIS_H
 
 #include "llvm/Analysis/AliasAnalysis.h"
 
@@ -18,10 +18,10 @@ namespace llvm {
 
 class MemoryLocation;
 
-class NVPTXAAResult : public AAResultBase {
+class RVGPUAAResult : public AAResultBase {
 public:
-  NVPTXAAResult() {}
-  NVPTXAAResult(NVPTXAAResult &&Arg) : AAResultBase(std::move(Arg)) {}
+  RVGPUAAResult() {}
+  RVGPUAAResult(RVGPUAAResult &&Arg) : AAResultBase(std::move(Arg)) {}
 
   /// Handle invalidation events from the new pass manager.
   ///
@@ -39,33 +39,33 @@ public:
 };
 
 /// Analysis pass providing a never-invalidated alias analysis result.
-class NVPTXAA : public AnalysisInfoMixin<NVPTXAA> {
-  friend AnalysisInfoMixin<NVPTXAA>;
+class RVGPUAA : public AnalysisInfoMixin<RVGPUAA> {
+  friend AnalysisInfoMixin<RVGPUAA>;
 
   static AnalysisKey Key;
 
 public:
-  using Result = NVPTXAAResult;
+  using Result = RVGPUAAResult;
 
-  NVPTXAAResult run(Function &F, AnalysisManager<Function> &AM) {
-    return NVPTXAAResult();
+  RVGPUAAResult run(Function &F, AnalysisManager<Function> &AM) {
+    return RVGPUAAResult();
   }
 };
 
-/// Legacy wrapper pass to provide the NVPTXAAResult object.
-class NVPTXAAWrapperPass : public ImmutablePass {
-  std::unique_ptr<NVPTXAAResult> Result;
+/// Legacy wrapper pass to provide the RVGPUAAResult object.
+class RVGPUAAWrapperPass : public ImmutablePass {
+  std::unique_ptr<RVGPUAAResult> Result;
 
 public:
   static char ID;
 
-  NVPTXAAWrapperPass();
+  RVGPUAAWrapperPass();
 
-  NVPTXAAResult &getResult() { return *Result; }
-  const NVPTXAAResult &getResult() const { return *Result; }
+  RVGPUAAResult &getResult() { return *Result; }
+  const RVGPUAAResult &getResult() const { return *Result; }
 
   bool doInitialization(Module &M) override {
-    Result.reset(new NVPTXAAResult());
+    Result.reset(new RVGPUAAResult());
     return false;
   }
 
@@ -79,23 +79,23 @@ public:
 
 // Wrapper around ExternalAAWrapperPass so that the default
 // constructor gets the callback.
-class NVPTXExternalAAWrapper : public ExternalAAWrapperPass {
+class RVGPUExternalAAWrapper : public ExternalAAWrapperPass {
 public:
   static char ID;
 
-  NVPTXExternalAAWrapper()
+  RVGPUExternalAAWrapper()
       : ExternalAAWrapperPass([](Pass &P, Function &, AAResults &AAR) {
           if (auto *WrapperPass =
-                  P.getAnalysisIfAvailable<NVPTXAAWrapperPass>())
+                  P.getAnalysisIfAvailable<RVGPUAAWrapperPass>())
             AAR.addAAResult(WrapperPass->getResult());
         }) {}
 };
 
-ImmutablePass *createNVPTXAAWrapperPass();
-void initializeNVPTXAAWrapperPassPass(PassRegistry &);
-ImmutablePass *createNVPTXExternalAAWrapperPass();
-void initializeNVPTXExternalAAWrapperPass(PassRegistry &);
+ImmutablePass *createRVGPUAAWrapperPass();
+void initializeRVGPUAAWrapperPassPass(PassRegistry &);
+ImmutablePass *createRVGPUExternalAAWrapperPass();
+void initializeRVGPUExternalAAWrapperPass(PassRegistry &);
 
 } // end namespace llvm
 
-#endif // LLVM_LIB_TARGET_NVPTX_NVPTXALIASANALYSIS_H
+#endif // LLVM_LIB_TARGET_RVGPU_RVGPUALIASANALYSIS_H

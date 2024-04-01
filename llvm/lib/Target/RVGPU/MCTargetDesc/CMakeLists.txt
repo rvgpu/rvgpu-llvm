@@ -1,15 +1,15 @@
-add_llvm_component_library(LLVMNVPTXDesc
-  NVPTXInstPrinter.cpp
-  NVPTXMCAsmInfo.cpp
-  NVPTXMCTargetDesc.cpp
-  NVPTXTargetStreamer.cpp
+add_llvm_component_library(LLVMRVGPUDesc
+  RVGPUInstPrinter.cpp
+  RVGPUMCAsmInfo.cpp
+  RVGPUMCTargetDesc.cpp
+  RVGPUTargetStreamer.cpp
 
   LINK_COMPONENTS
   MC
-  NVPTXInfo
+  RVGPUInfo
   Support
   TargetParser
 
   ADD_TO_COMPONENT
-  NVPTX
+  RVGPU
   )

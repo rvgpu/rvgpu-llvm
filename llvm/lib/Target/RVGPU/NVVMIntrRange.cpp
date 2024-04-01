@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTX.h"
+#include "RVGPU.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 

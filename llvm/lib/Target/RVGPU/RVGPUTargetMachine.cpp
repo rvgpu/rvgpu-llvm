@@ -1,4 +1,4 @@
-//===-- NVPTXTargetMachine.cpp - Define TargetMachine for NVPTX -----------===//
+//===-- RVGPUTargetMachine.cpp - Define TargetMachine for RVGPU -----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,26 +6,26 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Top-level implementation for the NVPTX target.
+// Top-level implementation for the RVGPU target.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXTargetMachine.h"
-#include "NVPTX.h"
-#include "NVPTXAliasAnalysis.h"
-#include "NVPTXAllocaHoisting.h"
-#include "NVPTXAtomicLower.h"
-#include "NVPTXCtorDtorLowering.h"
-#include "NVPTXLowerAggrCopies.h"
-#include "NVPTXMachineFunctionInfo.h"
-#include "NVPTXTargetObjectFile.h"
-#include "NVPTXTargetTransformInfo.h"
-#include "TargetInfo/NVPTXTargetInfo.h"
+#include "RVGPUTargetMachine.h"
+#include "RVGPU.h"
+#include "RVGPUAliasAnalysis.h"
+#include "RVGPUAllocaHoisting.h"
+#include "RVGPUAtomicLower.h"
+#include "RVGPUCtorDtorLowering.h"
+#include "RVGPULowerAggrCopies.h"
+#include "RVGPUMachineFunctionInfo.h"
+#include "RVGPUTargetObjectFile.h"
+#include "RVGPUTargetTransformInfo.h"
+#include "TargetInfo/RVGPUTargetInfo.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
@@ -52,7 +52,7 @@ static cl::opt<bool>
 // TODO: Remove this flag when we are confident with no regressions.
 static cl::opt<bool> DisableRequireStructuredCFG(
     "disable-nvptx-require-structured-cfg",
-    cl::desc("Transitional flag to turn off NVPTX's requirement on preserving "
+    cl::desc("Transitional flag to turn off RVGPU's requirement on preserving "
              "structured CFG. The requirement should be disabled only when "
              "unexpected regressions happen."),
     cl::init(false), cl::Hidden);
@@ -66,46 +66,46 @@ static cl::opt<bool> UseShortPointersOpt(
 namespace llvm {
 
 void initializeGenericToNVVMLegacyPassPass(PassRegistry &);
-void initializeNVPTXAllocaHoistingPass(PassRegistry &);
-void initializeNVPTXAssignValidGlobalNamesPass(PassRegistry &);
-void initializeNVPTXAtomicLowerPass(PassRegistry &);
-void initializeNVPTXCtorDtorLoweringLegacyPass(PassRegistry &);
-void initializeNVPTXLowerAggrCopiesPass(PassRegistry &);
-void initializeNVPTXLowerAllocaPass(PassRegistry &);
-void initializeNVPTXLowerUnreachablePass(PassRegistry &);
-void initializeNVPTXCtorDtorLoweringLegacyPass(PassRegistry &);
-void initializeNVPTXLowerArgsPass(PassRegistry &);
-void initializeNVPTXProxyRegErasurePass(PassRegistry &);
+void initializeRVGPUAllocaHoistingPass(PassRegistry &);
+void initializeRVGPUAssignValidGlobalNamesPass(PassRegistry &);
+void initializeRVGPUAtomicLowerPass(PassRegistry &);
+void initializeRVGPUCtorDtorLoweringLegacyPass(PassRegistry &);
+void initializeRVGPULowerAggrCopiesPass(PassRegistry &);
+void initializeRVGPULowerAllocaPass(PassRegistry &);
+void initializeRVGPULowerUnreachablePass(PassRegistry &);
+void initializeRVGPUCtorDtorLoweringLegacyPass(PassRegistry &);
+void initializeRVGPULowerArgsPass(PassRegistry &);
+void initializeRVGPUProxyRegErasurePass(PassRegistry &);
 void initializeNVVMIntrRangePass(PassRegistry &);
 void initializeNVVMReflectPass(PassRegistry &);
-void initializeNVPTXAAWrapperPassPass(PassRegistry &);
-void initializeNVPTXExternalAAWrapperPass(PassRegistry &);
+void initializeRVGPUAAWrapperPassPass(PassRegistry &);
+void initializeRVGPUExternalAAWrapperPass(PassRegistry &);
 
 } // end namespace llvm
 
-extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeNVPTXTarget() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTarget() {
   // Register the target.
-  RegisterTargetMachine<NVPTXTargetMachine32> X(getTheNVPTXTarget32());
-  RegisterTargetMachine<NVPTXTargetMachine64> Y(getTheNVPTXTarget64());
+  RegisterTargetMachine<RVGPUTargetMachine32> X(getTheRVGPUTarget32());
+  RegisterTargetMachine<RVGPUTargetMachine64> Y(getTheRVGPUTarget64());
 
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   // FIXME: This pass is really intended to be invoked during IR optimization,
-  // but it's very NVPTX-specific.
+  // but it's very RVGPU-specific.
   initializeNVVMReflectPass(PR);
   initializeNVVMIntrRangePass(PR);
   initializeGenericToNVVMLegacyPassPass(PR);
-  initializeNVPTXAllocaHoistingPass(PR);
-  initializeNVPTXAssignValidGlobalNamesPass(PR);
-  initializeNVPTXAtomicLowerPass(PR);
-  initializeNVPTXLowerArgsPass(PR);
-  initializeNVPTXLowerAllocaPass(PR);
-  initializeNVPTXLowerUnreachablePass(PR);
-  initializeNVPTXCtorDtorLoweringLegacyPass(PR);
-  initializeNVPTXLowerAggrCopiesPass(PR);
-  initializeNVPTXProxyRegErasurePass(PR);
-  initializeNVPTXDAGToDAGISelPass(PR);
-  initializeNVPTXAAWrapperPassPass(PR);
-  initializeNVPTXExternalAAWrapperPass(PR);
+  initializeRVGPUAllocaHoistingPass(PR);
+  initializeRVGPUAssignValidGlobalNamesPass(PR);
+  initializeRVGPUAtomicLowerPass(PR);
+  initializeRVGPULowerArgsPass(PR);
+  initializeRVGPULowerAllocaPass(PR);
+  initializeRVGPULowerUnreachablePass(PR);
+  initializeRVGPUCtorDtorLoweringLegacyPass(PR);
+  initializeRVGPULowerAggrCopiesPass(PR);
+  initializeRVGPUProxyRegErasurePass(PR);
+  initializeRVGPUDAGToDAGISelPass(PR);
+  initializeRVGPUAAWrapperPassPass(PR);
+  initializeRVGPUExternalAAWrapperPass(PR);
 }
 
 static std::string computeDataLayout(bool is64Bit, bool UseShortPointers) {
@@ -121,7 +121,7 @@ static std::string computeDataLayout(bool is64Bit, bool UseShortPointers) {
   return Ret;
 }
 
-NVPTXTargetMachine::NVPTXTargetMachine(const Target &T, const Triple &TT,
+RVGPUTargetMachine::RVGPUTargetMachine(const Target &T, const Triple &TT,
                                        StringRef CPU, StringRef FS,
                                        const TargetOptions &Options,
                                        std::optional<Reloc::Model> RM,
@@ -133,49 +133,49 @@ NVPTXTargetMachine::NVPTXTargetMachine(const Target &T, const Triple &TT,
                         CPU, FS, Options, Reloc::PIC_,
                         getEffectiveCodeModel(CM, CodeModel::Small), OL),
       is64bit(is64bit), UseShortPointers(UseShortPointersOpt),
-      TLOF(std::make_unique<NVPTXTargetObjectFile>()),
+      TLOF(std::make_unique<RVGPUTargetObjectFile>()),
       Subtarget(TT, std::string(CPU), std::string(FS), *this),
       StrPool(StrAlloc) {
   if (TT.getOS() == Triple::NVCL)
-    drvInterface = NVPTX::NVCL;
+    drvInterface = RVGPU::NVCL;
   else
-    drvInterface = NVPTX::CUDA;
+    drvInterface = RVGPU::CUDA;
   if (!DisableRequireStructuredCFG)
     setRequiresStructuredCFG(true);
   initAsmInfo();
 }
 
-NVPTXTargetMachine::~NVPTXTargetMachine() = default;
+RVGPUTargetMachine::~RVGPUTargetMachine() = default;
 
-void NVPTXTargetMachine32::anchor() {}
+void RVGPUTargetMachine32::anchor() {}
 
-NVPTXTargetMachine32::NVPTXTargetMachine32(const Target &T, const Triple &TT,
+RVGPUTargetMachine32::RVGPUTargetMachine32(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
                                            std::optional<Reloc::Model> RM,
                                            std::optional<CodeModel::Model> CM,
                                            CodeGenOptLevel OL, bool JIT)
-    : NVPTXTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
+    : RVGPUTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, false) {}
 
-void NVPTXTargetMachine64::anchor() {}
+void RVGPUTargetMachine64::anchor() {}
 
-NVPTXTargetMachine64::NVPTXTargetMachine64(const Target &T, const Triple &TT,
+RVGPUTargetMachine64::RVGPUTargetMachine64(const Target &T, const Triple &TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
                                            std::optional<Reloc::Model> RM,
                                            std::optional<CodeModel::Model> CM,
                                            CodeGenOptLevel OL, bool JIT)
-    : NVPTXTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
+    : RVGPUTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL, true) {}
 
 namespace {
 
-class NVPTXPassConfig : public TargetPassConfig {
+class RVGPUPassConfig : public TargetPassConfig {
 public:
-  NVPTXPassConfig(NVPTXTargetMachine &TM, PassManagerBase &PM)
+  RVGPUPassConfig(RVGPUTargetMachine &TM, PassManagerBase &PM)
       : TargetPassConfig(TM, PM) {}
 
-  NVPTXTargetMachine &getNVPTXTargetMachine() const {
-    return getTM<NVPTXTargetMachine>();
+  RVGPUTargetMachine &getRVGPUTargetMachine() const {
+    return getTM<RVGPUTargetMachine>();
   }
 
   void addIRPasses() override;
@@ -210,22 +210,22 @@ private:
 
 } // end anonymous namespace
 
-TargetPassConfig *NVPTXTargetMachine::createPassConfig(PassManagerBase &PM) {
-  return new NVPTXPassConfig(*this, PM);
+TargetPassConfig *RVGPUTargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new RVGPUPassConfig(*this, PM);
 }
 
-MachineFunctionInfo *NVPTXTargetMachine::createMachineFunctionInfo(
+MachineFunctionInfo *RVGPUTargetMachine::createMachineFunctionInfo(
     BumpPtrAllocator &Allocator, const Function &F,
     const TargetSubtargetInfo *STI) const {
-  return NVPTXMachineFunctionInfo::create<NVPTXMachineFunctionInfo>(Allocator,
+  return RVGPUMachineFunctionInfo::create<RVGPUMachineFunctionInfo>(Allocator,
                                                                     F, STI);
 }
 
-void NVPTXTargetMachine::registerDefaultAliasAnalyses(AAManager &AAM) {
-  AAM.registerFunctionAnalysis<NVPTXAA>();
+void RVGPUTargetMachine::registerDefaultAliasAnalyses(AAManager &AAM) {
+  AAM.registerFunctionAnalysis<RVGPUAA>();
 }
 
-void NVPTXTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
+void RVGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
   PB.registerPipelineParsingCallback(
       [](StringRef PassName, FunctionPassManager &PM,
          ArrayRef<PassBuilder::PipelineElement>) {
@@ -241,12 +241,12 @@ void NVPTXTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
       });
 
   PB.registerAnalysisRegistrationCallback([](FunctionAnalysisManager &FAM) {
-    FAM.registerPass([&] { return NVPTXAA(); });
+    FAM.registerPass([&] { return RVGPUAA(); });
   });
 
   PB.registerParseAACallback([](StringRef AAName, AAManager &AAM) {
     if (AAName == "nvptx-aa") {
-      AAM.registerFunctionAnalysis<NVPTXAA>();
+      AAM.registerFunctionAnalysis<RVGPUAA>();
       return true;
     }
     return false;
@@ -256,7 +256,7 @@ void NVPTXTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
       [](StringRef PassName, ModulePassManager &PM,
          ArrayRef<PassBuilder::PipelineElement>) {
         if (PassName == "nvptx-lower-ctor-dtor") {
-          PM.addPass(NVPTXCtorDtorLoweringPass());
+          PM.addPass(RVGPUCtorDtorLoweringPass());
           return true;
         }
         if (PassName == "generic-to-nvvm") {
@@ -278,12 +278,12 @@ void NVPTXTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
 }
 
 TargetTransformInfo
-NVPTXTargetMachine::getTargetTransformInfo(const Function &F) const {
-  return TargetTransformInfo(NVPTXTTIImpl(this, F));
+RVGPUTargetMachine::getTargetTransformInfo(const Function &F) const {
+  return TargetTransformInfo(RVGPUTTIImpl(this, F));
 }
 
 std::pair<const Value *, unsigned>
-NVPTXTargetMachine::getPredicatedAddrSpace(const Value *V) const {
+RVGPUTargetMachine::getPredicatedAddrSpace(const Value *V) const {
   if (auto *II = dyn_cast<IntrinsicInst>(V)) {
     switch (II->getIntrinsicID()) {
     case Intrinsic::nvvm_isspacep_const:
@@ -302,23 +302,23 @@ NVPTXTargetMachine::getPredicatedAddrSpace(const Value *V) const {
   return std::make_pair(nullptr, -1);
 }
 
-void NVPTXPassConfig::addEarlyCSEOrGVNPass() {
+void RVGPUPassConfig::addEarlyCSEOrGVNPass() {
   if (getOptLevel() == CodeGenOptLevel::Aggressive)
     addPass(createGVNPass());
   else
     addPass(createEarlyCSEPass());
 }
 
-void NVPTXPassConfig::addAddressSpaceInferencePasses() {
-  // NVPTXLowerArgs emits alloca for byval parameters which can often
+void RVGPUPassConfig::addAddressSpaceInferencePasses() {
+  // RVGPULowerArgs emits alloca for byval parameters which can often
   // be eliminated by SROA.
   addPass(createSROAPass());
-  addPass(createNVPTXLowerAllocaPass());
+  addPass(createRVGPULowerAllocaPass());
   addPass(createInferAddressSpacesPass());
-  addPass(createNVPTXAtomicLowerPass());
+  addPass(createRVGPUAtomicLowerPass());
 }
 
-void NVPTXPassConfig::addStraightLineScalarOptimizationPasses() {
+void RVGPUPassConfig::addStraightLineScalarOptimizationPasses() {
   addPass(createSeparateConstOffsetFromGEPPass());
   addPass(createSpeculativeExecutionPass());
   // ReassociateGEPs exposes more opportunites for SLSR. See
@@ -335,12 +335,12 @@ void NVPTXPassConfig::addStraightLineScalarOptimizationPasses() {
   addPass(createEarlyCSEPass());
 }
 
-void NVPTXPassConfig::addIRPasses() {
+void RVGPUPassConfig::addIRPasses() {
   // The following passes are known to not play well with virtual regs hanging
   // around after register allocation (which in our case, is *all* registers).
   // We explicitly disable them here.  We do, however, need some functionality
   // of the PrologEpilogCodeInserter pass, so we emulate that behavior in the
-  // NVPTXPrologEpilog pass (see NVPTXPrologEpilogPass.cpp).
+  // RVGPUPrologEpilog pass (see RVGPUPrologEpilogPass.cpp).
   disablePass(&PrologEpilogCodeInserterID);
   disablePass(&MachineLateInstrsCleanupID);
   disablePass(&MachineCopyPropagationID);
@@ -353,34 +353,34 @@ void NVPTXPassConfig::addIRPasses() {
   disablePass(&PatchableFunctionID);
   disablePass(&ShrinkWrapID);
 
-  addPass(createNVPTXAAWrapperPass());
+  addPass(createRVGPUAAWrapperPass());
   addPass(createExternalAAWrapperPass([](Pass &P, Function &, AAResults &AAR) {
-    if (auto *WrapperPass = P.getAnalysisIfAvailable<NVPTXAAWrapperPass>())
+    if (auto *WrapperPass = P.getAnalysisIfAvailable<RVGPUAAWrapperPass>())
       AAR.addAAResult(WrapperPass->getResult());
   }));
 
   // NVVMReflectPass is added in addEarlyAsPossiblePasses, so hopefully running
   // it here does nothing.  But since we need it for correctness when lowering
-  // to NVPTX, run it here too, in case whoever built our pass pipeline didn't
+  // to RVGPU, run it here too, in case whoever built our pass pipeline didn't
   // call addEarlyAsPossiblePasses.
-  const NVPTXSubtarget &ST = *getTM<NVPTXTargetMachine>().getSubtargetImpl();
+  const RVGPUSubtarget &ST = *getTM<RVGPUTargetMachine>().getSubtargetImpl();
   addPass(createNVVMReflectPass(ST.getSmVersion()));
 
   if (getOptLevel() != CodeGenOptLevel::None)
-    addPass(createNVPTXImageOptimizerPass());
-  addPass(createNVPTXAssignValidGlobalNamesPass());
+    addPass(createRVGPUImageOptimizerPass());
+  addPass(createRVGPUAssignValidGlobalNamesPass());
   addPass(createGenericToNVVMLegacyPass());
 
-  // NVPTXLowerArgs is required for correctness and should be run right
+  // RVGPULowerArgs is required for correctness and should be run right
   // before the address space inference passes.
-  addPass(createNVPTXLowerArgsPass());
+  addPass(createRVGPULowerArgsPass());
   if (getOptLevel() != CodeGenOptLevel::None) {
     addAddressSpaceInferencePasses();
     addStraightLineScalarOptimizationPasses();
   }
 
   addPass(createAtomicExpandPass());
-  addPass(createNVPTXCtorDtorLoweringLegacyPass());
+  addPass(createRVGPUCtorDtorLoweringLegacyPass());
 
   // === LSR and other generic IR passes ===
   TargetPassConfig::addIRPasses();
@@ -403,49 +403,49 @@ void NVPTXPassConfig::addIRPasses() {
     addPass(createSROAPass());
   }
 
-  const auto &Options = getNVPTXTargetMachine().Options;
-  addPass(createNVPTXLowerUnreachablePass(Options.TrapUnreachable,
+  const auto &Options = getRVGPUTargetMachine().Options;
+  addPass(createRVGPULowerUnreachablePass(Options.TrapUnreachable,
                                           Options.NoTrapAfterNoreturn));
 }
 
-bool NVPTXPassConfig::addInstSelector() {
-  const NVPTXSubtarget &ST = *getTM<NVPTXTargetMachine>().getSubtargetImpl();
+bool RVGPUPassConfig::addInstSelector() {
+  const RVGPUSubtarget &ST = *getTM<RVGPUTargetMachine>().getSubtargetImpl();
 
   addPass(createLowerAggrCopies());
   addPass(createAllocaHoisting());
-  addPass(createNVPTXISelDag(getNVPTXTargetMachine(), getOptLevel()));
+  addPass(createRVGPUISelDag(getRVGPUTargetMachine(), getOptLevel()));
 
   if (!ST.hasImageHandles())
-    addPass(createNVPTXReplaceImageHandlesPass());
+    addPass(createRVGPUReplaceImageHandlesPass());
 
   return false;
 }
 
-void NVPTXPassConfig::addPreRegAlloc() {
+void RVGPUPassConfig::addPreRegAlloc() {
   // Remove Proxy Register pseudo instructions used to keep `callseq_end` alive.
-  addPass(createNVPTXProxyRegErasurePass());
+  addPass(createRVGPUProxyRegErasurePass());
 }
 
-void NVPTXPassConfig::addPostRegAlloc() {
-  addPass(createNVPTXPrologEpilogPass());
+void RVGPUPassConfig::addPostRegAlloc() {
+  addPass(createRVGPUPrologEpilogPass());
   if (getOptLevel() != CodeGenOptLevel::None) {
-    // NVPTXPrologEpilogPass calculates frame object offset and replace frame
-    // index with VRFrame register. NVPTXPeephole need to be run after that and
+    // RVGPUPrologEpilogPass calculates frame object offset and replace frame
+    // index with VRFrame register. RVGPUPeephole need to be run after that and
     // will replace VRFrame with VRFrameLocal when possible.
-    addPass(createNVPTXPeephole());
+    addPass(createRVGPUPeephole());
   }
 }
 
-FunctionPass *NVPTXPassConfig::createTargetRegisterAllocator(bool) {
+FunctionPass *RVGPUPassConfig::createTargetRegisterAllocator(bool) {
   return nullptr; // No reg alloc
 }
 
-void NVPTXPassConfig::addFastRegAlloc() {
+void RVGPUPassConfig::addFastRegAlloc() {
   addPass(&PHIEliminationID);
   addPass(&TwoAddressInstructionPassID);
 }
 
-void NVPTXPassConfig::addOptimizedRegAlloc() {
+void RVGPUPassConfig::addOptimizedRegAlloc() {
   addPass(&ProcessImplicitDefsID);
   addPass(&LiveVariablesID);
   addPass(&MachineLoopInfoID);
@@ -466,7 +466,7 @@ void NVPTXPassConfig::addOptimizedRegAlloc() {
   printAndVerify("After StackSlotColoring");
 }
 
-void NVPTXPassConfig::addMachineSSAOptimization() {
+void RVGPUPassConfig::addMachineSSAOptimization() {
   // Pre-ra tail duplication.
   if (addPass(&EarlyTailDuplicateID))
     printAndVerify("After Pre-RegAlloc TailDuplicate");

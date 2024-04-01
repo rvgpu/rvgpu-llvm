@@ -1,4 +1,4 @@
-//===-- NVPTXMCExpr.h - NVPTX specific MC expression classes ----*- C++ -*-===//
+//===-- RVGPUMCExpr.h - RVGPU specific MC expression classes ----*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -8,8 +8,8 @@
 
 // Modeled after ARMMCExpr
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXMCEXPR_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXMCEXPR_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUMCEXPR_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUMCEXPR_H
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/MC/MCExpr.h"
@@ -17,48 +17,48 @@
 
 namespace llvm {
 
-class NVPTXFloatMCExpr : public MCTargetExpr {
+class RVGPUFloatMCExpr : public MCTargetExpr {
 public:
   enum VariantKind {
-    VK_NVPTX_None,
-    VK_NVPTX_BFLOAT_PREC_FLOAT, // FP constant in bfloat-precision
-    VK_NVPTX_HALF_PREC_FLOAT,   // FP constant in half-precision
-    VK_NVPTX_SINGLE_PREC_FLOAT, // FP constant in single-precision
-    VK_NVPTX_DOUBLE_PREC_FLOAT  // FP constant in double-precision
+    VK_RVGPU_None,
+    VK_RVGPU_BFLOAT_PREC_FLOAT, // FP constant in bfloat-precision
+    VK_RVGPU_HALF_PREC_FLOAT,   // FP constant in half-precision
+    VK_RVGPU_SINGLE_PREC_FLOAT, // FP constant in single-precision
+    VK_RVGPU_DOUBLE_PREC_FLOAT  // FP constant in double-precision
   };
 
 private:
   const VariantKind Kind;
   const APFloat Flt;
 
-  explicit NVPTXFloatMCExpr(VariantKind Kind, APFloat Flt)
+  explicit RVGPUFloatMCExpr(VariantKind Kind, APFloat Flt)
       : Kind(Kind), Flt(std::move(Flt)) {}
 
 public:
   /// @name Construction
   /// @{
 
-  static const NVPTXFloatMCExpr *create(VariantKind Kind, const APFloat &Flt,
+  static const RVGPUFloatMCExpr *create(VariantKind Kind, const APFloat &Flt,
                                         MCContext &Ctx);
 
-  static const NVPTXFloatMCExpr *createConstantBFPHalf(const APFloat &Flt,
+  static const RVGPUFloatMCExpr *createConstantBFPHalf(const APFloat &Flt,
                                                        MCContext &Ctx) {
-    return create(VK_NVPTX_BFLOAT_PREC_FLOAT, Flt, Ctx);
+    return create(VK_RVGPU_BFLOAT_PREC_FLOAT, Flt, Ctx);
   }
 
-  static const NVPTXFloatMCExpr *createConstantFPHalf(const APFloat &Flt,
+  static const RVGPUFloatMCExpr *createConstantFPHalf(const APFloat &Flt,
                                                         MCContext &Ctx) {
-    return create(VK_NVPTX_HALF_PREC_FLOAT, Flt, Ctx);
+    return create(VK_RVGPU_HALF_PREC_FLOAT, Flt, Ctx);
   }
 
-  static const NVPTXFloatMCExpr *createConstantFPSingle(const APFloat &Flt,
+  static const RVGPUFloatMCExpr *createConstantFPSingle(const APFloat &Flt,
                                                         MCContext &Ctx) {
-    return create(VK_NVPTX_SINGLE_PREC_FLOAT, Flt, Ctx);
+    return create(VK_RVGPU_SINGLE_PREC_FLOAT, Flt, Ctx);
   }
 
-  static const NVPTXFloatMCExpr *createConstantFPDouble(const APFloat &Flt,
+  static const RVGPUFloatMCExpr *createConstantFPDouble(const APFloat &Flt,
                                                         MCContext &Ctx) {
-    return create(VK_NVPTX_DOUBLE_PREC_FLOAT, Flt, Ctx);
+    return create(VK_RVGPU_DOUBLE_PREC_FLOAT, Flt, Ctx);
   }
 
   /// @}
@@ -82,7 +82,7 @@ public:
   void visitUsedExpr(MCStreamer &Streamer) const override {};
   MCFragment *findAssociatedFragment() const override { return nullptr; }
 
-  // There are no TLS NVPTXMCExprs at the moment.
+  // There are no TLS RVGPUMCExprs at the moment.
   void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override {}
 
   static bool classof(const MCExpr *E) {
@@ -92,18 +92,18 @@ public:
 
 /// A wrapper for MCSymbolRefExpr that tells the assembly printer that the
 /// symbol should be enclosed by generic().
-class NVPTXGenericMCSymbolRefExpr : public MCTargetExpr {
+class RVGPUGenericMCSymbolRefExpr : public MCTargetExpr {
 private:
   const MCSymbolRefExpr *SymExpr;
 
-  explicit NVPTXGenericMCSymbolRefExpr(const MCSymbolRefExpr *_SymExpr)
+  explicit RVGPUGenericMCSymbolRefExpr(const MCSymbolRefExpr *_SymExpr)
       : SymExpr(_SymExpr) {}
 
 public:
   /// @name Construction
   /// @{
 
-  static const NVPTXGenericMCSymbolRefExpr
+  static const RVGPUGenericMCSymbolRefExpr
   *create(const MCSymbolRefExpr *SymExpr, MCContext &Ctx);
 
   /// @}
@@ -124,7 +124,7 @@ public:
   void visitUsedExpr(MCStreamer &Streamer) const override {};
   MCFragment *findAssociatedFragment() const override { return nullptr; }
 
-  // There are no TLS NVPTXMCExprs at the moment.
+  // There are no TLS RVGPUMCExprs at the moment.
   void fixELFSymbolsInTLSFixups(MCAssembler &Asm) const override {}
 
   static bool classof(const MCExpr *E) {

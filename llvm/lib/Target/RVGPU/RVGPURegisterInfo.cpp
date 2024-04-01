@@ -1,4 +1,4 @@
-//===- NVPTXRegisterInfo.cpp - NVPTX Register Information -----------------===//
+//===- RVGPURegisterInfo.cpp - RVGPU Register Information -----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the NVPTX implementation of the TargetRegisterInfo class.
+// This file contains the RVGPU implementation of the TargetRegisterInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXRegisterInfo.h"
-#include "NVPTX.h"
-#include "NVPTXSubtarget.h"
-#include "NVPTXTargetMachine.h"
+#include "RVGPURegisterInfo.h"
+#include "RVGPU.h"
+#include "RVGPUSubtarget.h"
+#include "RVGPUTargetMachine.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -26,12 +26,12 @@ using namespace llvm;
 #define DEBUG_TYPE "nvptx-reg-info"
 
 namespace llvm {
-std::string getNVPTXRegClassName(TargetRegisterClass const *RC) {
-  if (RC == &NVPTX::Float32RegsRegClass)
+std::string getRVGPURegClassName(TargetRegisterClass const *RC) {
+  if (RC == &RVGPU::Float32RegsRegClass)
     return ".f32";
-  if (RC == &NVPTX::Float64RegsRegClass)
+  if (RC == &RVGPU::Float64RegsRegClass)
     return ".f64";
-  if (RC == &NVPTX::Int64RegsRegClass)
+  if (RC == &RVGPU::Int64RegsRegClass)
     // We use untyped (.b) integer registers here as NVCC does.
     // Correctness of generated code does not depend on register type,
     // but using .s/.u registers runs into ptxas bug that prevents
@@ -51,63 +51,63 @@ std::string getNVPTXRegClassName(TargetRegisterClass const *RC) {
     //   add.f16v2 rb32,rb32,rb32; // OK
     //   add.f16v2 rs32,rs32,rs32; // OK
     return ".b64";
-  if (RC == &NVPTX::Int32RegsRegClass)
+  if (RC == &RVGPU::Int32RegsRegClass)
     return ".b32";
-  if (RC == &NVPTX::Int16RegsRegClass)
+  if (RC == &RVGPU::Int16RegsRegClass)
     return ".b16";
-  if (RC == &NVPTX::Int1RegsRegClass)
+  if (RC == &RVGPU::Int1RegsRegClass)
     return ".pred";
-  if (RC == &NVPTX::SpecialRegsRegClass)
+  if (RC == &RVGPU::SpecialRegsRegClass)
     return "!Special!";
   return "INTERNAL";
 }
 
-std::string getNVPTXRegClassStr(TargetRegisterClass const *RC) {
-  if (RC == &NVPTX::Float32RegsRegClass)
+std::string getRVGPURegClassStr(TargetRegisterClass const *RC) {
+  if (RC == &RVGPU::Float32RegsRegClass)
     return "%f";
-  if (RC == &NVPTX::Float64RegsRegClass)
+  if (RC == &RVGPU::Float64RegsRegClass)
     return "%fd";
-  if (RC == &NVPTX::Int64RegsRegClass)
+  if (RC == &RVGPU::Int64RegsRegClass)
     return "%rd";
-  if (RC == &NVPTX::Int32RegsRegClass)
+  if (RC == &RVGPU::Int32RegsRegClass)
     return "%r";
-  if (RC == &NVPTX::Int16RegsRegClass)
+  if (RC == &RVGPU::Int16RegsRegClass)
     return "%rs";
-  if (RC == &NVPTX::Int1RegsRegClass)
+  if (RC == &RVGPU::Int1RegsRegClass)
     return "%p";
-  if (RC == &NVPTX::SpecialRegsRegClass)
+  if (RC == &RVGPU::SpecialRegsRegClass)
     return "!Special!";
   return "INTERNAL";
 }
 }
 
-NVPTXRegisterInfo::NVPTXRegisterInfo()
-    : NVPTXGenRegisterInfo(0), StrPool(StrAlloc) {}
+RVGPURegisterInfo::RVGPURegisterInfo()
+    : RVGPUGenRegisterInfo(0), StrPool(StrAlloc) {}
 
 #define GET_REGINFO_TARGET_DESC
-#include "NVPTXGenRegisterInfo.inc"
+#include "RVGPUGenRegisterInfo.inc"
 
-/// NVPTX Callee Saved Registers
+/// RVGPU Callee Saved Registers
 const MCPhysReg *
-NVPTXRegisterInfo::getCalleeSavedRegs(const MachineFunction *) const {
+RVGPURegisterInfo::getCalleeSavedRegs(const MachineFunction *) const {
   static const MCPhysReg CalleeSavedRegs[] = { 0 };
   return CalleeSavedRegs;
 }
 
-BitVector NVPTXRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
+BitVector RVGPURegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  for (unsigned Reg = NVPTX::ENVREG0; Reg <= NVPTX::ENVREG31; ++Reg) {
+  for (unsigned Reg = RVGPU::ENVREG0; Reg <= RVGPU::ENVREG31; ++Reg) {
     markSuperRegs(Reserved, Reg);
   }
-  markSuperRegs(Reserved, NVPTX::VRFrame32);
-  markSuperRegs(Reserved, NVPTX::VRFrameLocal32);
-  markSuperRegs(Reserved, NVPTX::VRFrame64);
-  markSuperRegs(Reserved, NVPTX::VRFrameLocal64);
-  markSuperRegs(Reserved, NVPTX::VRDepot);
+  markSuperRegs(Reserved, RVGPU::VRFrame32);
+  markSuperRegs(Reserved, RVGPU::VRFrameLocal32);
+  markSuperRegs(Reserved, RVGPU::VRFrame64);
+  markSuperRegs(Reserved, RVGPU::VRFrameLocal64);
+  markSuperRegs(Reserved, RVGPU::VRDepot);
   return Reserved;
 }
 
-bool NVPTXRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
+bool RVGPURegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                             int SPAdj, unsigned FIOperandNum,
                                             RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected");
@@ -125,15 +125,15 @@ bool NVPTXRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   return false;
 }
 
-Register NVPTXRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const NVPTXTargetMachine &TM =
-      static_cast<const NVPTXTargetMachine &>(MF.getTarget());
-  return TM.is64Bit() ? NVPTX::VRFrame64 : NVPTX::VRFrame32;
+Register RVGPURegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+  const RVGPUTargetMachine &TM =
+      static_cast<const RVGPUTargetMachine &>(MF.getTarget());
+  return TM.is64Bit() ? RVGPU::VRFrame64 : RVGPU::VRFrame32;
 }
 
 Register
-NVPTXRegisterInfo::getFrameLocalRegister(const MachineFunction &MF) const {
-  const NVPTXTargetMachine &TM =
-      static_cast<const NVPTXTargetMachine &>(MF.getTarget());
-  return TM.is64Bit() ? NVPTX::VRFrameLocal64 : NVPTX::VRFrameLocal32;
+RVGPURegisterInfo::getFrameLocalRegister(const MachineFunction &MF) const {
+  const RVGPUTargetMachine &TM =
+      static_cast<const RVGPUTargetMachine &>(MF.getTarget());
+  return TM.is64Bit() ? RVGPU::VRFrameLocal64 : RVGPU::VRFrameLocal32;
 }

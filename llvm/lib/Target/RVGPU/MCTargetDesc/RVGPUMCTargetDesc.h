@@ -1,4 +1,4 @@
-//===-- NVPTXMCTargetDesc.h - NVPTX Target Descriptions ---------*- C++ -*-===//
+//===-- RVGPUMCTargetDesc.h - RVGPU Target Descriptions ---------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,25 +6,25 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides NVPTX specific target descriptions.
+// This file provides RVGPU specific target descriptions.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXMCTARGETDESC_H
-#define LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXMCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUMCTARGETDESC_H
+#define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUMCTARGETDESC_H
 
 #include <stdint.h>
 
 // Defines symbolic names for PTX registers.
 #define GET_REGINFO_ENUM
-#include "NVPTXGenRegisterInfo.inc"
+#include "RVGPUGenRegisterInfo.inc"
 
 // Defines symbolic names for the PTX instructions.
 #define GET_INSTRINFO_ENUM
 #define GET_INSTRINFO_MC_HELPER_DECLS
-#include "NVPTXGenInstrInfo.inc"
+#include "RVGPUGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_ENUM
-#include "NVPTXGenSubtargetInfo.inc"
+#include "RVGPUGenSubtargetInfo.inc"
 
 #endif

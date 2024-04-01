@@ -1,4 +1,4 @@
-//===--------------------- NVPTXAliasAnalysis.cpp--------------------------===//
+//===--------------------- RVGPUAliasAnalysis.cpp--------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,44 +6,44 @@
 //
 //===----------------------------------------------------------------------===//
 /// \file
-/// This is the NVPTX address space based alias analysis pass.
+/// This is the RVGPU address space based alias analysis pass.
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXAliasAnalysis.h"
-#include "MCTargetDesc/NVPTXBaseInfo.h"
-#include "NVPTX.h"
+#include "RVGPUAliasAnalysis.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
+#include "RVGPU.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Instructions.h"
 
 using namespace llvm;
 
-#define DEBUG_TYPE "NVPTX-aa"
+#define DEBUG_TYPE "RVGPU-aa"
 
-AnalysisKey NVPTXAA::Key;
+AnalysisKey RVGPUAA::Key;
 
-char NVPTXAAWrapperPass::ID = 0;
-char NVPTXExternalAAWrapper::ID = 0;
+char RVGPUAAWrapperPass::ID = 0;
+char RVGPUExternalAAWrapper::ID = 0;
 
-INITIALIZE_PASS(NVPTXAAWrapperPass, "nvptx-aa",
-                "NVPTX Address space based Alias Analysis", false, true)
+INITIALIZE_PASS(RVGPUAAWrapperPass, "nvptx-aa",
+                "RVGPU Address space based Alias Analysis", false, true)
 
-INITIALIZE_PASS(NVPTXExternalAAWrapper, "nvptx-aa-wrapper",
-                "NVPTX Address space based Alias Analysis Wrapper", false, true)
+INITIALIZE_PASS(RVGPUExternalAAWrapper, "nvptx-aa-wrapper",
+                "RVGPU Address space based Alias Analysis Wrapper", false, true)
 
-ImmutablePass *llvm::createNVPTXAAWrapperPass() {
-  return new NVPTXAAWrapperPass();
+ImmutablePass *llvm::createRVGPUAAWrapperPass() {
+  return new RVGPUAAWrapperPass();
 }
 
-ImmutablePass *llvm::createNVPTXExternalAAWrapperPass() {
-  return new NVPTXExternalAAWrapper();
+ImmutablePass *llvm::createRVGPUExternalAAWrapperPass() {
+  return new RVGPUExternalAAWrapper();
 }
 
-NVPTXAAWrapperPass::NVPTXAAWrapperPass() : ImmutablePass(ID) {
-  initializeNVPTXAAWrapperPassPass(*PassRegistry::getPassRegistry());
+RVGPUAAWrapperPass::RVGPUAAWrapperPass() : ImmutablePass(ID) {
+  initializeRVGPUAAWrapperPassPass(*PassRegistry::getPassRegistry());
 }
 
-void NVPTXAAWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
+void RVGPUAAWrapperPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.setPreservesAll();
 }
 
@@ -67,7 +67,7 @@ static AliasResult::Kind getAliasResult(unsigned AS1, unsigned AS2) {
   return (AS1 == AS2 ? AliasResult::MayAlias : AliasResult::NoAlias);
 }
 
-AliasResult NVPTXAAResult::alias(const MemoryLocation &Loc1,
+AliasResult RVGPUAAResult::alias(const MemoryLocation &Loc1,
                                  const MemoryLocation &Loc2, AAQueryInfo &AAQI,
                                  const Instruction *) {
   unsigned AS1 = Loc1.Ptr->getType()->getPointerAddressSpace();
@@ -77,14 +77,14 @@ AliasResult NVPTXAAResult::alias(const MemoryLocation &Loc1,
 }
 
 // TODO: .param address space may be writable in presence of cvta.param, but
-// this instruction is currently not supported. NVPTXLowerArgs also does not
+// this instruction is currently not supported. RVGPULowerArgs also does not
 // allow any writes to .param pointers.
 static bool isConstOrParam(unsigned AS) {
   return AS == AddressSpace::ADDRESS_SPACE_CONST ||
          AS == AddressSpace::ADDRESS_SPACE_PARAM;
 }
 
-ModRefInfo NVPTXAAResult::getModRefInfoMask(const MemoryLocation &Loc,
+ModRefInfo RVGPUAAResult::getModRefInfoMask(const MemoryLocation &Loc,
                                             AAQueryInfo &AAQI,
                                             bool IgnoreLocals) {
   if (isConstOrParam(Loc.Ptr->getType()->getPointerAddressSpace()))

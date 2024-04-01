@@ -1,4 +1,4 @@
-//=======- NVPTXFrameLowering.cpp - NVPTX Frame Information ---*- C++ -*-=====//
+//=======- RVGPUFrameLowering.cpp - RVGPU Frame Information ---*- C++ -*-=====//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,15 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the NVPTX implementation of TargetFrameLowering class.
+// This file contains the RVGPU implementation of TargetFrameLowering class.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXFrameLowering.h"
-#include "NVPTX.h"
-#include "NVPTXRegisterInfo.h"
-#include "NVPTXSubtarget.h"
-#include "NVPTXTargetMachine.h"
+#include "RVGPUFrameLowering.h"
+#include "RVGPU.h"
+#include "RVGPURegisterInfo.h"
+#include "RVGPUSubtarget.h"
+#include "RVGPUTargetMachine.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -24,20 +24,20 @@
 
 using namespace llvm;
 
-NVPTXFrameLowering::NVPTXFrameLowering()
+RVGPUFrameLowering::RVGPUFrameLowering()
     : TargetFrameLowering(TargetFrameLowering::StackGrowsUp, Align(8), 0) {}
 
-bool NVPTXFrameLowering::hasFP(const MachineFunction &MF) const { return true; }
+bool RVGPUFrameLowering::hasFP(const MachineFunction &MF) const { return true; }
 
-void NVPTXFrameLowering::emitPrologue(MachineFunction &MF,
+void RVGPUFrameLowering::emitPrologue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
   if (MF.getFrameInfo().hasStackObjects()) {
     assert(&MF.front() == &MBB && "Shrink-wrapping not yet supported");
     MachineBasicBlock::iterator MBBI = MBB.begin();
     MachineRegisterInfo &MR = MF.getRegInfo();
 
-    const NVPTXRegisterInfo *NRI =
-        MF.getSubtarget<NVPTXSubtarget>().getRegisterInfo();
+    const RVGPURegisterInfo *NRI =
+        MF.getSubtarget<RVGPUSubtarget>().getRegisterInfo();
 
     // This instruction really occurs before first instruction
     // in the BB, so giving it no debug location.
@@ -48,11 +48,11 @@ void NVPTXFrameLowering::emitPrologue(MachineFunction &MF,
     //   cvta.local %SP, %SPL;
     // for local address accesses in MF.
     bool Is64Bit =
-        static_cast<const NVPTXTargetMachine &>(MF.getTarget()).is64Bit();
+        static_cast<const RVGPUTargetMachine &>(MF.getTarget()).is64Bit();
     unsigned CvtaLocalOpcode =
-        (Is64Bit ? NVPTX::cvta_local_yes_64 : NVPTX::cvta_local_yes);
+        (Is64Bit ? RVGPU::cvta_local_yes_64 : RVGPU::cvta_local_yes);
     unsigned MovDepotOpcode =
-        (Is64Bit ? NVPTX::MOV_DEPOT_ADDR_64 : NVPTX::MOV_DEPOT_ADDR);
+        (Is64Bit ? RVGPU::MOV_DEPOT_ADDR_64 : RVGPU::MOV_DEPOT_ADDR);
     if (!MR.use_empty(NRI->getFrameRegister(MF))) {
       // If %SP is not used, do not bother emitting "cvta.local %SP, %SPL".
       MBBI = BuildMI(MBB, MBBI, dl,
@@ -68,20 +68,20 @@ void NVPTXFrameLowering::emitPrologue(MachineFunction &MF,
 }
 
 StackOffset
-NVPTXFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
+RVGPUFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                                            Register &FrameReg) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  FrameReg = NVPTX::VRDepot;
+  FrameReg = RVGPU::VRDepot;
   return StackOffset::getFixed(MFI.getObjectOffset(FI) -
                                getOffsetOfLocalArea());
 }
 
-void NVPTXFrameLowering::emitEpilogue(MachineFunction &MF,
+void RVGPUFrameLowering::emitEpilogue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {}
 
 // This function eliminates ADJCALLSTACKDOWN,
 // ADJCALLSTACKUP pseudo instructions
-MachineBasicBlock::iterator NVPTXFrameLowering::eliminateCallFramePseudoInstr(
+MachineBasicBlock::iterator RVGPUFrameLowering::eliminateCallFramePseudoInstr(
     MachineFunction &MF, MachineBasicBlock &MBB,
     MachineBasicBlock::iterator I) const {
   // Simply discard ADJCALLSTACKDOWN,
@@ -90,6 +90,6 @@ MachineBasicBlock::iterator NVPTXFrameLowering::eliminateCallFramePseudoInstr(
 }
 
 TargetFrameLowering::DwarfFrameBase
-NVPTXFrameLowering::getDwarfFrameBase(const MachineFunction &MF) const {
+RVGPUFrameLowering::getDwarfFrameBase(const MachineFunction &MF) const {
   return {DwarfFrameBase::CFA, {0}};
 }

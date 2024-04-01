@@ -1,4 +1,4 @@
-//===-- NVPTXISelLowering.h - NVPTX DAG Lowering Interface ------*- C++ -*-===//
+//===-- RVGPUISelLowering.h - RVGPU DAG Lowering Interface ------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,20 +6,20 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the interfaces that NVPTX uses to lower LLVM code into a
+// This file defines the interfaces that RVGPU uses to lower LLVM code into a
 // selection DAG.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXISELLOWERING_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXISELLOWERING_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUISELLOWERING_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUISELLOWERING_H
 
-#include "NVPTX.h"
+#include "RVGPU.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/TargetLowering.h"
 
 namespace llvm {
-namespace NVPTXISD {
+namespace RVGPUISD {
 enum NodeType : unsigned {
   // Start the numbering from where ISD NodeType finishes.
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
@@ -436,15 +436,15 @@ enum NodeType : unsigned {
 };
 }
 
-class NVPTXSubtarget;
+class RVGPUSubtarget;
 
 //===--------------------------------------------------------------------===//
 // TargetLowering Implementation
 //===--------------------------------------------------------------------===//
-class NVPTXTargetLowering : public TargetLowering {
+class RVGPUTargetLowering : public TargetLowering {
 public:
-  explicit NVPTXTargetLowering(const NVPTXTargetMachine &TM,
-                               const NVPTXSubtarget &STI);
+  explicit RVGPUTargetLowering(const RVGPUTargetMachine &TM,
+                               const RVGPUSubtarget &STI);
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -530,7 +530,7 @@ public:
                                     std::vector<SDValue> &Ops,
                                     SelectionDAG &DAG) const override;
 
-  const NVPTXTargetMachine *nvTM;
+  const RVGPUTargetMachine *nvTM;
 
   // PTX always uses 32-bit shift amounts
   MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
@@ -596,7 +596,7 @@ public:
   }
 
 private:
-  const NVPTXSubtarget &STI; // cache the subtarget here
+  const RVGPUSubtarget &STI; // cache the subtarget here
   SDValue getParamSymbol(SelectionDAG &DAG, int idx, EVT) const;
 
   SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;

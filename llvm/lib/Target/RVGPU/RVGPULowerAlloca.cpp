@@ -1,4 +1,4 @@
-//===-- NVPTXLowerAlloca.cpp - Make alloca to use local memory =====--===//
+//===-- RVGPULowerAlloca.cpp - Make alloca to use local memory =====--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -19,14 +19,14 @@
 //   %Generic = addrspacecast i32 addrspace(5)* %A to i32*
 //   store i32 0, i32 addrspace(5)* %Generic ; emits st.local.u32
 //
-// And we will rely on NVPTXInferAddressSpaces to combine the last two
+// And we will rely on RVGPUInferAddressSpaces to combine the last two
 // instructions.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTX.h"
-#include "NVPTXUtilities.h"
-#include "MCTargetDesc/NVPTXBaseInfo.h"
+#include "RVGPU.h"
+#include "RVGPUUtilities.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -37,31 +37,31 @@
 using namespace llvm;
 
 namespace llvm {
-void initializeNVPTXLowerAllocaPass(PassRegistry &);
+void initializeRVGPULowerAllocaPass(PassRegistry &);
 }
 
 namespace {
-class NVPTXLowerAlloca : public FunctionPass {
+class RVGPULowerAlloca : public FunctionPass {
   bool runOnFunction(Function &F) override;
 
 public:
   static char ID; // Pass identification, replacement for typeid
-  NVPTXLowerAlloca() : FunctionPass(ID) {}
+  RVGPULowerAlloca() : FunctionPass(ID) {}
   StringRef getPassName() const override {
     return "convert address space of alloca'ed memory to local";
   }
 };
 } // namespace
 
-char NVPTXLowerAlloca::ID = 1;
+char RVGPULowerAlloca::ID = 1;
 
-INITIALIZE_PASS(NVPTXLowerAlloca, "nvptx-lower-alloca",
+INITIALIZE_PASS(RVGPULowerAlloca, "nvptx-lower-alloca",
                 "Lower Alloca", false, false)
 
 // =============================================================================
 // Main function for this pass.
 // =============================================================================
-bool NVPTXLowerAlloca::runOnFunction(Function &F) {
+bool RVGPULowerAlloca::runOnFunction(Function &F) {
   if (skipFunction(F))
     return false;
 
@@ -81,7 +81,7 @@ bool NVPTXLowerAlloca::runOnFunction(Function &F) {
         for (Use &AllocaUse : llvm::make_early_inc_range(allocaInst->uses())) {
           // Check Load, Store, GEP, and BitCast Uses on alloca and make them
           // use the converted generic address, in order to expose non-generic
-          // addrspacecast to NVPTXInferAddressSpaces. For other types
+          // addrspacecast to RVGPUInferAddressSpaces. For other types
           // of instructions this is unnecessary and may introduce redundant
           // address cast.
           auto LI = dyn_cast<LoadInst>(AllocaUse.getUser());
@@ -112,6 +112,6 @@ bool NVPTXLowerAlloca::runOnFunction(Function &F) {
   return Changed;
 }
 
-FunctionPass *llvm::createNVPTXLowerAllocaPass() {
-  return new NVPTXLowerAlloca();
+FunctionPass *llvm::createRVGPULowerAllocaPass() {
+  return new RVGPULowerAlloca();
 }

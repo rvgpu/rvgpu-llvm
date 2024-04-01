@@ -1,4 +1,4 @@
-//=====-- NVPTXTargetStreamer.h - NVPTX Target Streamer ------*- C++ -*--=====//
+//=====-- RVGPUTargetStreamer.h - RVGPU Target Streamer ------*- C++ -*--=====//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,23 +6,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXTARGETSTREAMER_H
-#define LLVM_LIB_TARGET_NVPTX_MCTARGETDESC_NVPTXTARGETSTREAMER_H
+#ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUTARGETSTREAMER_H
+#define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUTARGETSTREAMER_H
 
 #include "llvm/MC/MCStreamer.h"
 
 namespace llvm {
 class MCSection;
 
-/// Implments NVPTX-specific streamer.
-class NVPTXTargetStreamer : public MCTargetStreamer {
+/// Implments RVGPU-specific streamer.
+class RVGPUTargetStreamer : public MCTargetStreamer {
 private:
   SmallVector<std::string, 4> DwarfFiles;
   bool HasSections = false;
 
 public:
-  NVPTXTargetStreamer(MCStreamer &S);
-  ~NVPTXTargetStreamer() override;
+  RVGPUTargetStreamer(MCStreamer &S);
+  ~RVGPUTargetStreamer() override;
 
   /// Outputs the list of the DWARF '.file' directives to the streamer.
   void outputDwarfFileDirectives();
@@ -50,10 +50,10 @@ public:
   void emitRawBytes(StringRef Data) override;
 };
 
-class NVPTXAsmTargetStreamer : public NVPTXTargetStreamer {
+class RVGPUAsmTargetStreamer : public RVGPUTargetStreamer {
 public:
-  NVPTXAsmTargetStreamer(MCStreamer &S);
-  ~NVPTXAsmTargetStreamer() override;
+  RVGPUAsmTargetStreamer(MCStreamer &S);
+  ~RVGPUAsmTargetStreamer() override;
 };
 
 } // end namespace llvm

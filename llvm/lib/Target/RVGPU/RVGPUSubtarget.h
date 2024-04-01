@@ -1,4 +1,4 @@
-//=====-- NVPTXSubtarget.h - Define Subtarget for the NVPTX ---*- C++ -*--====//
+//=====-- RVGPUSubtarget.h - Define Subtarget for the RVGPU ---*- C++ -*--====//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,29 +6,29 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file declares the NVPTX specific subclass of TargetSubtarget.
+// This file declares the RVGPU specific subclass of TargetSubtarget.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXSUBTARGET_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXSUBTARGET_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUSUBTARGET_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUSUBTARGET_H
 
-#include "NVPTX.h"
-#include "NVPTXFrameLowering.h"
-#include "NVPTXISelLowering.h"
-#include "NVPTXInstrInfo.h"
-#include "NVPTXRegisterInfo.h"
+#include "RVGPU.h"
+#include "RVGPUFrameLowering.h"
+#include "RVGPUISelLowering.h"
+#include "RVGPUInstrInfo.h"
+#include "RVGPURegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAGTargetInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include <string>
 
 #define GET_SUBTARGETINFO_HEADER
-#include "NVPTXGenSubtargetInfo.inc"
+#include "RVGPUGenSubtargetInfo.inc"
 
 namespace llvm {
 
-class NVPTXSubtarget : public NVPTXGenSubtargetInfo {
+class RVGPUSubtarget : public RVGPUGenSubtargetInfo {
   virtual void anchor();
   std::string TargetName;
 
@@ -43,30 +43,30 @@ class NVPTXSubtarget : public NVPTXGenSubtargetInfo {
   // FullSmVersion.
   unsigned int SmVersion;
 
-  const NVPTXTargetMachine &TM;
-  NVPTXInstrInfo InstrInfo;
-  NVPTXTargetLowering TLInfo;
+  const RVGPUTargetMachine &TM;
+  RVGPUInstrInfo InstrInfo;
+  RVGPUTargetLowering TLInfo;
   SelectionDAGTargetInfo TSInfo;
 
-  // NVPTX does not have any call stack frame, but need a NVPTX specific
+  // RVGPU does not have any call stack frame, but need a RVGPU specific
   // FrameLowering class because TargetFrameLowering is abstract.
-  NVPTXFrameLowering FrameLowering;
+  RVGPUFrameLowering FrameLowering;
 
 public:
   /// This constructor initializes the data members to match that
   /// of the specified module.
   ///
-  NVPTXSubtarget(const Triple &TT, const std::string &CPU,
-                 const std::string &FS, const NVPTXTargetMachine &TM);
+  RVGPUSubtarget(const Triple &TT, const std::string &CPU,
+                 const std::string &FS, const RVGPUTargetMachine &TM);
 
   const TargetFrameLowering *getFrameLowering() const override {
     return &FrameLowering;
   }
-  const NVPTXInstrInfo *getInstrInfo() const override { return &InstrInfo; }
-  const NVPTXRegisterInfo *getRegisterInfo() const override {
+  const RVGPUInstrInfo *getInstrInfo() const override { return &InstrInfo; }
+  const RVGPURegisterInfo *getRegisterInfo() const override {
     return &InstrInfo.getRegisterInfo();
   }
-  const NVPTXTargetLowering *getTargetLowering() const override {
+  const RVGPUTargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
   const SelectionDAGTargetInfo *getSelectionDAGInfo() const override {
@@ -107,7 +107,7 @@ public:
 
   unsigned getPTXVersion() const { return PTXVersion; }
 
-  NVPTXSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
+  RVGPUSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
   void ParseSubtargetFeatures(StringRef CPU, StringRef TuneCPU, StringRef FS);
 };
 

@@ -1,4 +1,4 @@
-//===- NVPTXInstrInfo.cpp - NVPTX Instruction Information -----------------===//
+//===- RVGPUInstrInfo.cpp - RVGPU Instruction Information -----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the NVPTX implementation of the TargetInstrInfo class.
+// This file contains the RVGPU implementation of the TargetInstrInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXInstrInfo.h"
-#include "NVPTX.h"
-#include "NVPTXTargetMachine.h"
+#include "RVGPUInstrInfo.h"
+#include "RVGPU.h"
+#include "RVGPUTargetMachine.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -22,14 +22,14 @@
 using namespace llvm;
 
 #define GET_INSTRINFO_CTOR_DTOR
-#include "NVPTXGenInstrInfo.inc"
+#include "RVGPUGenInstrInfo.inc"
 
 // Pin the vtable to this file.
-void NVPTXInstrInfo::anchor() {}
+void RVGPUInstrInfo::anchor() {}
 
-NVPTXInstrInfo::NVPTXInstrInfo() : RegInfo() {}
+RVGPUInstrInfo::RVGPUInstrInfo() : RegInfo() {}
 
-void NVPTXInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
+void RVGPUInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator I,
                                  const DebugLoc &DL, MCRegister DestReg,
                                  MCRegister SrcReg, bool KillSrc) const {
@@ -41,22 +41,22 @@ void NVPTXInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
     report_fatal_error("Copy one register into another with a different width");
 
   unsigned Op;
-  if (DestRC == &NVPTX::Int1RegsRegClass) {
-    Op = NVPTX::IMOV1rr;
-  } else if (DestRC == &NVPTX::Int16RegsRegClass) {
-    Op = NVPTX::IMOV16rr;
-  } else if (DestRC == &NVPTX::Int32RegsRegClass) {
-    Op = (SrcRC == &NVPTX::Int32RegsRegClass ? NVPTX::IMOV32rr
-                                             : NVPTX::BITCONVERT_32_F2I);
-  } else if (DestRC == &NVPTX::Int64RegsRegClass) {
-    Op = (SrcRC == &NVPTX::Int64RegsRegClass ? NVPTX::IMOV64rr
-                                             : NVPTX::BITCONVERT_64_F2I);
-  } else if (DestRC == &NVPTX::Float32RegsRegClass) {
-    Op = (SrcRC == &NVPTX::Float32RegsRegClass ? NVPTX::FMOV32rr
-                                               : NVPTX::BITCONVERT_32_I2F);
-  } else if (DestRC == &NVPTX::Float64RegsRegClass) {
-    Op = (SrcRC == &NVPTX::Float64RegsRegClass ? NVPTX::FMOV64rr
-                                               : NVPTX::BITCONVERT_64_I2F);
+  if (DestRC == &RVGPU::Int1RegsRegClass) {
+    Op = RVGPU::IMOV1rr;
+  } else if (DestRC == &RVGPU::Int16RegsRegClass) {
+    Op = RVGPU::IMOV16rr;
+  } else if (DestRC == &RVGPU::Int32RegsRegClass) {
+    Op = (SrcRC == &RVGPU::Int32RegsRegClass ? RVGPU::IMOV32rr
+                                             : RVGPU::BITCONVERT_32_F2I);
+  } else if (DestRC == &RVGPU::Int64RegsRegClass) {
+    Op = (SrcRC == &RVGPU::Int64RegsRegClass ? RVGPU::IMOV64rr
+                                             : RVGPU::BITCONVERT_64_F2I);
+  } else if (DestRC == &RVGPU::Float32RegsRegClass) {
+    Op = (SrcRC == &RVGPU::Float32RegsRegClass ? RVGPU::FMOV32rr
+                                               : RVGPU::BITCONVERT_32_I2F);
+  } else if (DestRC == &RVGPU::Float64RegsRegClass) {
+    Op = (SrcRC == &RVGPU::Float64RegsRegClass ? RVGPU::FMOV64rr
+                                               : RVGPU::BITCONVERT_64_I2F);
   } else {
     llvm_unreachable("Bad register copy");
   }
@@ -87,7 +87,7 @@ void NVPTXInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 /// Note that removeBranch and insertBranch must be implemented to support
 /// cases where this method returns success.
 ///
-bool NVPTXInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
+bool RVGPUInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
                                    MachineBasicBlock *&TBB,
                                    MachineBasicBlock *&FBB,
                                    SmallVectorImpl<MachineOperand> &Cond,
@@ -102,10 +102,10 @@ bool NVPTXInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
 
   // If there is only one terminator instruction, process it.
   if (I == MBB.begin() || !isUnpredicatedTerminator(*--I)) {
-    if (LastInst.getOpcode() == NVPTX::GOTO) {
+    if (LastInst.getOpcode() == RVGPU::GOTO) {
       TBB = LastInst.getOperand(0).getMBB();
       return false;
-    } else if (LastInst.getOpcode() == NVPTX::CBranch) {
+    } else if (LastInst.getOpcode() == RVGPU::CBranch) {
       // Block ends with fall-through condbranch.
       TBB = LastInst.getOperand(1).getMBB();
       Cond.push_back(LastInst.getOperand(0));
@@ -122,19 +122,19 @@ bool NVPTXInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   if (I != MBB.begin() && isUnpredicatedTerminator(*--I))
     return true;
 
-  // If the block ends with NVPTX::GOTO and NVPTX:CBranch, handle it.
-  if (SecondLastInst.getOpcode() == NVPTX::CBranch &&
-      LastInst.getOpcode() == NVPTX::GOTO) {
+  // If the block ends with RVGPU::GOTO and RVGPU:CBranch, handle it.
+  if (SecondLastInst.getOpcode() == RVGPU::CBranch &&
+      LastInst.getOpcode() == RVGPU::GOTO) {
     TBB = SecondLastInst.getOperand(1).getMBB();
     Cond.push_back(SecondLastInst.getOperand(0));
     FBB = LastInst.getOperand(0).getMBB();
     return false;
   }
 
-  // If the block ends with two NVPTX:GOTOs, handle it.  The second one is not
+  // If the block ends with two RVGPU:GOTOs, handle it.  The second one is not
   // executed, so remove it.
-  if (SecondLastInst.getOpcode() == NVPTX::GOTO &&
-      LastInst.getOpcode() == NVPTX::GOTO) {
+  if (SecondLastInst.getOpcode() == RVGPU::GOTO &&
+      LastInst.getOpcode() == RVGPU::GOTO) {
     TBB = SecondLastInst.getOperand(0).getMBB();
     I = LastInst;
     if (AllowModify)
@@ -146,14 +146,14 @@ bool NVPTXInstrInfo::analyzeBranch(MachineBasicBlock &MBB,
   return true;
 }
 
-unsigned NVPTXInstrInfo::removeBranch(MachineBasicBlock &MBB,
+unsigned RVGPUInstrInfo::removeBranch(MachineBasicBlock &MBB,
                                       int *BytesRemoved) const {
   assert(!BytesRemoved && "code size not handled");
   MachineBasicBlock::iterator I = MBB.end();
   if (I == MBB.begin())
     return 0;
   --I;
-  if (I->getOpcode() != NVPTX::GOTO && I->getOpcode() != NVPTX::CBranch)
+  if (I->getOpcode() != RVGPU::GOTO && I->getOpcode() != RVGPU::CBranch)
     return 0;
 
   // Remove the branch.
@@ -164,7 +164,7 @@ unsigned NVPTXInstrInfo::removeBranch(MachineBasicBlock &MBB,
   if (I == MBB.begin())
     return 1;
   --I;
-  if (I->getOpcode() != NVPTX::CBranch)
+  if (I->getOpcode() != RVGPU::CBranch)
     return 1;
 
   // Remove the branch.
@@ -172,7 +172,7 @@ unsigned NVPTXInstrInfo::removeBranch(MachineBasicBlock &MBB,
   return 2;
 }
 
-unsigned NVPTXInstrInfo::insertBranch(MachineBasicBlock &MBB,
+unsigned RVGPUInstrInfo::insertBranch(MachineBasicBlock &MBB,
                                       MachineBasicBlock *TBB,
                                       MachineBasicBlock *FBB,
                                       ArrayRef<MachineOperand> Cond,
@@ -183,19 +183,19 @@ unsigned NVPTXInstrInfo::insertBranch(MachineBasicBlock &MBB,
   // Shouldn't be a fall through.
   assert(TBB && "insertBranch must not be told to insert a fallthrough");
   assert((Cond.size() == 1 || Cond.size() == 0) &&
-         "NVPTX branch conditions have two components!");
+         "RVGPU branch conditions have two components!");
 
   // One-way branch.
   if (!FBB) {
     if (Cond.empty()) // Unconditional branch
-      BuildMI(&MBB, DL, get(NVPTX::GOTO)).addMBB(TBB);
+      BuildMI(&MBB, DL, get(RVGPU::GOTO)).addMBB(TBB);
     else // Conditional branch
-      BuildMI(&MBB, DL, get(NVPTX::CBranch)).add(Cond[0]).addMBB(TBB);
+      BuildMI(&MBB, DL, get(RVGPU::CBranch)).add(Cond[0]).addMBB(TBB);
     return 1;
   }
 
   // Two-way Conditional Branch.
-  BuildMI(&MBB, DL, get(NVPTX::CBranch)).add(Cond[0]).addMBB(TBB);
-  BuildMI(&MBB, DL, get(NVPTX::GOTO)).addMBB(FBB);
+  BuildMI(&MBB, DL, get(RVGPU::CBranch)).add(Cond[0]).addMBB(TBB);
+  BuildMI(&MBB, DL, get(RVGPU::GOTO)).addMBB(FBB);
   return 2;
 }

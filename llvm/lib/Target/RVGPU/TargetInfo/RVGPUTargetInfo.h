@@ -1,4 +1,4 @@
-//===-- NVPTXTargetInfo.h - NVPTX Target Implementation ---------*- C++ -*-===//
+//===-- RVGPUTargetInfo.h - RVGPU Target Implementation ---------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,16 +6,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_TARGETINFO_NVPTXTARGETINFO_H
-#define LLVM_LIB_TARGET_NVPTX_TARGETINFO_NVPTXTARGETINFO_H
+#ifndef LLVM_LIB_TARGET_RVGPU_TARGETINFO_RVGPUTARGETINFO_H
+#define LLVM_LIB_TARGET_RVGPU_TARGETINFO_RVGPUTARGETINFO_H
 
 namespace llvm {
 
 class Target;
 
-Target &getTheNVPTXTarget32();
-Target &getTheNVPTXTarget64();
+Target &getTheRVGPUTarget32();
+Target &getTheRVGPUTarget64();
 
 } // namespace llvm
 
-#endif // LLVM_LIB_TARGET_NVPTX_TARGETINFO_NVPTXTARGETINFO_H
+#endif // LLVM_LIB_TARGET_RVGPU_TARGETINFO_RVGPUTARGETINFO_H

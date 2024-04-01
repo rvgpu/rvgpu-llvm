@@ -1,4 +1,4 @@
-//===-- NVPTXAssignValidGlobalNames.cpp - Assign valid names to globals ---===//
+//===-- RVGPUAssignValidGlobalNames.cpp - Assign valid names to globals ---===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -9,14 +9,14 @@
 // Clean up the names of global variables in the module to not contain symbols
 // that are invalid in PTX.
 //
-// Currently NVPTX, like other backends, relies on generic symbol name
+// Currently RVGPU, like other backends, relies on generic symbol name
 // sanitizing done by MC. However, the ptxas assembler is more stringent and
 // disallows some additional characters in symbol names. This pass makes sure
 // such names do not reach MC at all.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTX.h"
+#include "RVGPU.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -27,11 +27,11 @@
 using namespace llvm;
 
 namespace {
-/// NVPTXAssignValidGlobalNames
-class NVPTXAssignValidGlobalNames : public ModulePass {
+/// RVGPUAssignValidGlobalNames
+class RVGPUAssignValidGlobalNames : public ModulePass {
 public:
   static char ID;
-  NVPTXAssignValidGlobalNames() : ModulePass(ID) {}
+  RVGPUAssignValidGlobalNames() : ModulePass(ID) {}
 
   bool runOnModule(Module &M) override;
 
@@ -40,16 +40,16 @@ public:
 };
 }
 
-char NVPTXAssignValidGlobalNames::ID = 0;
+char RVGPUAssignValidGlobalNames::ID = 0;
 
 namespace llvm {
-void initializeNVPTXAssignValidGlobalNamesPass(PassRegistry &);
+void initializeRVGPUAssignValidGlobalNamesPass(PassRegistry &);
 }
 
-INITIALIZE_PASS(NVPTXAssignValidGlobalNames, "nvptx-assign-valid-global-names",
+INITIALIZE_PASS(RVGPUAssignValidGlobalNames, "nvptx-assign-valid-global-names",
                 "Assign valid PTX names to globals", false, false)
 
-bool NVPTXAssignValidGlobalNames::runOnModule(Module &M) {
+bool RVGPUAssignValidGlobalNames::runOnModule(Module &M) {
   for (GlobalVariable &GV : M.globals()) {
     // We are only allowed to rename local symbols.
     if (GV.hasLocalLinkage()) {
@@ -69,7 +69,7 @@ bool NVPTXAssignValidGlobalNames::runOnModule(Module &M) {
   return true;
 }
 
-std::string NVPTXAssignValidGlobalNames::cleanUpName(StringRef Name) {
+std::string RVGPUAssignValidGlobalNames::cleanUpName(StringRef Name) {
   std::string ValidName;
   raw_string_ostream ValidNameStream(ValidName);
   for (char C : Name) {
@@ -83,6 +83,6 @@ std::string NVPTXAssignValidGlobalNames::cleanUpName(StringRef Name) {
   return ValidNameStream.str();
 }
 
-ModulePass *llvm::createNVPTXAssignValidGlobalNamesPass() {
-  return new NVPTXAssignValidGlobalNames();
+ModulePass *llvm::createRVGPUAssignValidGlobalNamesPass() {
+  return new RVGPUAssignValidGlobalNames();
 }

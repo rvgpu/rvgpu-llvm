@@ -1,4 +1,4 @@
-//===-- NVPTXMCTargetDesc.cpp - NVPTX Target Descriptions -------*- C++ -*-===//
+//===-- RVGPUMCTargetDesc.cpp - RVGPU Target Descriptions -------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,15 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file provides NVPTX specific target descriptions.
+// This file provides RVGPU specific target descriptions.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXMCTargetDesc.h"
-#include "NVPTXInstPrinter.h"
-#include "NVPTXMCAsmInfo.h"
-#include "NVPTXTargetStreamer.h"
-#include "TargetInfo/NVPTXTargetInfo.h"
+#include "RVGPUMCTargetDesc.h"
+#include "RVGPUInstPrinter.h"
+#include "RVGPUMCAsmInfo.h"
+#include "RVGPUTargetStreamer.h"
+#include "TargetInfo/RVGPUTargetInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
@@ -24,69 +24,69 @@ using namespace llvm;
 
 #define GET_INSTRINFO_MC_DESC
 #define ENABLE_INSTR_PREDICATE_VERIFIER
-#include "NVPTXGenInstrInfo.inc"
+#include "RVGPUGenInstrInfo.inc"
 
 #define GET_SUBTARGETINFO_MC_DESC
-#include "NVPTXGenSubtargetInfo.inc"
+#include "RVGPUGenSubtargetInfo.inc"
 
 #define GET_REGINFO_MC_DESC
-#include "NVPTXGenRegisterInfo.inc"
+#include "RVGPUGenRegisterInfo.inc"
 
-static MCInstrInfo *createNVPTXMCInstrInfo() {
+static MCInstrInfo *createRVGPUMCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
-  InitNVPTXMCInstrInfo(X);
+  InitRVGPUMCInstrInfo(X);
   return X;
 }
 
-static MCRegisterInfo *createNVPTXMCRegisterInfo(const Triple &TT) {
+static MCRegisterInfo *createRVGPUMCRegisterInfo(const Triple &TT) {
   MCRegisterInfo *X = new MCRegisterInfo();
   // PTX does not have a return address register.
-  InitNVPTXMCRegisterInfo(X, 0);
+  InitRVGPUMCRegisterInfo(X, 0);
   return X;
 }
 
 static MCSubtargetInfo *
-createNVPTXMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
-  return createNVPTXMCSubtargetInfoImpl(TT, CPU, /*TuneCPU*/ CPU, FS);
+createRVGPUMCSubtargetInfo(const Triple &TT, StringRef CPU, StringRef FS) {
+  return createRVGPUMCSubtargetInfoImpl(TT, CPU, /*TuneCPU*/ CPU, FS);
 }
 
-static MCInstPrinter *createNVPTXMCInstPrinter(const Triple &T,
+static MCInstPrinter *createRVGPUMCInstPrinter(const Triple &T,
                                                unsigned SyntaxVariant,
                                                const MCAsmInfo &MAI,
                                                const MCInstrInfo &MII,
                                                const MCRegisterInfo &MRI) {
   if (SyntaxVariant == 0)
-    return new NVPTXInstPrinter(MAI, MII, MRI);
+    return new RVGPUInstPrinter(MAI, MII, MRI);
   return nullptr;
 }
 
 static MCTargetStreamer *createTargetAsmStreamer(MCStreamer &S,
                                                  formatted_raw_ostream &,
                                                  MCInstPrinter *, bool) {
-  return new NVPTXAsmTargetStreamer(S);
+  return new RVGPUAsmTargetStreamer(S);
 }
 
 static MCTargetStreamer *createNullTargetStreamer(MCStreamer &S) {
-  return new NVPTXTargetStreamer(S);
+  return new RVGPUTargetStreamer(S);
 }
 
 // Force static initialization.
-extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeNVPTXTargetMC() {
-  for (Target *T : {&getTheNVPTXTarget32(), &getTheNVPTXTarget64()}) {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTargetMC() {
+  for (Target *T : {&getTheRVGPUTarget32(), &getTheRVGPUTarget64()}) {
     // Register the MC asm info.
-    RegisterMCAsmInfo<NVPTXMCAsmInfo> X(*T);
+    RegisterMCAsmInfo<RVGPUMCAsmInfo> X(*T);
 
     // Register the MC instruction info.
-    TargetRegistry::RegisterMCInstrInfo(*T, createNVPTXMCInstrInfo);
+    TargetRegistry::RegisterMCInstrInfo(*T, createRVGPUMCInstrInfo);
 
     // Register the MC register info.
-    TargetRegistry::RegisterMCRegInfo(*T, createNVPTXMCRegisterInfo);
+    TargetRegistry::RegisterMCRegInfo(*T, createRVGPUMCRegisterInfo);
 
     // Register the MC subtarget info.
-    TargetRegistry::RegisterMCSubtargetInfo(*T, createNVPTXMCSubtargetInfo);
+    TargetRegistry::RegisterMCSubtargetInfo(*T, createRVGPUMCSubtargetInfo);
 
     // Register the MCInstPrinter.
-    TargetRegistry::RegisterMCInstPrinter(*T, createNVPTXMCInstPrinter);
+    TargetRegistry::RegisterMCInstPrinter(*T, createRVGPUMCInstPrinter);
 
     // Register the MCTargetStreamer.
     TargetRegistry::RegisterAsmTargetStreamer(*T, createTargetAsmStreamer);

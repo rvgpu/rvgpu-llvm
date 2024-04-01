@@ -1,4 +1,4 @@
-//=====- NVPTXTargetStreamer.cpp - NVPTXTargetStreamer class ------------=====//
+//=====- RVGPUTargetStreamer.cpp - RVGPUTargetStreamer class ------------=====//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,11 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the NVPTXTargetStreamer class.
+// This file implements the RVGPUTargetStreamer class.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXTargetStreamer.h"
+#include "RVGPUTargetStreamer.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCObjectFileInfo.h"
@@ -18,27 +18,27 @@
 using namespace llvm;
 
 //
-// NVPTXTargetStreamer Implemenation
+// RVGPUTargetStreamer Implemenation
 //
-NVPTXTargetStreamer::NVPTXTargetStreamer(MCStreamer &S) : MCTargetStreamer(S) {}
-NVPTXTargetStreamer::~NVPTXTargetStreamer() = default;
+RVGPUTargetStreamer::RVGPUTargetStreamer(MCStreamer &S) : MCTargetStreamer(S) {}
+RVGPUTargetStreamer::~RVGPUTargetStreamer() = default;
 
-NVPTXAsmTargetStreamer::NVPTXAsmTargetStreamer(MCStreamer &S)
-    : NVPTXTargetStreamer(S) {}
-NVPTXAsmTargetStreamer::~NVPTXAsmTargetStreamer() = default;
+RVGPUAsmTargetStreamer::RVGPUAsmTargetStreamer(MCStreamer &S)
+    : RVGPUTargetStreamer(S) {}
+RVGPUAsmTargetStreamer::~RVGPUAsmTargetStreamer() = default;
 
-void NVPTXTargetStreamer::outputDwarfFileDirectives() {
+void RVGPUTargetStreamer::outputDwarfFileDirectives() {
   for (const std::string &S : DwarfFiles)
     getStreamer().emitRawText(S);
   DwarfFiles.clear();
 }
 
-void NVPTXTargetStreamer::closeLastSection() {
+void RVGPUTargetStreamer::closeLastSection() {
   if (HasSections)
     getStreamer().emitRawText("\t}");
 }
 
-void NVPTXTargetStreamer::emitDwarfFileDirective(StringRef Directive) {
+void RVGPUTargetStreamer::emitDwarfFileDirective(StringRef Directive) {
   DwarfFiles.emplace_back(Directive);
 }
 
@@ -83,7 +83,7 @@ static bool isDwarfSection(const MCObjectFileInfo *FI,
          Section == FI->getDwarfGnuPubTypesSection();
 }
 
-void NVPTXTargetStreamer::changeSection(const MCSection *CurSection,
+void RVGPUTargetStreamer::changeSection(const MCSection *CurSection,
                                         MCSection *Section,
                                         const MCExpr *SubSection,
                                         raw_ostream &OS) {
@@ -105,7 +105,7 @@ void NVPTXTargetStreamer::changeSection(const MCSection *CurSection,
   }
 }
 
-void NVPTXTargetStreamer::emitRawBytes(StringRef Data) {
+void RVGPUTargetStreamer::emitRawBytes(StringRef Data) {
   MCTargetStreamer::emitRawBytes(Data);
   // TODO: enable this once the bug in the ptxas with the packed bytes is
   // resolved. Currently, (it is confirmed by NVidia) it causes a crash in

@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXALLOCAHOISTING_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXALLOCAHOISTING_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUALLOCAHOISTING_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUALLOCAHOISTING_H
 
 namespace llvm {
 class FunctionPass;

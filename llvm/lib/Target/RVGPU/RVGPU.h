@@ -1,4 +1,4 @@
-//===-- NVPTX.h - Top-level interface for NVPTX representation --*- C++ -*-===//
+//===-- RVGPU.h - Top-level interface for RVGPU representation --*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,12 +7,12 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains the entry points for global functions defined in
-// the LLVM NVPTX back-end.
+// the LLVM RVGPU back-end.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTX_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTX_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPU_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPU_H
 
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
@@ -21,10 +21,10 @@
 namespace llvm {
 class FunctionPass;
 class MachineFunctionPass;
-class NVPTXTargetMachine;
+class RVGPUTargetMachine;
 class PassRegistry;
 
-namespace NVPTXCC {
+namespace RVGPUCC {
 enum CondCodes {
   EQ,
   NE,
@@ -35,22 +35,22 @@ enum CondCodes {
 };
 }
 
-FunctionPass *createNVPTXISelDag(NVPTXTargetMachine &TM,
+FunctionPass *createRVGPUISelDag(RVGPUTargetMachine &TM,
                                  llvm::CodeGenOptLevel OptLevel);
-ModulePass *createNVPTXAssignValidGlobalNamesPass();
+ModulePass *createRVGPUAssignValidGlobalNamesPass();
 ModulePass *createGenericToNVVMLegacyPass();
-ModulePass *createNVPTXCtorDtorLoweringLegacyPass();
+ModulePass *createRVGPUCtorDtorLoweringLegacyPass();
 FunctionPass *createNVVMIntrRangePass(unsigned int SmVersion);
 FunctionPass *createNVVMReflectPass(unsigned int SmVersion);
-MachineFunctionPass *createNVPTXPrologEpilogPass();
-MachineFunctionPass *createNVPTXReplaceImageHandlesPass();
-FunctionPass *createNVPTXImageOptimizerPass();
-FunctionPass *createNVPTXLowerArgsPass();
-FunctionPass *createNVPTXLowerAllocaPass();
-FunctionPass *createNVPTXLowerUnreachablePass(bool TrapUnreachable,
+MachineFunctionPass *createRVGPUPrologEpilogPass();
+MachineFunctionPass *createRVGPUReplaceImageHandlesPass();
+FunctionPass *createRVGPUImageOptimizerPass();
+FunctionPass *createRVGPULowerArgsPass();
+FunctionPass *createRVGPULowerAllocaPass();
+FunctionPass *createRVGPULowerUnreachablePass(bool TrapUnreachable,
                                               bool NoTrapAfterNoreturn);
-MachineFunctionPass *createNVPTXPeephole();
-MachineFunctionPass *createNVPTXProxyRegErasurePass();
+MachineFunctionPass *createRVGPUPeephole();
+MachineFunctionPass *createRVGPUProxyRegErasurePass();
 
 struct NVVMIntrRangePass : PassInfoMixin<NVVMIntrRangePass> {
   NVVMIntrRangePass();
@@ -74,7 +74,7 @@ struct GenericToNVVMPass : PassInfoMixin<GenericToNVVMPass> {
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
 
-namespace NVPTX {
+namespace RVGPU {
 enum DrvInterface {
   NVCL,
   CUDA
@@ -194,17 +194,17 @@ enum PrmtMode {
 };
 }
 }
-void initializeNVPTXDAGToDAGISelPass(PassRegistry &);
+void initializeRVGPUDAGToDAGISelPass(PassRegistry &);
 } // namespace llvm
 
-// Defines symbolic names for NVPTX registers.  This defines a mapping from
+// Defines symbolic names for RVGPU registers.  This defines a mapping from
 // register name to register number.
 #define GET_REGINFO_ENUM
-#include "NVPTXGenRegisterInfo.inc"
+#include "RVGPUGenRegisterInfo.inc"
 
-// Defines symbolic names for the NVPTX instructions.
+// Defines symbolic names for the RVGPU instructions.
 #define GET_INSTRINFO_ENUM
 #define GET_INSTRINFO_MC_HELPER_DECLS
-#include "NVPTXGenInstrInfo.inc"
+#include "RVGPUGenInstrInfo.inc"
 
 #endif

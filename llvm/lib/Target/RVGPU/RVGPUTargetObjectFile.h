@@ -1,4 +1,4 @@
-//===-- NVPTXTargetObjectFile.h - NVPTX Object Info -------------*- C++ -*-===//
+//===-- RVGPUTargetObjectFile.h - RVGPU Object Info -------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXTARGETOBJECTFILE_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXTARGETOBJECTFILE_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUTARGETOBJECTFILE_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUTARGETOBJECTFILE_H
 
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/SectionKind.h"
@@ -15,11 +15,11 @@
 
 namespace llvm {
 
-class NVPTXTargetObjectFile : public TargetLoweringObjectFile {
+class RVGPUTargetObjectFile : public TargetLoweringObjectFile {
 public:
-  NVPTXTargetObjectFile() = default;
+  RVGPUTargetObjectFile() = default;
 
-  ~NVPTXTargetObjectFile() override;
+  ~RVGPUTargetObjectFile() override;
 
   MCSection *getSectionForConstant(const DataLayout &DL, SectionKind Kind,
                                    const Constant *C,
@@ -38,4 +38,4 @@ public:
 
 } // end namespace llvm
 
-#endif // LLVM_LIB_TARGET_NVPTX_NVPTXTARGETOBJECTFILE_H
+#endif // LLVM_LIB_TARGET_RVGPU_RVGPUTARGETOBJECTFILE_H

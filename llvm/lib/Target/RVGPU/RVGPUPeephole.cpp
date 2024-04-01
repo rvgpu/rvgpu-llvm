@@ -1,4 +1,4 @@
-//===-- NVPTXPeephole.cpp - NVPTX Peephole Optimiztions -------------------===//
+//===-- RVGPUPeephole.cpp - RVGPU Peephole Optimiztions -------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// In NVPTX, NVPTXFrameLowering will emit following instruction at the beginning
+// In RVGPU, RVGPUFrameLowering will emit following instruction at the beginning
 // of a MachineFunction.
 //
 //   mov %SPL, %depot
@@ -14,7 +14,7 @@
 //
 // Because Frame Index is a generic address and alloca can only return generic
 // pointer, without this pass the instructions producing alloca'ed address will
-// be based on %SP. NVPTXLowerAlloca tends to help replace store and load on
+// be based on %SP. RVGPULowerAlloca tends to help replace store and load on
 // this address with their .local versions, but this may introduce a lot of
 // cvta.to.local instructions. Performance can be improved if we avoid casting
 // address back and forth and directly calculate local address based on %SPL.
@@ -31,9 +31,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTX.h"
-#include "NVPTXRegisterInfo.h"
-#include "NVPTXSubtarget.h"
+#include "RVGPU.h"
+#include "RVGPURegisterInfo.h"
+#include "RVGPUSubtarget.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -45,21 +45,21 @@ using namespace llvm;
 #define DEBUG_TYPE "nvptx-peephole"
 
 namespace llvm {
-void initializeNVPTXPeepholePass(PassRegistry &);
+void initializeRVGPUPeepholePass(PassRegistry &);
 }
 
 namespace {
-struct NVPTXPeephole : public MachineFunctionPass {
+struct RVGPUPeephole : public MachineFunctionPass {
  public:
   static char ID;
-  NVPTXPeephole() : MachineFunctionPass(ID) {
-    initializeNVPTXPeepholePass(*PassRegistry::getPassRegistry());
+  RVGPUPeephole() : MachineFunctionPass(ID) {
+    initializeRVGPUPeepholePass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   StringRef getPassName() const override {
-    return "NVPTX optimize redundant cvta.to.local instruction";
+    return "RVGPU optimize redundant cvta.to.local instruction";
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -68,16 +68,16 @@ struct NVPTXPeephole : public MachineFunctionPass {
 };
 }
 
-char NVPTXPeephole::ID = 0;
+char RVGPUPeephole::ID = 0;
 
-INITIALIZE_PASS(NVPTXPeephole, "nvptx-peephole", "NVPTX Peephole", false, false)
+INITIALIZE_PASS(RVGPUPeephole, "nvptx-peephole", "RVGPU Peephole", false, false)
 
 static bool isCVTAToLocalCombinationCandidate(MachineInstr &Root) {
   auto &MBB = *Root.getParent();
   auto &MF = *MBB.getParent();
   // Check current instruction is cvta.to.local
-  if (Root.getOpcode() != NVPTX::cvta_to_local_yes_64 &&
-      Root.getOpcode() != NVPTX::cvta_to_local_yes)
+  if (Root.getOpcode() != RVGPU::cvta_to_local_yes_64 &&
+      Root.getOpcode() != RVGPU::cvta_to_local_yes)
     return false;
 
   auto &Op = Root.getOperand(1);
@@ -89,13 +89,13 @@ static bool isCVTAToLocalCombinationCandidate(MachineInstr &Root) {
 
   // Check the register operand is uniquely defined by LEA_ADDRi instruction
   if (!GenericAddrDef || GenericAddrDef->getParent() != &MBB ||
-      (GenericAddrDef->getOpcode() != NVPTX::LEA_ADDRi64 &&
-       GenericAddrDef->getOpcode() != NVPTX::LEA_ADDRi)) {
+      (GenericAddrDef->getOpcode() != RVGPU::LEA_ADDRi64 &&
+       GenericAddrDef->getOpcode() != RVGPU::LEA_ADDRi)) {
     return false;
   }
 
-  const NVPTXRegisterInfo *NRI =
-      MF.getSubtarget<NVPTXSubtarget>().getRegisterInfo();
+  const RVGPURegisterInfo *NRI =
+      MF.getSubtarget<RVGPUSubtarget>().getRegisterInfo();
 
   // Check the LEA_ADDRi operand is Frame index
   auto &BaseAddrOp = GenericAddrDef->getOperand(1);
@@ -113,8 +113,8 @@ static void CombineCVTAToLocal(MachineInstr &Root) {
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   auto &Prev = *MRI.getUniqueVRegDef(Root.getOperand(1).getReg());
 
-  const NVPTXRegisterInfo *NRI =
-      MF.getSubtarget<NVPTXSubtarget>().getRegisterInfo();
+  const RVGPURegisterInfo *NRI =
+      MF.getSubtarget<RVGPUSubtarget>().getRegisterInfo();
 
   MachineInstrBuilder MIB =
       BuildMI(MF, Root.getDebugLoc(), TII->get(Prev.getOpcode()),
@@ -131,7 +131,7 @@ static void CombineCVTAToLocal(MachineInstr &Root) {
   Root.eraseFromParent();
 }
 
-bool NVPTXPeephole::runOnMachineFunction(MachineFunction &MF) {
+bool RVGPUPeephole::runOnMachineFunction(MachineFunction &MF) {
   if (skipFunction(MF.getFunction()))
     return false;
 
@@ -150,8 +150,8 @@ bool NVPTXPeephole::runOnMachineFunction(MachineFunction &MF) {
     }  // Instruction
   }    // Basic Block
 
-  const NVPTXRegisterInfo *NRI =
-      MF.getSubtarget<NVPTXSubtarget>().getRegisterInfo();
+  const RVGPURegisterInfo *NRI =
+      MF.getSubtarget<RVGPUSubtarget>().getRegisterInfo();
 
   // Remove unnecessary %VRFrame = cvta.local %VRFrameLocal
   const auto &MRI = MF.getRegInfo();
@@ -164,4 +164,4 @@ bool NVPTXPeephole::runOnMachineFunction(MachineFunction &MF) {
   return Changed;
 }
 
-MachineFunctionPass *llvm::createNVPTXPeephole() { return new NVPTXPeephole(); }
+MachineFunctionPass *llvm::createRVGPUPeephole() { return new RVGPUPeephole(); }

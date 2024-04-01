@@ -1,4 +1,4 @@
-//===-- llvm/lib/Target/NVPTX/NVPTXLowerAggrCopies.h ------------*- C++ -*-===//
+//===-- llvm/lib/Target/RVGPU/RVGPULowerAggrCopies.h ------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXLOWERAGGRCOPIES_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXLOWERAGGRCOPIES_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPULOWERAGGRCOPIES_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPULOWERAGGRCOPIES_H
 
 namespace llvm {
 class FunctionPass;

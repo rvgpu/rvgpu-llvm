@@ -1,4 +1,4 @@
-//===- NVPTXInstrFormats.td - NVPTX Instruction Formats-------*- tblgen -*-===//
+//===- RVGPUInstrFormats.td - RVGPU Instruction Formats-------*- tblgen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-//  Describe NVPTX instructions format
+//  Describe RVGPU instructions format
 //
 //===----------------------------------------------------------------------===//
 
@@ -17,13 +17,13 @@ class VecInstTypeEnum<bits<4> val> {
 }
 def VecNOP : VecInstTypeEnum<0>;
 
-// Generic NVPTX Format
+// Generic RVGPU Format
 
-class NVPTXInst<dag outs, dag ins, string asmstr, list<dag> pattern>
+class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   : Instruction {
   field bits<14> Inst;
 
-  let Namespace = "NVPTX";
+  let Namespace = "RVGPU";
   dag OutOperandList = outs;
   dag InOperandList = ins;
   let AsmString = asmstr;

@@ -1,4 +1,4 @@
-//===-- NVPTXAsmPrinter.cpp - NVPTX LLVM assembly writer ------------------===//
+//===-- RVGPUAsmPrinter.cpp - RVGPU LLVM assembly writer ------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,23 +7,23 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains a printer that converts from our internal representation
-// of machine-dependent LLVM code to NVPTX assembly language.
+// of machine-dependent LLVM code to RVGPU assembly language.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXAsmPrinter.h"
-#include "MCTargetDesc/NVPTXBaseInfo.h"
-#include "MCTargetDesc/NVPTXInstPrinter.h"
-#include "MCTargetDesc/NVPTXMCAsmInfo.h"
-#include "MCTargetDesc/NVPTXTargetStreamer.h"
-#include "NVPTX.h"
-#include "NVPTXMCExpr.h"
-#include "NVPTXMachineFunctionInfo.h"
-#include "NVPTXRegisterInfo.h"
-#include "NVPTXSubtarget.h"
-#include "NVPTXTargetMachine.h"
-#include "NVPTXUtilities.h"
-#include "TargetInfo/NVPTXTargetInfo.h"
+#include "RVGPUAsmPrinter.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
+#include "MCTargetDesc/RVGPUInstPrinter.h"
+#include "MCTargetDesc/RVGPUMCAsmInfo.h"
+#include "MCTargetDesc/RVGPUTargetStreamer.h"
+#include "RVGPU.h"
+#include "RVGPUMCExpr.h"
+#include "RVGPUMachineFunctionInfo.h"
+#include "RVGPURegisterInfo.h"
+#include "RVGPUSubtarget.h"
+#include "RVGPUTargetMachine.h"
+#include "RVGPUUtilities.h"
+#include "TargetInfo/RVGPUTargetInfo.h"
 #include "cl_common_defines.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
@@ -145,8 +145,8 @@ VisitGlobalVariableForEmission(const GlobalVariable *GV,
   Visiting.erase(GV);
 }
 
-void NVPTXAsmPrinter::emitInstruction(const MachineInstr *MI) {
-  NVPTX_MC::verifyInstructionPredicates(MI->getOpcode(),
+void RVGPUAsmPrinter::emitInstruction(const MachineInstr *MI) {
+  RVGPU_MC::verifyInstructionPredicates(MI->getOpcode(),
                                         getSubtargetInfo().getFeatureBits());
 
   MCInst Inst;
@@ -155,27 +155,27 @@ void NVPTXAsmPrinter::emitInstruction(const MachineInstr *MI) {
 }
 
 // Handle symbol backtracking for targets that do not support image handles
-bool NVPTXAsmPrinter::lowerImageHandleOperand(const MachineInstr *MI,
+bool RVGPUAsmPrinter::lowerImageHandleOperand(const MachineInstr *MI,
                                            unsigned OpNo, MCOperand &MCOp) {
   const MachineOperand &MO = MI->getOperand(OpNo);
   const MCInstrDesc &MCID = MI->getDesc();
 
-  if (MCID.TSFlags & NVPTXII::IsTexFlag) {
+  if (MCID.TSFlags & RVGPUII::IsTexFlag) {
     // This is a texture fetch, so operand 4 is a texref and operand 5 is
     // a samplerref
     if (OpNo == 4 && MO.isImm()) {
       lowerImageHandleSymbol(MO.getImm(), MCOp);
       return true;
     }
-    if (OpNo == 5 && MO.isImm() && !(MCID.TSFlags & NVPTXII::IsTexModeUnifiedFlag)) {
+    if (OpNo == 5 && MO.isImm() && !(MCID.TSFlags & RVGPUII::IsTexModeUnifiedFlag)) {
       lowerImageHandleSymbol(MO.getImm(), MCOp);
       return true;
     }
 
     return false;
-  } else if (MCID.TSFlags & NVPTXII::IsSuldMask) {
+  } else if (MCID.TSFlags & RVGPUII::IsSuldMask) {
     unsigned VecSize =
-      1 << (((MCID.TSFlags & NVPTXII::IsSuldMask) >> NVPTXII::IsSuldShift) - 1);
+      1 << (((MCID.TSFlags & RVGPUII::IsSuldMask) >> RVGPUII::IsSuldShift) - 1);
 
     // For a surface load of vector size N, the Nth operand will be the surfref
     if (OpNo == VecSize && MO.isImm()) {
@@ -184,7 +184,7 @@ bool NVPTXAsmPrinter::lowerImageHandleOperand(const MachineInstr *MI,
     }
 
     return false;
-  } else if (MCID.TSFlags & NVPTXII::IsSustFlag) {
+  } else if (MCID.TSFlags & RVGPUII::IsSustFlag) {
     // This is a surface store, so operand 0 is a surfref
     if (OpNo == 0 && MO.isImm()) {
       lowerImageHandleSymbol(MO.getImm(), MCOp);
@@ -192,7 +192,7 @@ bool NVPTXAsmPrinter::lowerImageHandleOperand(const MachineInstr *MI,
     }
 
     return false;
-  } else if (MCID.TSFlags & NVPTXII::IsSurfTexQueryFlag) {
+  } else if (MCID.TSFlags & RVGPUII::IsSurfTexQueryFlag) {
     // This is a query, so operand 1 is a surfref/texref
     if (OpNo == 1 && MO.isImm()) {
       lowerImageHandleSymbol(MO.getImm(), MCOp);
@@ -205,27 +205,27 @@ bool NVPTXAsmPrinter::lowerImageHandleOperand(const MachineInstr *MI,
   return false;
 }
 
-void NVPTXAsmPrinter::lowerImageHandleSymbol(unsigned Index, MCOperand &MCOp) {
+void RVGPUAsmPrinter::lowerImageHandleSymbol(unsigned Index, MCOperand &MCOp) {
   // Ewwww
   LLVMTargetMachine &TM = const_cast<LLVMTargetMachine&>(MF->getTarget());
-  NVPTXTargetMachine &nvTM = static_cast<NVPTXTargetMachine&>(TM);
-  const NVPTXMachineFunctionInfo *MFI = MF->getInfo<NVPTXMachineFunctionInfo>();
+  RVGPUTargetMachine &nvTM = static_cast<RVGPUTargetMachine&>(TM);
+  const RVGPUMachineFunctionInfo *MFI = MF->getInfo<RVGPUMachineFunctionInfo>();
   const char *Sym = MFI->getImageHandleSymbol(Index);
   StringRef SymName = nvTM.getStrPool().save(Sym);
   MCOp = GetSymbolRef(OutContext.getOrCreateSymbol(SymName));
 }
 
-void NVPTXAsmPrinter::lowerToMCInst(const MachineInstr *MI, MCInst &OutMI) {
+void RVGPUAsmPrinter::lowerToMCInst(const MachineInstr *MI, MCInst &OutMI) {
   OutMI.setOpcode(MI->getOpcode());
   // Special: Do not mangle symbol operand of CALL_PROTOTYPE
-  if (MI->getOpcode() == NVPTX::CALL_PROTOTYPE) {
+  if (MI->getOpcode() == RVGPU::CALL_PROTOTYPE) {
     const MachineOperand &MO = MI->getOperand(0);
     OutMI.addOperand(GetSymbolRef(
       OutContext.getOrCreateSymbol(Twine(MO.getSymbolName()))));
     return;
   }
 
-  const NVPTXSubtarget &STI = MI->getMF()->getSubtarget<NVPTXSubtarget>();
+  const RVGPUSubtarget &STI = MI->getMF()->getSubtarget<RVGPUSubtarget>();
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
 
@@ -242,7 +242,7 @@ void NVPTXAsmPrinter::lowerToMCInst(const MachineInstr *MI, MCInst &OutMI) {
   }
 }
 
-bool NVPTXAsmPrinter::lowerOperand(const MachineOperand &MO,
+bool RVGPUAsmPrinter::lowerOperand(const MachineOperand &MO,
                                    MCOperand &MCOp) {
   switch (MO.getType()) {
   default: llvm_unreachable("unknown operand type");
@@ -270,19 +270,19 @@ bool NVPTXAsmPrinter::lowerOperand(const MachineOperand &MO,
     default: report_fatal_error("Unsupported FP type"); break;
     case Type::HalfTyID:
       MCOp = MCOperand::createExpr(
-        NVPTXFloatMCExpr::createConstantFPHalf(Val, OutContext));
+        RVGPUFloatMCExpr::createConstantFPHalf(Val, OutContext));
       break;
     case Type::BFloatTyID:
       MCOp = MCOperand::createExpr(
-          NVPTXFloatMCExpr::createConstantBFPHalf(Val, OutContext));
+          RVGPUFloatMCExpr::createConstantBFPHalf(Val, OutContext));
       break;
     case Type::FloatTyID:
       MCOp = MCOperand::createExpr(
-        NVPTXFloatMCExpr::createConstantFPSingle(Val, OutContext));
+        RVGPUFloatMCExpr::createConstantFPSingle(Val, OutContext));
       break;
     case Type::DoubleTyID:
       MCOp = MCOperand::createExpr(
-        NVPTXFloatMCExpr::createConstantFPDouble(Val, OutContext));
+        RVGPUFloatMCExpr::createConstantFPDouble(Val, OutContext));
       break;
     }
     break;
@@ -291,7 +291,7 @@ bool NVPTXAsmPrinter::lowerOperand(const MachineOperand &MO,
   return true;
 }
 
-unsigned NVPTXAsmPrinter::encodeVirtualRegister(unsigned Reg) {
+unsigned RVGPUAsmPrinter::encodeVirtualRegister(unsigned Reg) {
   if (Register::isVirtualRegister(Reg)) {
     const TargetRegisterClass *RC = MRI->getRegClass(Reg);
 
@@ -299,19 +299,19 @@ unsigned NVPTXAsmPrinter::encodeVirtualRegister(unsigned Reg) {
     unsigned RegNum = RegMap[Reg];
 
     // Encode the register class in the upper 4 bits
-    // Must be kept in sync with NVPTXInstPrinter::printRegName
+    // Must be kept in sync with RVGPUInstPrinter::printRegName
     unsigned Ret = 0;
-    if (RC == &NVPTX::Int1RegsRegClass) {
+    if (RC == &RVGPU::Int1RegsRegClass) {
       Ret = (1 << 28);
-    } else if (RC == &NVPTX::Int16RegsRegClass) {
+    } else if (RC == &RVGPU::Int16RegsRegClass) {
       Ret = (2 << 28);
-    } else if (RC == &NVPTX::Int32RegsRegClass) {
+    } else if (RC == &RVGPU::Int32RegsRegClass) {
       Ret = (3 << 28);
-    } else if (RC == &NVPTX::Int64RegsRegClass) {
+    } else if (RC == &RVGPU::Int64RegsRegClass) {
       Ret = (4 << 28);
-    } else if (RC == &NVPTX::Float32RegsRegClass) {
+    } else if (RC == &RVGPU::Float32RegsRegClass) {
       Ret = (5 << 28);
-    } else if (RC == &NVPTX::Float64RegsRegClass) {
+    } else if (RC == &RVGPU::Float64RegsRegClass) {
       Ret = (6 << 28);
     } else {
       report_fatal_error("Bad register class");
@@ -327,7 +327,7 @@ unsigned NVPTXAsmPrinter::encodeVirtualRegister(unsigned Reg) {
   }
 }
 
-MCOperand NVPTXAsmPrinter::GetSymbolRef(const MCSymbol *Symbol) {
+MCOperand RVGPUAsmPrinter::GetSymbolRef(const MCSymbol *Symbol) {
   const MCExpr *Expr;
   Expr = MCSymbolRefExpr::create(Symbol, MCSymbolRefExpr::VK_None,
                                  OutContext);
@@ -339,10 +339,10 @@ static bool ShouldPassAsArray(Type *Ty) {
          Ty->isHalfTy() || Ty->isBFloatTy();
 }
 
-void NVPTXAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
+void RVGPUAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
   const DataLayout &DL = getDataLayout();
-  const NVPTXSubtarget &STI = TM.getSubtarget<NVPTXSubtarget>(*F);
-  const auto *TLI = cast<NVPTXTargetLowering>(STI.getTargetLowering());
+  const RVGPUSubtarget &STI = TM.getSubtarget<RVGPUSubtarget>(*F);
+  const auto *TLI = cast<RVGPUTargetLowering>(STI.getTargetLowering());
 
   Type *Ty = F->getReturnType();
 
@@ -404,7 +404,7 @@ void NVPTXAsmPrinter::printReturnValStr(const Function *F, raw_ostream &O) {
   O << ") ";
 }
 
-void NVPTXAsmPrinter::printReturnValStr(const MachineFunction &MF,
+void RVGPUAsmPrinter::printReturnValStr(const MachineFunction &MF,
                                         raw_ostream &O) {
   const Function &F = MF.getFunction();
   printReturnValStr(&F, O);
@@ -412,7 +412,7 @@ void NVPTXAsmPrinter::printReturnValStr(const MachineFunction &MF,
 
 // Return true if MBB is the header of a loop marked with
 // llvm.loop.unroll.disable or llvm.loop.unroll.count=1.
-bool NVPTXAsmPrinter::isLoopHeaderOfNoUnroll(
+bool RVGPUAsmPrinter::isLoopHeaderOfNoUnroll(
     const MachineBasicBlock &MBB) const {
   MachineLoopInfo &LI = getAnalysis<MachineLoopInfo>();
   // We insert .pragma "nounroll" only to the loop header.
@@ -444,13 +444,13 @@ bool NVPTXAsmPrinter::isLoopHeaderOfNoUnroll(
   return false;
 }
 
-void NVPTXAsmPrinter::emitBasicBlockStart(const MachineBasicBlock &MBB) {
+void RVGPUAsmPrinter::emitBasicBlockStart(const MachineBasicBlock &MBB) {
   AsmPrinter::emitBasicBlockStart(MBB);
   if (isLoopHeaderOfNoUnroll(MBB))
     OutStreamer->emitRawText(StringRef("\t.pragma \"nounroll\";\n"));
 }
 
-void NVPTXAsmPrinter::emitFunctionEntryLabel() {
+void RVGPUAsmPrinter::emitFunctionEntryLabel() {
   SmallString<128> Str;
   raw_svector_ostream O(Str);
 
@@ -492,7 +492,7 @@ void NVPTXAsmPrinter::emitFunctionEntryLabel() {
     emitInitialRawDwarfLocDirective(*MF);
 }
 
-bool NVPTXAsmPrinter::runOnMachineFunction(MachineFunction &F) {
+bool RVGPUAsmPrinter::runOnMachineFunction(MachineFunction &F) {
   bool Result = AsmPrinter::runOnMachineFunction(F);
   // Emit closing brace for the body of function F.
   // The closing brace must be emitted here because we need to emit additional
@@ -503,37 +503,37 @@ bool NVPTXAsmPrinter::runOnMachineFunction(MachineFunction &F) {
   return Result;
 }
 
-void NVPTXAsmPrinter::emitFunctionBodyStart() {
+void RVGPUAsmPrinter::emitFunctionBodyStart() {
   SmallString<128> Str;
   raw_svector_ostream O(Str);
   emitDemotedVars(&MF->getFunction(), O);
   OutStreamer->emitRawText(O.str());
 }
 
-void NVPTXAsmPrinter::emitFunctionBodyEnd() {
+void RVGPUAsmPrinter::emitFunctionBodyEnd() {
   VRegMapping.clear();
 }
 
-const MCSymbol *NVPTXAsmPrinter::getFunctionFrameSymbol() const {
+const MCSymbol *RVGPUAsmPrinter::getFunctionFrameSymbol() const {
     SmallString<128> Str;
     raw_svector_ostream(Str) << DEPOTNAME << getFunctionNumber();
     return OutContext.getOrCreateSymbol(Str);
 }
 
-void NVPTXAsmPrinter::emitImplicitDef(const MachineInstr *MI) const {
+void RVGPUAsmPrinter::emitImplicitDef(const MachineInstr *MI) const {
   Register RegNo = MI->getOperand(0).getReg();
   if (RegNo.isVirtual()) {
     OutStreamer->AddComment(Twine("implicit-def: ") +
                             getVirtualRegisterName(RegNo));
   } else {
-    const NVPTXSubtarget &STI = MI->getMF()->getSubtarget<NVPTXSubtarget>();
+    const RVGPUSubtarget &STI = MI->getMF()->getSubtarget<RVGPUSubtarget>();
     OutStreamer->AddComment(Twine("implicit-def: ") +
                             STI.getRegisterInfo()->getName(RegNo));
   }
   OutStreamer->addBlankLine();
 }
 
-void NVPTXAsmPrinter::emitKernelFunctionDirectives(const Function &F,
+void RVGPUAsmPrinter::emitKernelFunctionDirectives(const Function &F,
                                                    raw_ostream &O) const {
   // If the NVVM IR has some of reqntid* specified, then output
   // the reqntid directive, and set the unspecified ones to 1.
@@ -573,14 +573,14 @@ void NVPTXAsmPrinter::emitKernelFunctionDirectives(const Function &F,
 
   // .maxclusterrank directive requires SM_90 or higher, make sure that we
   // filter it out for lower SM versions, as it causes a hard ptxas crash.
-  const NVPTXTargetMachine &NTM = static_cast<const NVPTXTargetMachine &>(TM);
-  const auto *STI = static_cast<const NVPTXSubtarget *>(NTM.getSubtargetImpl());
+  const RVGPUTargetMachine &NTM = static_cast<const RVGPUTargetMachine &>(TM);
+  const auto *STI = static_cast<const RVGPUSubtarget *>(NTM.getSubtargetImpl());
   unsigned Maxclusterrank = 0;
   if (getMaxClusterRank(F, Maxclusterrank) && STI->getSmVersion() >= 90)
     O << ".maxclusterrank " << Maxclusterrank << "\n";
 }
 
-std::string NVPTXAsmPrinter::getVirtualRegisterName(unsigned Reg) const {
+std::string RVGPUAsmPrinter::getVirtualRegisterName(unsigned Reg) const {
   const TargetRegisterClass *RC = MRI->getRegClass(Reg);
 
   std::string Name;
@@ -594,18 +594,18 @@ std::string NVPTXAsmPrinter::getVirtualRegisterName(unsigned Reg) const {
   assert(VI != RegMap.end() && "Bad virtual register");
   unsigned MappedVR = VI->second;
 
-  NameStr << getNVPTXRegClassStr(RC) << MappedVR;
+  NameStr << getRVGPURegClassStr(RC) << MappedVR;
 
   NameStr.flush();
   return Name;
 }
 
-void NVPTXAsmPrinter::emitVirtualRegister(unsigned int vr,
+void RVGPUAsmPrinter::emitVirtualRegister(unsigned int vr,
                                           raw_ostream &O) {
   O << getVirtualRegisterName(vr);
 }
 
-void NVPTXAsmPrinter::emitDeclaration(const Function *F, raw_ostream &O) {
+void RVGPUAsmPrinter::emitDeclaration(const Function *F, raw_ostream &O) {
   emitLinkageDirective(F, O);
   if (isKernelFunction(*F))
     O << ".entry ";
@@ -706,7 +706,7 @@ static bool useFuncSeen(const Constant *C,
   return false;
 }
 
-void NVPTXAsmPrinter::emitDeclarations(const Module &M, raw_ostream &O) {
+void RVGPUAsmPrinter::emitDeclarations(const Module &M, raw_ostream &O) {
   DenseMap<const Function *, bool> seenMap;
   for (const Function &F : M) {
     if (F.getAttributes().hasFnAttr("nvptx-libcall-callee")) {
@@ -768,12 +768,12 @@ static bool isEmptyXXStructor(GlobalVariable *GV) {
   return InitList->getNumOperands() == 0;
 }
 
-void NVPTXAsmPrinter::emitStartOfAsmFile(Module &M) {
+void RVGPUAsmPrinter::emitStartOfAsmFile(Module &M) {
   // Construct a default subtarget off of the TargetMachine defaults. The
-  // rest of NVPTX isn't friendly to change subtargets per function and
+  // rest of RVGPU isn't friendly to change subtargets per function and
   // so the default TargetMachine will have all of the options.
-  const NVPTXTargetMachine &NTM = static_cast<const NVPTXTargetMachine &>(TM);
-  const auto* STI = static_cast<const NVPTXSubtarget*>(NTM.getSubtargetImpl());
+  const RVGPUTargetMachine &NTM = static_cast<const RVGPUTargetMachine &>(TM);
+  const auto* STI = static_cast<const RVGPUSubtarget*>(NTM.getSubtargetImpl());
   SmallString<128> Str1;
   raw_svector_ostream OS1(Str1);
 
@@ -782,26 +782,26 @@ void NVPTXAsmPrinter::emitStartOfAsmFile(Module &M) {
   OutStreamer->emitRawText(OS1.str());
 }
 
-bool NVPTXAsmPrinter::doInitialization(Module &M) {
-  const NVPTXTargetMachine &NTM = static_cast<const NVPTXTargetMachine &>(TM);
-  const NVPTXSubtarget &STI =
-      *static_cast<const NVPTXSubtarget *>(NTM.getSubtargetImpl());
+bool RVGPUAsmPrinter::doInitialization(Module &M) {
+  const RVGPUTargetMachine &NTM = static_cast<const RVGPUTargetMachine &>(TM);
+  const RVGPUSubtarget &STI =
+      *static_cast<const RVGPUSubtarget *>(NTM.getSubtargetImpl());
   if (M.alias_size() && (STI.getPTXVersion() < 63 || STI.getSmVersion() < 30))
     report_fatal_error(".alias requires PTX version >= 6.3 and sm_30");
 
-  // OpenMP supports NVPTX global constructors and destructors.
+  // OpenMP supports RVGPU global constructors and destructors.
   bool IsOpenMP = M.getModuleFlag("openmp") != nullptr;
 
   if (!isEmptyXXStructor(M.getNamedGlobal("llvm.global_ctors")) &&
       !LowerCtorDtor && !IsOpenMP) {
     report_fatal_error(
-        "Module has a nontrivial global ctor, which NVPTX does not support.");
+        "Module has a nontrivial global ctor, which RVGPU does not support.");
     return true;  // error
   }
   if (!isEmptyXXStructor(M.getNamedGlobal("llvm.global_dtors")) &&
       !LowerCtorDtor && !IsOpenMP) {
     report_fatal_error(
-        "Module has a nontrivial global dtor, which NVPTX does not support.");
+        "Module has a nontrivial global dtor, which RVGPU does not support.");
     return true;  // error
   }
 
@@ -813,7 +813,7 @@ bool NVPTXAsmPrinter::doInitialization(Module &M) {
   return Result;
 }
 
-void NVPTXAsmPrinter::emitGlobals(const Module &M) {
+void RVGPUAsmPrinter::emitGlobals(const Module &M) {
   SmallString<128> Str2;
   raw_svector_ostream OS2(Str2);
 
@@ -835,9 +835,9 @@ void NVPTXAsmPrinter::emitGlobals(const Module &M) {
   assert(GVVisited.size() == M.global_size() && "Missed a global variable");
   assert(GVVisiting.size() == 0 && "Did not fully process a global variable");
 
-  const NVPTXTargetMachine &NTM = static_cast<const NVPTXTargetMachine &>(TM);
-  const NVPTXSubtarget &STI =
-      *static_cast<const NVPTXSubtarget *>(NTM.getSubtargetImpl());
+  const RVGPUTargetMachine &NTM = static_cast<const RVGPUTargetMachine &>(TM);
+  const RVGPUSubtarget &STI =
+      *static_cast<const RVGPUSubtarget *>(NTM.getSubtargetImpl());
 
   // Print out module-level global variables in proper order
   for (unsigned i = 0, e = Globals.size(); i != e; ++i)
@@ -848,18 +848,18 @@ void NVPTXAsmPrinter::emitGlobals(const Module &M) {
   OutStreamer->emitRawText(OS2.str());
 }
 
-void NVPTXAsmPrinter::emitGlobalAlias(const Module &M, const GlobalAlias &GA) {
+void RVGPUAsmPrinter::emitGlobalAlias(const Module &M, const GlobalAlias &GA) {
   SmallString<128> Str;
   raw_svector_ostream OS(Str);
 
   MCSymbol *Name = getSymbol(&GA);
   const Function *F = dyn_cast<Function>(GA.getAliasee());
   if (!F || isKernelFunction(*F))
-    report_fatal_error("NVPTX aliasee must be a non-kernel function");
+    report_fatal_error("RVGPU aliasee must be a non-kernel function");
 
   if (GA.hasLinkOnceLinkage() || GA.hasWeakLinkage() ||
       GA.hasAvailableExternallyLinkage() || GA.hasCommonLinkage())
-    report_fatal_error("NVPTX aliasee must not be '.weak'");
+    report_fatal_error("RVGPU aliasee must not be '.weak'");
 
   OS << "\n";
   emitLinkageDirective(F, OS);
@@ -876,10 +876,10 @@ void NVPTXAsmPrinter::emitGlobalAlias(const Module &M, const GlobalAlias &GA) {
   OutStreamer->emitRawText(OS.str());
 }
 
-void NVPTXAsmPrinter::emitHeader(Module &M, raw_ostream &O,
-                                 const NVPTXSubtarget &STI) {
+void RVGPUAsmPrinter::emitHeader(Module &M, raw_ostream &O,
+                                 const RVGPUSubtarget &STI) {
   O << "//\n";
-  O << "// Generated by LLVM NVPTX Back-End\n";
+  O << "// Generated by LLVM RVGPU Back-End\n";
   O << "//\n";
   O << "\n";
 
@@ -889,8 +889,8 @@ void NVPTXAsmPrinter::emitHeader(Module &M, raw_ostream &O,
   O << ".target ";
   O << STI.getTargetName();
 
-  const NVPTXTargetMachine &NTM = static_cast<const NVPTXTargetMachine &>(TM);
-  if (NTM.getDrvInterface() == NVPTX::NVCL)
+  const RVGPUTargetMachine &NTM = static_cast<const RVGPUTargetMachine &>(TM);
+  if (NTM.getDrvInterface() == RVGPU::NVCL)
     O << ", texmode_independent";
 
   bool HasFullDebugInfo = false;
@@ -922,7 +922,7 @@ void NVPTXAsmPrinter::emitHeader(Module &M, raw_ostream &O,
   O << "\n";
 }
 
-bool NVPTXAsmPrinter::doFinalization(Module &M) {
+bool RVGPUAsmPrinter::doFinalization(Module &M) {
   bool HasDebugInfo = MMI && MMI->hasDebugInfo();
 
   // If we did not emit any functions, then the global declarations have not
@@ -948,7 +948,7 @@ bool NVPTXAsmPrinter::doFinalization(Module &M) {
   clearAnnotationCache(&M);
 
   auto *TS =
-      static_cast<NVPTXTargetStreamer *>(OutStreamer->getTargetStreamer());
+      static_cast<RVGPUTargetStreamer *>(OutStreamer->getTargetStreamer());
   // Close the last emitted section
   if (HasDebugInfo) {
     TS->closeLastSection();
@@ -975,9 +975,9 @@ bool NVPTXAsmPrinter::doFinalization(Module &M) {
 // linker_private_weak, linker_private_weak_def_auto,
 // we emit                                -> .weak.
 
-void NVPTXAsmPrinter::emitLinkageDirective(const GlobalValue *V,
+void RVGPUAsmPrinter::emitLinkageDirective(const GlobalValue *V,
                                            raw_ostream &O) {
-  if (static_cast<NVPTXTargetMachine &>(TM).getDrvInterface() == NVPTX::CUDA) {
+  if (static_cast<RVGPUTargetMachine &>(TM).getDrvInterface() == RVGPU::CUDA) {
     if (V->hasExternalLinkage()) {
       if (isa<GlobalVariable>(V)) {
         const GlobalVariable *GVar = cast<GlobalVariable>(V);
@@ -1006,9 +1006,9 @@ void NVPTXAsmPrinter::emitLinkageDirective(const GlobalValue *V,
   }
 }
 
-void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
+void RVGPUAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
                                          raw_ostream &O, bool processDemoted,
-                                         const NVPTXSubtarget &STI) {
+                                         const RVGPUSubtarget &STI) {
   // Skip meta data
   if (GVar->hasSection()) {
     if (GVar->getSection() == "llvm.metadata")
@@ -1268,7 +1268,7 @@ void NVPTXAsmPrinter::printModuleLevelGV(const GlobalVariable *GVar,
   O << ";\n";
 }
 
-void NVPTXAsmPrinter::AggBuffer::printSymbol(unsigned nSym, raw_ostream &os) {
+void RVGPUAsmPrinter::AggBuffer::printSymbol(unsigned nSym, raw_ostream &os) {
   const Value *v = Symbols[nSym];
   const Value *v0 = SymbolsBeforeStripping[nSym];
   if (const GlobalValue *GVar = dyn_cast<GlobalValue>(v)) {
@@ -1290,7 +1290,7 @@ void NVPTXAsmPrinter::AggBuffer::printSymbol(unsigned nSym, raw_ostream &os) {
     llvm_unreachable("symbol type unknown");
 }
 
-void NVPTXAsmPrinter::AggBuffer::printBytes(raw_ostream &os) {
+void RVGPUAsmPrinter::AggBuffer::printBytes(raw_ostream &os) {
   unsigned int ptrSize = AP.MAI->getCodePointerSize();
   symbolPosInBuffer.push_back(size);
   unsigned int nSym = 0;
@@ -1321,7 +1321,7 @@ void NVPTXAsmPrinter::AggBuffer::printBytes(raw_ostream &os) {
   }
 }
 
-void NVPTXAsmPrinter::AggBuffer::printWords(raw_ostream &os) {
+void RVGPUAsmPrinter::AggBuffer::printWords(raw_ostream &os) {
   unsigned int ptrSize = AP.MAI->getCodePointerSize();
   symbolPosInBuffer.push_back(size);
   unsigned int nSym = 0;
@@ -1342,15 +1342,15 @@ void NVPTXAsmPrinter::AggBuffer::printWords(raw_ostream &os) {
   }
 }
 
-void NVPTXAsmPrinter::emitDemotedVars(const Function *f, raw_ostream &O) {
+void RVGPUAsmPrinter::emitDemotedVars(const Function *f, raw_ostream &O) {
   if (localDecls.find(f) == localDecls.end())
     return;
 
   std::vector<const GlobalVariable *> &gvars = localDecls[f];
 
-  const NVPTXTargetMachine &NTM = static_cast<const NVPTXTargetMachine &>(TM);
-  const NVPTXSubtarget &STI =
-      *static_cast<const NVPTXSubtarget *>(NTM.getSubtargetImpl());
+  const RVGPUTargetMachine &NTM = static_cast<const RVGPUTargetMachine &>(TM);
+  const RVGPUSubtarget &STI =
+      *static_cast<const RVGPUSubtarget *>(NTM.getSubtargetImpl());
 
   for (const GlobalVariable *GV : gvars) {
     O << "\t// demoted variable\n\t";
@@ -1358,7 +1358,7 @@ void NVPTXAsmPrinter::emitDemotedVars(const Function *f, raw_ostream &O) {
   }
 }
 
-void NVPTXAsmPrinter::emitPTXAddressSpace(unsigned int AddressSpace,
+void RVGPUAsmPrinter::emitPTXAddressSpace(unsigned int AddressSpace,
                                           raw_ostream &O) const {
   switch (AddressSpace) {
   case ADDRESS_SPACE_LOCAL:
@@ -1381,7 +1381,7 @@ void NVPTXAsmPrinter::emitPTXAddressSpace(unsigned int AddressSpace,
 }
 
 std::string
-NVPTXAsmPrinter::getPTXFundamentalTypeStr(Type *Ty, bool useB4PTR) const {
+RVGPUAsmPrinter::getPTXFundamentalTypeStr(Type *Ty, bool useB4PTR) const {
   switch (Ty->getTypeID()) {
   case Type::IntegerTyID: {
     unsigned NumBits = cast<IntegerType>(Ty)->getBitWidth();
@@ -1425,9 +1425,9 @@ NVPTXAsmPrinter::getPTXFundamentalTypeStr(Type *Ty, bool useB4PTR) const {
   llvm_unreachable("unexpected type");
 }
 
-void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable *GVar,
+void RVGPUAsmPrinter::emitPTXGlobalVariable(const GlobalVariable *GVar,
                                             raw_ostream &O,
-                                            const NVPTXSubtarget &STI) {
+                                            const RVGPUSubtarget &STI) {
   const DataLayout &DL = getDataLayout();
 
   // GlobalVariables are always constant pointers themselves.
@@ -1487,11 +1487,11 @@ void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable *GVar,
   }
 }
 
-void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
+void RVGPUAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
   const DataLayout &DL = getDataLayout();
   const AttributeList &PAL = F->getAttributes();
-  const NVPTXSubtarget &STI = TM.getSubtarget<NVPTXSubtarget>(*F);
-  const auto *TLI = cast<NVPTXTargetLowering>(STI.getTargetLowering());
+  const RVGPUSubtarget &STI = TM.getSubtarget<RVGPUSubtarget>(*F);
+  const auto *TLI = cast<RVGPUTargetLowering>(STI.getTargetLowering());
 
   Function::const_arg_iterator I, E;
   unsigned paramIndex = 0;
@@ -1580,8 +1580,8 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
           // Special handling for pointer arguments to kernel
           O << "\t.param .u" << PTySizeInBits << " ";
 
-          if (static_cast<NVPTXTargetMachine &>(TM).getDrvInterface() !=
-              NVPTX::CUDA) {
+          if (static_cast<RVGPUTargetMachine &>(TM).getDrvInterface() !=
+              RVGPU::CUDA) {
             int addrSpace = PTy->getAddressSpace();
             switch (addrSpace) {
             default:
@@ -1698,7 +1698,7 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
   O << "\n)";
 }
 
-void NVPTXAsmPrinter::setAndEmitFunctionVirtualRegisters(
+void RVGPUAsmPrinter::setAndEmitFunctionVirtualRegisters(
     const MachineFunction &MF) {
   SmallString<128> Str;
   raw_svector_ostream O(Str);
@@ -1714,7 +1714,7 @@ void NVPTXAsmPrinter::setAndEmitFunctionVirtualRegisters(
   if (NumBytes) {
     O << "\t.local .align " << MFI.getMaxAlign().value() << " .b8 \t"
       << DEPOTNAME << getFunctionNumber() << "[" << NumBytes << "];\n";
-    if (static_cast<const NVPTXTargetMachine &>(MF.getTarget()).is64Bit()) {
+    if (static_cast<const RVGPUTargetMachine &>(MF.getTarget()).is64Bit()) {
       O << "\t.reg .b64 \t%SP;\n";
       O << "\t.reg .b64 \t%SPL;\n";
     } else {
@@ -1738,21 +1738,21 @@ void NVPTXAsmPrinter::setAndEmitFunctionVirtualRegisters(
 
   // Emit register declarations
   // @TODO: Extract out the real register usage
-  // O << "\t.reg .pred %p<" << NVPTXNumRegisters << ">;\n";
-  // O << "\t.reg .s16 %rc<" << NVPTXNumRegisters << ">;\n";
-  // O << "\t.reg .s16 %rs<" << NVPTXNumRegisters << ">;\n";
-  // O << "\t.reg .s32 %r<" << NVPTXNumRegisters << ">;\n";
-  // O << "\t.reg .s64 %rd<" << NVPTXNumRegisters << ">;\n";
-  // O << "\t.reg .f32 %f<" << NVPTXNumRegisters << ">;\n";
-  // O << "\t.reg .f64 %fd<" << NVPTXNumRegisters << ">;\n";
+  // O << "\t.reg .pred %p<" << RVGPUNumRegisters << ">;\n";
+  // O << "\t.reg .s16 %rc<" << RVGPUNumRegisters << ">;\n";
+  // O << "\t.reg .s16 %rs<" << RVGPUNumRegisters << ">;\n";
+  // O << "\t.reg .s32 %r<" << RVGPUNumRegisters << ">;\n";
+  // O << "\t.reg .s64 %rd<" << RVGPUNumRegisters << ">;\n";
+  // O << "\t.reg .f32 %f<" << RVGPUNumRegisters << ">;\n";
+  // O << "\t.reg .f64 %fd<" << RVGPUNumRegisters << ">;\n";
 
   // Emit declaration of the virtual registers or 'physical' registers for
   // each register class
   for (unsigned i=0; i< TRI->getNumRegClasses(); i++) {
     const TargetRegisterClass *RC = TRI->getRegClass(i);
     DenseMap<unsigned, unsigned> &regmap = VRegMapping[RC];
-    std::string rcname = getNVPTXRegClassName(RC);
-    std::string rcStr = getNVPTXRegClassStr(RC);
+    std::string rcname = getRVGPURegClassName(RC);
+    std::string rcStr = getRVGPURegClassStr(RC);
     int n = regmap.size();
 
     // Only declare those registers that may be used.
@@ -1765,7 +1765,7 @@ void NVPTXAsmPrinter::setAndEmitFunctionVirtualRegisters(
   OutStreamer->emitRawText(O.str());
 }
 
-void NVPTXAsmPrinter::printFPConstant(const ConstantFP *Fp, raw_ostream &O) {
+void RVGPUAsmPrinter::printFPConstant(const ConstantFP *Fp, raw_ostream &O) {
   APFloat APF = APFloat(Fp->getValueAPF()); // make a copy
   bool ignored;
   unsigned int numHex;
@@ -1786,7 +1786,7 @@ void NVPTXAsmPrinter::printFPConstant(const ConstantFP *Fp, raw_ostream &O) {
   O << lead << format_hex_no_prefix(API.getZExtValue(), numHex, /*Upper=*/true);
 }
 
-void NVPTXAsmPrinter::printScalarConstant(const Constant *CPV, raw_ostream &O) {
+void RVGPUAsmPrinter::printScalarConstant(const Constant *CPV, raw_ostream &O) {
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CPV)) {
     O << CI->getValue();
     return;
@@ -1821,7 +1821,7 @@ void NVPTXAsmPrinter::printScalarConstant(const Constant *CPV, raw_ostream &O) {
   llvm_unreachable("Not scalar type found in printScalarConstant()");
 }
 
-void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
+void RVGPUAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
                                    AggBuffer *AggBuffer) {
   const DataLayout &DL = getDataLayout();
   int AllocSize = DL.getTypeAllocSize(CPV->getType());
@@ -1901,7 +1901,7 @@ void NVPTXAsmPrinter::bufferLEByte(const Constant *CPV, int Bytes,
   }
 }
 
-void NVPTXAsmPrinter::bufferAggregateConstant(const Constant *CPV,
+void RVGPUAsmPrinter::bufferAggregateConstant(const Constant *CPV,
                                               AggBuffer *aggBuffer) {
   const DataLayout &DL = getDataLayout();
   int Bytes;
@@ -1956,9 +1956,9 @@ void NVPTXAsmPrinter::bufferAggregateConstant(const Constant *CPV,
 /// lowerConstantForGV - Return an MCExpr for the given Constant.  This is mostly
 /// a copy from AsmPrinter::lowerConstant, except customized to only handle
 /// expressions that are representable in PTX and create
-/// NVPTXGenericMCSymbolRefExpr nodes for addrspacecast instructions.
+/// RVGPUGenericMCSymbolRefExpr nodes for addrspacecast instructions.
 const MCExpr *
-NVPTXAsmPrinter::lowerConstantForGV(const Constant *CV, bool ProcessingGeneric) {
+RVGPUAsmPrinter::lowerConstantForGV(const Constant *CV, bool ProcessingGeneric) {
   MCContext &Ctx = OutContext;
 
   if (CV->isNullValue() || isa<UndefValue>(CV))
@@ -1971,7 +1971,7 @@ NVPTXAsmPrinter::lowerConstantForGV(const Constant *CV, bool ProcessingGeneric) 
     const MCSymbolRefExpr *Expr =
       MCSymbolRefExpr::create(getSymbol(GV), Ctx);
     if (ProcessingGeneric) {
-      return NVPTXGenericMCSymbolRefExpr::create(Expr, Ctx);
+      return RVGPUGenericMCSymbolRefExpr::create(Expr, Ctx);
     } else {
       return Expr;
     }
@@ -2086,8 +2086,8 @@ NVPTXAsmPrinter::lowerConstantForGV(const Constant *CV, bool ProcessingGeneric) 
   report_fatal_error(Twine(OS.str()));
 }
 
-// Copy of MCExpr::print customized for NVPTX
-void NVPTXAsmPrinter::printMCExpr(const MCExpr &Expr, raw_ostream &OS) {
+// Copy of MCExpr::print customized for RVGPU
+void RVGPUAsmPrinter::printMCExpr(const MCExpr &Expr, raw_ostream &OS) {
   switch (Expr.getKind()) {
   case MCExpr::Target:
     return cast<MCTargetExpr>(&Expr)->printImpl(OS, MAI);
@@ -2119,7 +2119,7 @@ void NVPTXAsmPrinter::printMCExpr(const MCExpr &Expr, raw_ostream &OS) {
 
     // Only print parens around the LHS if it is non-trivial.
     if (isa<MCConstantExpr>(BE.getLHS()) || isa<MCSymbolRefExpr>(BE.getLHS()) ||
-        isa<NVPTXGenericMCSymbolRefExpr>(BE.getLHS())) {
+        isa<RVGPUGenericMCSymbolRefExpr>(BE.getLHS())) {
       printMCExpr(*BE.getLHS(), OS);
     } else {
       OS << '(';
@@ -2159,7 +2159,7 @@ void NVPTXAsmPrinter::printMCExpr(const MCExpr &Expr, raw_ostream &OS) {
 
 /// PrintAsmOperand - Print out an operand for an inline asm expression.
 ///
-bool NVPTXAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+bool RVGPUAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                                       const char *ExtraCode, raw_ostream &O) {
   if (ExtraCode && ExtraCode[0]) {
     if (ExtraCode[1] != 0)
@@ -2179,7 +2179,7 @@ bool NVPTXAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
   return false;
 }
 
-bool NVPTXAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
+bool RVGPUAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
                                             unsigned OpNo,
                                             const char *ExtraCode,
                                             raw_ostream &O) {
@@ -2193,16 +2193,16 @@ bool NVPTXAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
   return false;
 }
 
-void NVPTXAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNum,
+void RVGPUAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNum,
                                    raw_ostream &O) {
   const MachineOperand &MO = MI->getOperand(OpNum);
   switch (MO.getType()) {
   case MachineOperand::MO_Register:
     if (MO.getReg().isPhysical()) {
-      if (MO.getReg() == NVPTX::VRDepot)
+      if (MO.getReg() == RVGPU::VRDepot)
         O << DEPOTNAME << getFunctionNumber();
       else
-        O << NVPTXInstPrinter::getRegisterName(MO.getReg());
+        O << RVGPUInstPrinter::getRegisterName(MO.getReg());
     } else {
       emitVirtualRegister(MO.getReg(), O);
     }
@@ -2229,7 +2229,7 @@ void NVPTXAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNum,
   }
 }
 
-void NVPTXAsmPrinter::printMemOperand(const MachineInstr *MI, unsigned OpNum,
+void RVGPUAsmPrinter::printMemOperand(const MachineInstr *MI, unsigned OpNum,
                                       raw_ostream &O, const char *Modifier) {
   printOperand(MI, OpNum, O);
 
@@ -2246,7 +2246,7 @@ void NVPTXAsmPrinter::printMemOperand(const MachineInstr *MI, unsigned OpNum,
 }
 
 // Force static initialization.
-extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeNVPTXAsmPrinter() {
-  RegisterAsmPrinter<NVPTXAsmPrinter> X(getTheNVPTXTarget32());
-  RegisterAsmPrinter<NVPTXAsmPrinter> Y(getTheNVPTXTarget64());
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUAsmPrinter() {
+  RegisterAsmPrinter<RVGPUAsmPrinter> X(getTheRVGPUTarget32());
+  RegisterAsmPrinter<RVGPUAsmPrinter> Y(getTheRVGPUTarget64());
 }

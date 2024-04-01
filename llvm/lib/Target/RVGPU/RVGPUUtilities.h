@@ -1,4 +1,4 @@
-//===-- NVPTXUtilities - Utilities -----------------------------*- C++ -*-====//
+//===-- RVGPUUtilities - Utilities -----------------------------*- C++ -*-====//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXUTILITIES_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXUTILITIES_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUUTILITIES_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUUTILITIES_H
 
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/Function.h"

@@ -1,4 +1,4 @@
-//===-- NVPTXMCAsmInfo.cpp - NVPTX asm properties -------------------------===//
+//===-- RVGPUMCAsmInfo.cpp - RVGPU asm properties -------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,18 +6,18 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the declarations of the NVPTXMCAsmInfo properties.
+// This file contains the declarations of the RVGPUMCAsmInfo properties.
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXMCAsmInfo.h"
+#include "RVGPUMCAsmInfo.h"
 #include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
 
-void NVPTXMCAsmInfo::anchor() {}
+void RVGPUMCAsmInfo::anchor() {}
 
-NVPTXMCAsmInfo::NVPTXMCAsmInfo(const Triple &TheTriple,
+RVGPUMCAsmInfo::RVGPUMCAsmInfo(const Triple &TheTriple,
                                const MCTargetOptions &Options) {
   if (TheTriple.getArch() == Triple::nvptx64) {
     CodePointerSize = CalleeSaveStackSlotSize = 8;

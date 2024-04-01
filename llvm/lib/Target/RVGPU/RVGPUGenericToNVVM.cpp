@@ -11,9 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/NVPTXBaseInfo.h"
-#include "NVPTX.h"
-#include "NVPTXUtilities.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
+#include "RVGPU.h"
+#include "RVGPUUtilities.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"

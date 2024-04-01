@@ -1,4 +1,4 @@
-//===-- NVPTXImageOptimizer.cpp - Image optimization pass -----------------===//
+//===-- RVGPUImageOptimizer.cpp - Image optimization pass -----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -13,29 +13,29 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTX.h"
-#include "NVPTXUtilities.h"
+#include "RVGPU.h"
+#include "RVGPUUtilities.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 
 using namespace llvm;
 
 namespace {
-class NVPTXImageOptimizer : public FunctionPass {
+class RVGPUImageOptimizer : public FunctionPass {
 private:
   static char ID;
   SmallVector<Instruction*, 4> InstrToDelete;
 
 public:
-  NVPTXImageOptimizer();
+  RVGPUImageOptimizer();
 
   bool runOnFunction(Function &F) override;
 
-  StringRef getPassName() const override { return "NVPTX Image Optimizer"; }
+  StringRef getPassName() const override { return "RVGPU Image Optimizer"; }
 
 private:
   bool replaceIsTypePSampler(Instruction &I);
@@ -46,12 +46,12 @@ private:
 };
 }
 
-char NVPTXImageOptimizer::ID = 0;
+char RVGPUImageOptimizer::ID = 0;
 
-NVPTXImageOptimizer::NVPTXImageOptimizer()
+RVGPUImageOptimizer::RVGPUImageOptimizer()
   : FunctionPass(ID) {}
 
-bool NVPTXImageOptimizer::runOnFunction(Function &F) {
+bool RVGPUImageOptimizer::runOnFunction(Function &F) {
   if (skipFunction(F))
     return false;
 
@@ -89,7 +89,7 @@ bool NVPTXImageOptimizer::runOnFunction(Function &F) {
   return Changed;
 }
 
-bool NVPTXImageOptimizer::replaceIsTypePSampler(Instruction &I) {
+bool RVGPUImageOptimizer::replaceIsTypePSampler(Instruction &I) {
   Value *TexHandle = cleanupValue(I.getOperand(0));
   if (isSampler(*TexHandle)) {
     // This is an OpenCL sampler, so it must be a samplerref
@@ -105,7 +105,7 @@ bool NVPTXImageOptimizer::replaceIsTypePSampler(Instruction &I) {
   }
 }
 
-bool NVPTXImageOptimizer::replaceIsTypePSurface(Instruction &I) {
+bool RVGPUImageOptimizer::replaceIsTypePSurface(Instruction &I) {
   Value *TexHandle = cleanupValue(I.getOperand(0));
   if (isImageReadWrite(*TexHandle) ||
       isImageWriteOnly(*TexHandle)) {
@@ -124,7 +124,7 @@ bool NVPTXImageOptimizer::replaceIsTypePSurface(Instruction &I) {
   }
 }
 
-bool NVPTXImageOptimizer::replaceIsTypePTexture(Instruction &I) {
+bool RVGPUImageOptimizer::replaceIsTypePTexture(Instruction &I) {
   Value *TexHandle = cleanupValue(I.getOperand(0));
   if (isImageReadOnly(*TexHandle)) {
     // This is an OpenCL read-only image, so it must be a texref
@@ -143,7 +143,7 @@ bool NVPTXImageOptimizer::replaceIsTypePTexture(Instruction &I) {
   }
 }
 
-void NVPTXImageOptimizer::replaceWith(Instruction *From, ConstantInt *To) {
+void RVGPUImageOptimizer::replaceWith(Instruction *From, ConstantInt *To) {
   // We implement "poor man's DCE" here to make sure any code that is no longer
   // live is actually unreachable and can be trivially eliminated by the
   // unreachable block elimination pass.
@@ -165,13 +165,13 @@ void NVPTXImageOptimizer::replaceWith(Instruction *From, ConstantInt *To) {
   InstrToDelete.push_back(From);
 }
 
-Value *NVPTXImageOptimizer::cleanupValue(Value *V) {
+Value *RVGPUImageOptimizer::cleanupValue(Value *V) {
   if (ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(V)) {
     return cleanupValue(EVI->getAggregateOperand());
   }
   return V;
 }
 
-FunctionPass *llvm::createNVPTXImageOptimizerPass() {
-  return new NVPTXImageOptimizer();
+FunctionPass *llvm::createRVGPUImageOptimizerPass() {
+  return new RVGPUImageOptimizer();
 }

@@ -1,4 +1,4 @@
-//===- NVPTXUtilities.cpp - Utility Functions -----------------------------===//
+//===- RVGPUUtilities.cpp - Utility Functions -----------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXUtilities.h"
-#include "NVPTX.h"
-#include "NVPTXTargetMachine.h"
+#include "RVGPUUtilities.h"
+#include "RVGPU.h"
+#include "RVGPUTargetMachine.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -335,7 +335,7 @@ Function *getMaybeBitcastedCallee(const CallBase *CB) {
 
 bool shouldEmitPTXNoReturn(const Value *V, const TargetMachine &TM) {
   const auto &ST =
-      *static_cast<const NVPTXTargetMachine &>(TM).getSubtargetImpl();
+      *static_cast<const RVGPUTargetMachine &>(TM).getSubtargetImpl();
   if (!ST.hasNoReturn())
     return false;
 

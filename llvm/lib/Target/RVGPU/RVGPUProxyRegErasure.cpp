@@ -1,4 +1,4 @@
-//===- NVPTXProxyRegErasure.cpp - NVPTX Proxy Register Instruction Erasure -==//
+//===- RVGPUProxyRegErasure.cpp - RVGPU Proxy Register Instruction Erasure -==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -18,7 +18,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTX.h"
+#include "RVGPU.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -28,22 +28,22 @@
 using namespace llvm;
 
 namespace llvm {
-void initializeNVPTXProxyRegErasurePass(PassRegistry &);
+void initializeRVGPUProxyRegErasurePass(PassRegistry &);
 }
 
 namespace {
 
-struct NVPTXProxyRegErasure : public MachineFunctionPass {
+struct RVGPUProxyRegErasure : public MachineFunctionPass {
 public:
   static char ID;
-  NVPTXProxyRegErasure() : MachineFunctionPass(ID) {
-    initializeNVPTXProxyRegErasurePass(*PassRegistry::getPassRegistry());
+  RVGPUProxyRegErasure() : MachineFunctionPass(ID) {
+    initializeRVGPUProxyRegErasurePass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override;
 
   StringRef getPassName() const override {
-    return "NVPTX Proxy Register Instruction Erasure";
+    return "RVGPU Proxy Register Instruction Erasure";
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -59,22 +59,22 @@ private:
 
 } // namespace
 
-char NVPTXProxyRegErasure::ID = 0;
+char RVGPUProxyRegErasure::ID = 0;
 
-INITIALIZE_PASS(NVPTXProxyRegErasure, "nvptx-proxyreg-erasure", "NVPTX ProxyReg Erasure", false, false)
+INITIALIZE_PASS(RVGPUProxyRegErasure, "nvptx-proxyreg-erasure", "RVGPU ProxyReg Erasure", false, false)
 
-bool NVPTXProxyRegErasure::runOnMachineFunction(MachineFunction &MF) {
+bool RVGPUProxyRegErasure::runOnMachineFunction(MachineFunction &MF) {
   SmallVector<MachineInstr *, 16> RemoveList;
 
   for (auto &BB : MF) {
     for (auto &MI : BB) {
       switch (MI.getOpcode()) {
-      case NVPTX::ProxyRegI1:
-      case NVPTX::ProxyRegI16:
-      case NVPTX::ProxyRegI32:
-      case NVPTX::ProxyRegI64:
-      case NVPTX::ProxyRegF32:
-      case NVPTX::ProxyRegF64:
+      case RVGPU::ProxyRegI1:
+      case RVGPU::ProxyRegI16:
+      case RVGPU::ProxyRegI32:
+      case RVGPU::ProxyRegI64:
+      case RVGPU::ProxyRegF32:
+      case RVGPU::ProxyRegF64:
         replaceMachineInstructionUsage(MF, MI);
         RemoveList.push_back(&MI);
         break;
@@ -89,7 +89,7 @@ bool NVPTXProxyRegErasure::runOnMachineFunction(MachineFunction &MF) {
   return !RemoveList.empty();
 }
 
-void NVPTXProxyRegErasure::replaceMachineInstructionUsage(MachineFunction &MF,
+void RVGPUProxyRegErasure::replaceMachineInstructionUsage(MachineFunction &MF,
                                                           MachineInstr &MI) {
   auto &InOp = *MI.uses().begin();
   auto &OutOp = *MI.defs().begin();
@@ -104,7 +104,7 @@ void NVPTXProxyRegErasure::replaceMachineInstructionUsage(MachineFunction &MF,
   }
 }
 
-void NVPTXProxyRegErasure::replaceRegisterUsage(MachineInstr &Instr,
+void RVGPUProxyRegErasure::replaceRegisterUsage(MachineInstr &Instr,
                                                 MachineOperand &From,
                                                 MachineOperand &To) {
   for (auto &Op : Instr.uses()) {
@@ -114,6 +114,6 @@ void NVPTXProxyRegErasure::replaceRegisterUsage(MachineInstr &Instr,
   }
 }
 
-MachineFunctionPass *llvm::createNVPTXProxyRegErasurePass() {
-  return new NVPTXProxyRegErasure();
+MachineFunctionPass *llvm::createRVGPUProxyRegErasurePass() {
+  return new RVGPUProxyRegErasure();
 }

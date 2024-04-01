@@ -1,4 +1,4 @@
-//===- NVPTXRegisterInfo.h - NVPTX Register Information Impl ----*- C++ -*-===//
+//===- RVGPURegisterInfo.h - RVGPU Register Information Impl ----*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,35 +6,35 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the NVPTX implementation of the TargetRegisterInfo class.
+// This file contains the RVGPU implementation of the TargetRegisterInfo class.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXREGISTERINFO_H
-#define LLVM_LIB_TARGET_NVPTX_NVPTXREGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_RVGPU_RVGPUREGISTERINFO_H
+#define LLVM_LIB_TARGET_RVGPU_RVGPUREGISTERINFO_H
 
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/Support/StringSaver.h"
 #include <sstream>
 
 #define GET_REGINFO_HEADER
-#include "NVPTXGenRegisterInfo.inc"
+#include "RVGPUGenRegisterInfo.inc"
 
 namespace llvm {
-class NVPTXRegisterInfo : public NVPTXGenRegisterInfo {
+class RVGPURegisterInfo : public RVGPUGenRegisterInfo {
 private:
-  // Hold Strings that can be free'd all together with NVPTXRegisterInfo
+  // Hold Strings that can be free'd all together with RVGPURegisterInfo
   BumpPtrAllocator StrAlloc;
   UniqueStringSaver StrPool;
 
 public:
-  NVPTXRegisterInfo();
+  RVGPURegisterInfo();
 
   //------------------------------------------------------
   // Pure virtual functions from TargetRegisterInfo
   //------------------------------------------------------
 
-  // NVPTX callee saved registers
+  // RVGPU callee saved registers
   const MCPhysReg *getCalleeSavedRegs(const MachineFunction *MF) const override;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
@@ -58,8 +58,8 @@ public:
 
 };
 
-std::string getNVPTXRegClassName(const TargetRegisterClass *RC);
-std::string getNVPTXRegClassStr(const TargetRegisterClass *RC);
+std::string getRVGPURegClassName(const TargetRegisterClass *RC);
+std::string getRVGPURegClassStr(const TargetRegisterClass *RC);
 
 } // end namespace llvm
 

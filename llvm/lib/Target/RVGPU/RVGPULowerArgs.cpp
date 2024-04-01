@@ -1,4 +1,4 @@
-//===-- NVPTXLowerArgs.cpp - Lower arguments ------------------------------===//
+//===-- RVGPULowerArgs.cpp - Lower arguments ------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -46,7 +46,7 @@
 //      ...
 //    }
 //
-//    Later, NVPTXInferAddressSpaces will optimize it to
+//    Later, RVGPUInferAddressSpaces will optimize it to
 //
 //    define void @foo(float* %input) {
 //      %input2 = addrspacecast float* %input to float addrspace(1)*
@@ -55,7 +55,7 @@
 //    }
 //
 // 2. Convert pointers in a byval kernel parameter to pointers in the global
-//    address space. As #2, it allows NVPTX to emit more ld/st.global. E.g.,
+//    address space. As #2, it allows RVGPU to emit more ld/st.global. E.g.,
 //
 //    struct S {
 //      int *x;
@@ -84,14 +84,14 @@
 //      ; use %b_generic
 //    }
 //
-// TODO: merge this pass with NVPTXInferAddressSpaces so that other passes don't
+// TODO: merge this pass with RVGPUInferAddressSpaces so that other passes don't
 // cancel the addrspacecast pair this pass emits.
 //===----------------------------------------------------------------------===//
 
-#include "MCTargetDesc/NVPTXBaseInfo.h"
-#include "NVPTX.h"
-#include "NVPTXTargetMachine.h"
-#include "NVPTXUtilities.h"
+#include "MCTargetDesc/RVGPUBaseInfo.h"
+#include "RVGPU.h"
+#include "RVGPUTargetMachine.h"
+#include "RVGPUUtilities.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Function.h"
@@ -108,27 +108,27 @@
 using namespace llvm;
 
 namespace llvm {
-void initializeNVPTXLowerArgsPass(PassRegistry &);
+void initializeRVGPULowerArgsPass(PassRegistry &);
 }
 
 namespace {
-class NVPTXLowerArgs : public FunctionPass {
+class RVGPULowerArgs : public FunctionPass {
   bool runOnFunction(Function &F) override;
 
-  bool runOnKernelFunction(const NVPTXTargetMachine &TM, Function &F);
-  bool runOnDeviceFunction(const NVPTXTargetMachine &TM, Function &F);
+  bool runOnKernelFunction(const RVGPUTargetMachine &TM, Function &F);
+  bool runOnDeviceFunction(const RVGPUTargetMachine &TM, Function &F);
 
   // handle byval parameters
-  void handleByValParam(const NVPTXTargetMachine &TM, Argument *Arg);
+  void handleByValParam(const RVGPUTargetMachine &TM, Argument *Arg);
   // Knowing Ptr must point to the global address space, this function
   // addrspacecasts Ptr to global and then back to generic. This allows
-  // NVPTXInferAddressSpaces to fold the global-to-generic cast into
+  // RVGPUInferAddressSpaces to fold the global-to-generic cast into
   // loads/stores that appear later.
   void markPointerAsGlobal(Value *Ptr);
 
 public:
   static char ID; // Pass identification, replacement for typeid
-  NVPTXLowerArgs() : FunctionPass(ID) {}
+  RVGPULowerArgs() : FunctionPass(ID) {}
   StringRef getPassName() const override {
     return "Lower pointer arguments of CUDA kernels";
   }
@@ -138,13 +138,13 @@ public:
 };
 } // namespace
 
-char NVPTXLowerArgs::ID = 1;
+char RVGPULowerArgs::ID = 1;
 
-INITIALIZE_PASS_BEGIN(NVPTXLowerArgs, "nvptx-lower-args",
-                      "Lower arguments (NVPTX)", false, false)
+INITIALIZE_PASS_BEGIN(RVGPULowerArgs, "nvptx-lower-args",
+                      "Lower arguments (RVGPU)", false, false)
 INITIALIZE_PASS_DEPENDENCY(TargetPassConfig)
-INITIALIZE_PASS_END(NVPTXLowerArgs, "nvptx-lower-args",
-                    "Lower arguments (NVPTX)", false, false)
+INITIALIZE_PASS_END(RVGPULowerArgs, "nvptx-lower-args",
+                    "Lower arguments (RVGPU)", false, false)
 
 // =============================================================================
 // If the function had a byval struct ptr arg, say foo(%struct.x* byval %d),
@@ -234,9 +234,9 @@ static void convertToParamAS(Value *OldUser, Value *Param) {
 // effectively vectorize their loads. We should also traverse all loads from
 // byval pointer and adjust their alignment, if those were using known offset.
 // Such alignment changes must be conformed with parameter store and load in
-// NVPTXTargetLowering::LowerCall.
+// RVGPUTargetLowering::LowerCall.
 static void adjustByValArgAlignment(Argument *Arg, Value *ArgInParamAS,
-                                    const NVPTXTargetLowering *TLI) {
+                                    const RVGPUTargetLowering *TLI) {
   Function *Func = Arg->getParent();
   Type *StructType = Arg->getParamByValType();
   const DataLayout DL(Func->getParent());
@@ -313,7 +313,7 @@ static void adjustByValArgAlignment(Argument *Arg, Value *ArgInParamAS,
   }
 }
 
-void NVPTXLowerArgs::handleByValParam(const NVPTXTargetMachine &TM,
+void RVGPULowerArgs::handleByValParam(const RVGPUTargetMachine &TM,
                                       Argument *Arg) {
   Function *Func = Arg->getParent();
   Instruction *FirstInst = &(Func->getEntryBlock().front());
@@ -359,7 +359,7 @@ void NVPTXLowerArgs::handleByValParam(const NVPTXTargetMachine &TM,
     LLVM_DEBUG(dbgs() << "No need to copy " << *Arg << "\n");
 
     const auto *TLI =
-        cast<NVPTXTargetLowering>(TM.getSubtargetImpl()->getTargetLowering());
+        cast<RVGPUTargetLowering>(TM.getSubtargetImpl()->getTargetLowering());
 
     adjustByValArgAlignment(Arg, ArgInParamAS, TLI);
 
@@ -380,7 +380,7 @@ void NVPTXLowerArgs::handleByValParam(const NVPTXTargetMachine &TM,
   Value *ArgInParam = new AddrSpaceCastInst(
       Arg, PointerType::get(StructType, ADDRESS_SPACE_PARAM), Arg->getName(),
       FirstInst);
-  // Be sure to propagate alignment to this load; LLVM doesn't know that NVPTX
+  // Be sure to propagate alignment to this load; LLVM doesn't know that RVGPU
   // addrspacecast preserves alignment.  Since params are constant, this load is
   // definitely not volatile.
   LoadInst *LI =
@@ -389,7 +389,7 @@ void NVPTXLowerArgs::handleByValParam(const NVPTXTargetMachine &TM,
   new StoreInst(LI, AllocA, FirstInst);
 }
 
-void NVPTXLowerArgs::markPointerAsGlobal(Value *Ptr) {
+void RVGPULowerArgs::markPointerAsGlobal(Value *Ptr) {
   if (Ptr->getType()->getPointerAddressSpace() != ADDRESS_SPACE_GENERIC)
     return;
 
@@ -418,7 +418,7 @@ void NVPTXLowerArgs::markPointerAsGlobal(Value *Ptr) {
 // =============================================================================
 // Main function for this pass.
 // =============================================================================
-bool NVPTXLowerArgs::runOnKernelFunction(const NVPTXTargetMachine &TM,
+bool RVGPULowerArgs::runOnKernelFunction(const RVGPUTargetMachine &TM,
                                          Function &F) {
   // Copying of byval aggregates + SROA may result in pointers being loaded as
   // integers, followed by intotoptr. We may want to mark those as global, too,
@@ -431,7 +431,7 @@ bool NVPTXLowerArgs::runOnKernelFunction(const NVPTXTargetMachine &TM,
         markPointerAsGlobal(U);
     }
   };
-  if (TM.getDrvInterface() == NVPTX::CUDA) {
+  if (TM.getDrvInterface() == RVGPU::CUDA) {
     // Mark pointers in byval structs as global.
     for (auto &B : F) {
       for (auto &I : B) {
@@ -458,10 +458,10 @@ bool NVPTXLowerArgs::runOnKernelFunction(const NVPTXTargetMachine &TM,
     if (Arg.getType()->isPointerTy()) {
       if (Arg.hasByValAttr())
         handleByValParam(TM, &Arg);
-      else if (TM.getDrvInterface() == NVPTX::CUDA)
+      else if (TM.getDrvInterface() == RVGPU::CUDA)
         markPointerAsGlobal(&Arg);
     } else if (Arg.getType()->isIntegerTy() &&
-               TM.getDrvInterface() == NVPTX::CUDA) {
+               TM.getDrvInterface() == RVGPU::CUDA) {
       HandleIntToPtr(Arg);
     }
   }
@@ -469,7 +469,7 @@ bool NVPTXLowerArgs::runOnKernelFunction(const NVPTXTargetMachine &TM,
 }
 
 // Device functions only need to copy byval args into local memory.
-bool NVPTXLowerArgs::runOnDeviceFunction(const NVPTXTargetMachine &TM,
+bool RVGPULowerArgs::runOnDeviceFunction(const RVGPUTargetMachine &TM,
                                          Function &F) {
   LLVM_DEBUG(dbgs() << "Lowering function args of " << F.getName() << "\n");
   for (Argument &Arg : F.args())
@@ -478,11 +478,11 @@ bool NVPTXLowerArgs::runOnDeviceFunction(const NVPTXTargetMachine &TM,
   return true;
 }
 
-bool NVPTXLowerArgs::runOnFunction(Function &F) {
-  auto &TM = getAnalysis<TargetPassConfig>().getTM<NVPTXTargetMachine>();
+bool RVGPULowerArgs::runOnFunction(Function &F) {
+  auto &TM = getAnalysis<TargetPassConfig>().getTM<RVGPUTargetMachine>();
 
   return isKernelFunction(F) ? runOnKernelFunction(TM, F)
                              : runOnDeviceFunction(TM, F);
 }
 
-FunctionPass *llvm::createNVPTXLowerArgsPass() { return new NVPTXLowerArgs(); }
+FunctionPass *llvm::createRVGPULowerArgsPass() { return new RVGPULowerArgs(); }

@@ -1,4 +1,4 @@
-//===- NVPTXLowerAggrCopies.cpp - ------------------------------*- C++ -*--===//
+//===- RVGPULowerAggrCopies.cpp - ------------------------------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "NVPTXLowerAggrCopies.h"
+#include "RVGPULowerAggrCopies.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/StackProtector.h"
 #include "llvm/IR/Constants.h"
@@ -35,10 +35,10 @@ using namespace llvm;
 namespace {
 
 // actual analysis class, which is a functionpass
-struct NVPTXLowerAggrCopies : public FunctionPass {
+struct RVGPULowerAggrCopies : public FunctionPass {
   static char ID;
 
-  NVPTXLowerAggrCopies() : FunctionPass(ID) {}
+  RVGPULowerAggrCopies() : FunctionPass(ID) {}
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addPreserved<StackProtector>();
@@ -54,9 +54,9 @@ struct NVPTXLowerAggrCopies : public FunctionPass {
   }
 };
 
-char NVPTXLowerAggrCopies::ID = 0;
+char RVGPULowerAggrCopies::ID = 0;
 
-bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
+bool RVGPULowerAggrCopies::runOnFunction(Function &F) {
   SmallVector<LoadInst *, 4> AggrLoads;
   SmallVector<MemIntrinsic *, 4> MemCalls;
 
@@ -140,13 +140,13 @@ bool NVPTXLowerAggrCopies::runOnFunction(Function &F) {
 } // namespace
 
 namespace llvm {
-void initializeNVPTXLowerAggrCopiesPass(PassRegistry &);
+void initializeRVGPULowerAggrCopiesPass(PassRegistry &);
 }
 
-INITIALIZE_PASS(NVPTXLowerAggrCopies, "nvptx-lower-aggr-copies",
+INITIALIZE_PASS(RVGPULowerAggrCopies, "nvptx-lower-aggr-copies",
                 "Lower aggregate copies, and llvm.mem* intrinsics into loops",
                 false, false)
 
 FunctionPass *llvm::createLowerAggrCopies() {
-  return new NVPTXLowerAggrCopies();
+  return new RVGPULowerAggrCopies();
 }

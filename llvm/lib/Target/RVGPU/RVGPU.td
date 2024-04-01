@@ -1,11 +1,11 @@
-//===- NVPTX.td - Describe the NVPTX Target Machine -----------*- tblgen -*-==//
+//===- RVGPU.td - Describe the RVGPU Target Machine -----------*- tblgen -*-==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-// This is the top level entry point for the NVPTX target.
+// This is the top level entry point for the RVGPU target.
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
@@ -14,14 +14,14 @@
 
 include "llvm/Target/Target.td"
 
-include "NVPTXRegisterInfo.td"
-include "NVPTXInstrInfo.td"
+include "RVGPURegisterInfo.td"
+include "RVGPUInstrInfo.td"
 
 //===----------------------------------------------------------------------===//
 // Subtarget Features.
 // - We use the SM version number instead of explicit feature table.
 // - Need at least one feature to avoid generating zero sized array by
-//   TableGen in NVPTXGenSubtarget.inc.
+//   TableGen in RVGPUGenSubtarget.inc.
 //===----------------------------------------------------------------------===//
 
 class FeatureSM<string sm, int value>:
@@ -45,7 +45,7 @@ foreach version = [32, 40, 41, 42, 43, 50, 60, 61, 63, 64, 65,
   def PTX#version: FeaturePTX<version>;
 
 //===----------------------------------------------------------------------===//
-// NVPTX supported processors.
+// RVGPU supported processors.
 //===----------------------------------------------------------------------===//
 
 class Proc<string Name, list<SubtargetFeature> Features>
@@ -73,9 +73,9 @@ def : Proc<"sm_89", [SM89, PTX78]>;
 def : Proc<"sm_90", [SM90, PTX78]>;
 def : Proc<"sm_90a", [SM90a, PTX80]>;
 
-def NVPTXInstrInfo : InstrInfo {
+def RVGPUInstrInfo : InstrInfo {
 }
 
-def NVPTX : Target {
-  let InstructionSet = NVPTXInstrInfo;
+def RVGPU : Target {
+  let InstructionSet = RVGPUInstrInfo;
 }
