@@ -14,7 +14,7 @@
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/CodeGen/CostTable.h"
 #include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/IR/IntrinsicsRVGPU.h"
+#include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/Support/Debug.h"
 #include <optional>
 using namespace llvm;
