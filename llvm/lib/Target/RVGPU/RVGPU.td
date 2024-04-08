@@ -72,6 +72,7 @@ def : Proc<"sm_87", [SM87, PTX74]>;
 def : Proc<"sm_89", [SM89, PTX78]>;
 def : Proc<"sm_90", [SM90, PTX78]>;
 def : Proc<"sm_90a", [SM90a, PTX80]>;
+def : Proc<"r1000", [SM90a, PTX80]>;
 
 def RVGPUInstrInfo : InstrInfo {
 }
