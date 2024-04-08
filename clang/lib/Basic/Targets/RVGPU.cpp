@@ -39,7 +39,7 @@ RVGPUTargetInfo::RVGPUTargetInfo(const llvm::Triple &Triple,
   assert((TargetPointerWidth == 32 || TargetPointerWidth == 64) &&
          "RVGPU only supports 32- and 64-bit modes.");
 
-  PTXVersion = 32;
+  PTXVersion = 80;
   for (const StringRef Feature : Opts.FeaturesAsWritten) {
     int PTXV;
     if (!Feature.starts_with("+ptx") ||
