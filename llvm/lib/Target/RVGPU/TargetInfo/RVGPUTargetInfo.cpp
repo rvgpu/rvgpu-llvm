@@ -20,8 +20,6 @@ Target &llvm::getTheRVGPUTarget64() {
 }
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTargetInfo() {
-  RegisterTarget<Triple::nvptx> X(getTheRVGPUTarget32(), "nvptx",
-                                  "NVIDIA PTX 32-bit", "RVGPU");
-  RegisterTarget<Triple::nvptx64> Y(getTheRVGPUTarget64(), "nvptx64",
-                                    "NVIDIA PTX 64-bit", "RVGPU");
+  RegisterTarget<Triple::rvgpu> Y(getTheRVGPUTarget64(), "rvgpu",
+                                    "RVGPU 64-bit", "RVGPU");
 }
