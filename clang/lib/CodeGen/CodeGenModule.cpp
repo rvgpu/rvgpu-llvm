@@ -216,6 +216,8 @@ createTargetCodeGenInfo(CodeGenModule &CGM) {
   case llvm::Triple::nvptx:
   case llvm::Triple::nvptx64:
     return createNVPTXTargetCodeGenInfo(CGM);
+  case llvm::Triple::rvgpu:
+    return createRVGPUTargetCodeGenInfo(CGM);
 
   case llvm::Triple::msp430:
     return createMSP430TargetCodeGenInfo(CGM);

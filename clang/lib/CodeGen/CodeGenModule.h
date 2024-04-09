@@ -1555,6 +1555,15 @@ public:
                                   int32_t *MinBlocksVal = nullptr,
                                   int32_t *MaxClusterRankVal = nullptr);
 
+  /// Emit the IR encoding to attach the CUDA launch bounds attribute to \p F.
+  /// If \p MaxThreadsVal is not nullptr, the max threads value is stored in it,
+  /// if a valid one was found.
+  void handleSSLaunchBoundsAttr(llvm::Function *F,
+                                const CUDALaunchBoundsAttr *A,
+                                int32_t *MaxThreadsVal = nullptr,
+                                int32_t *MinBlocksVal = nullptr,
+                                int32_t *MaxClusterRankVal = nullptr);
+
   /// Emit the IR encoding to attach the AMD GPU flat-work-group-size attribute
   /// to \p F. Alternatively, the work group size can be taken from a \p
   /// ReqdWGS. If \p MinThreadsVal is not nullptr, the min threads value is
