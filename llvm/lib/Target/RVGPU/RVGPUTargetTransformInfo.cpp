@@ -14,7 +14,7 @@
 #include "llvm/CodeGen/BasicTTIImpl.h"
 #include "llvm/CodeGen/CostTable.h"
 #include "llvm/CodeGen/TargetLowering.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/Support/Debug.h"
 #include <optional>
 using namespace llvm;
@@ -25,46 +25,46 @@ using namespace llvm;
 static bool readsThreadIndex(const IntrinsicInst *II) {
   switch (II->getIntrinsicID()) {
     default: return false;
-    case Intrinsic::nvvm_read_ptx_sreg_tid_x:
-    case Intrinsic::nvvm_read_ptx_sreg_tid_y:
-    case Intrinsic::nvvm_read_ptx_sreg_tid_z:
+    case Intrinsic::rvgpu_read_ptx_sreg_tid_x:
+    case Intrinsic::rvgpu_read_ptx_sreg_tid_y:
+    case Intrinsic::rvgpu_read_ptx_sreg_tid_z:
       return true;
   }
 }
 
 static bool readsLaneId(const IntrinsicInst *II) {
-  return II->getIntrinsicID() == Intrinsic::nvvm_read_ptx_sreg_laneid;
+  return II->getIntrinsicID() == Intrinsic::rvgpu_read_ptx_sreg_laneid;
 }
 
 // Whether the given intrinsic is an atomic instruction in PTX.
 static bool isNVVMAtomic(const IntrinsicInst *II) {
   switch (II->getIntrinsicID()) {
     default: return false;
-    case Intrinsic::nvvm_atomic_load_inc_32:
-    case Intrinsic::nvvm_atomic_load_dec_32:
+    case Intrinsic::rvgpu_atomic_load_inc_32:
+    case Intrinsic::rvgpu_atomic_load_dec_32:
 
-    case Intrinsic::nvvm_atomic_add_gen_f_cta:
-    case Intrinsic::nvvm_atomic_add_gen_f_sys:
-    case Intrinsic::nvvm_atomic_add_gen_i_cta:
-    case Intrinsic::nvvm_atomic_add_gen_i_sys:
-    case Intrinsic::nvvm_atomic_and_gen_i_cta:
-    case Intrinsic::nvvm_atomic_and_gen_i_sys:
-    case Intrinsic::nvvm_atomic_cas_gen_i_cta:
-    case Intrinsic::nvvm_atomic_cas_gen_i_sys:
-    case Intrinsic::nvvm_atomic_dec_gen_i_cta:
-    case Intrinsic::nvvm_atomic_dec_gen_i_sys:
-    case Intrinsic::nvvm_atomic_inc_gen_i_cta:
-    case Intrinsic::nvvm_atomic_inc_gen_i_sys:
-    case Intrinsic::nvvm_atomic_max_gen_i_cta:
-    case Intrinsic::nvvm_atomic_max_gen_i_sys:
-    case Intrinsic::nvvm_atomic_min_gen_i_cta:
-    case Intrinsic::nvvm_atomic_min_gen_i_sys:
-    case Intrinsic::nvvm_atomic_or_gen_i_cta:
-    case Intrinsic::nvvm_atomic_or_gen_i_sys:
-    case Intrinsic::nvvm_atomic_exch_gen_i_cta:
-    case Intrinsic::nvvm_atomic_exch_gen_i_sys:
-    case Intrinsic::nvvm_atomic_xor_gen_i_cta:
-    case Intrinsic::nvvm_atomic_xor_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_add_gen_f_cta:
+    case Intrinsic::rvgpu_atomic_add_gen_f_sys:
+    case Intrinsic::rvgpu_atomic_add_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_add_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_and_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_and_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_cas_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_cas_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_dec_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_dec_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_inc_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_inc_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_max_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_max_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_min_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_min_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_or_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_or_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_exch_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_exch_gen_i_sys:
+    case Intrinsic::rvgpu_atomic_xor_gen_i_cta:
+    case Intrinsic::rvgpu_atomic_xor_gen_i_sys:
       return true;
   }
 }
@@ -172,121 +172,121 @@ static Instruction *simplifyNvvmIntrinsic(IntrinsicInst *II, InstCombiner &IC) {
   const SimplifyAction Action = [II]() -> SimplifyAction {
     switch (II->getIntrinsicID()) {
     // NVVM intrinsics that map directly to LLVM intrinsics.
-    case Intrinsic::nvvm_ceil_d:
+    case Intrinsic::rvgpu_ceil_d:
       return {Intrinsic::ceil, FTZ_Any};
-    case Intrinsic::nvvm_ceil_f:
+    case Intrinsic::rvgpu_ceil_f:
       return {Intrinsic::ceil, FTZ_MustBeOff};
-    case Intrinsic::nvvm_ceil_ftz_f:
+    case Intrinsic::rvgpu_ceil_ftz_f:
       return {Intrinsic::ceil, FTZ_MustBeOn};
-    case Intrinsic::nvvm_fabs_d:
+    case Intrinsic::rvgpu_fabs_d:
       return {Intrinsic::fabs, FTZ_Any};
-    case Intrinsic::nvvm_fabs_f:
+    case Intrinsic::rvgpu_fabs_f:
       return {Intrinsic::fabs, FTZ_MustBeOff};
-    case Intrinsic::nvvm_fabs_ftz_f:
+    case Intrinsic::rvgpu_fabs_ftz_f:
       return {Intrinsic::fabs, FTZ_MustBeOn};
-    case Intrinsic::nvvm_floor_d:
+    case Intrinsic::rvgpu_floor_d:
       return {Intrinsic::floor, FTZ_Any};
-    case Intrinsic::nvvm_floor_f:
+    case Intrinsic::rvgpu_floor_f:
       return {Intrinsic::floor, FTZ_MustBeOff};
-    case Intrinsic::nvvm_floor_ftz_f:
+    case Intrinsic::rvgpu_floor_ftz_f:
       return {Intrinsic::floor, FTZ_MustBeOn};
-    case Intrinsic::nvvm_fma_rn_d:
+    case Intrinsic::rvgpu_fma_rn_d:
       return {Intrinsic::fma, FTZ_Any};
-    case Intrinsic::nvvm_fma_rn_f:
+    case Intrinsic::rvgpu_fma_rn_f:
       return {Intrinsic::fma, FTZ_MustBeOff};
-    case Intrinsic::nvvm_fma_rn_ftz_f:
+    case Intrinsic::rvgpu_fma_rn_ftz_f:
       return {Intrinsic::fma, FTZ_MustBeOn};
-    case Intrinsic::nvvm_fma_rn_f16:
+    case Intrinsic::rvgpu_fma_rn_f16:
       return {Intrinsic::fma, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fma_rn_ftz_f16:
+    case Intrinsic::rvgpu_fma_rn_ftz_f16:
       return {Intrinsic::fma, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fma_rn_f16x2:
+    case Intrinsic::rvgpu_fma_rn_f16x2:
       return {Intrinsic::fma, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fma_rn_ftz_f16x2:
+    case Intrinsic::rvgpu_fma_rn_ftz_f16x2:
       return {Intrinsic::fma, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fma_rn_bf16:
+    case Intrinsic::rvgpu_fma_rn_bf16:
       return {Intrinsic::fma, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fma_rn_ftz_bf16:
+    case Intrinsic::rvgpu_fma_rn_ftz_bf16:
       return {Intrinsic::fma, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fma_rn_bf16x2:
+    case Intrinsic::rvgpu_fma_rn_bf16x2:
       return {Intrinsic::fma, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fma_rn_ftz_bf16x2:
+    case Intrinsic::rvgpu_fma_rn_ftz_bf16x2:
       return {Intrinsic::fma, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fmax_d:
+    case Intrinsic::rvgpu_fmax_d:
       return {Intrinsic::maxnum, FTZ_Any};
-    case Intrinsic::nvvm_fmax_f:
+    case Intrinsic::rvgpu_fmax_f:
       return {Intrinsic::maxnum, FTZ_MustBeOff};
-    case Intrinsic::nvvm_fmax_ftz_f:
+    case Intrinsic::rvgpu_fmax_ftz_f:
       return {Intrinsic::maxnum, FTZ_MustBeOn};
-    case Intrinsic::nvvm_fmax_nan_f:
+    case Intrinsic::rvgpu_fmax_nan_f:
       return {Intrinsic::maximum, FTZ_MustBeOff};
-    case Intrinsic::nvvm_fmax_ftz_nan_f:
+    case Intrinsic::rvgpu_fmax_ftz_nan_f:
       return {Intrinsic::maximum, FTZ_MustBeOn};
-    case Intrinsic::nvvm_fmax_f16:
+    case Intrinsic::rvgpu_fmax_f16:
       return {Intrinsic::maxnum, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fmax_ftz_f16:
+    case Intrinsic::rvgpu_fmax_ftz_f16:
       return {Intrinsic::maxnum, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fmax_f16x2:
+    case Intrinsic::rvgpu_fmax_f16x2:
       return {Intrinsic::maxnum, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fmax_ftz_f16x2:
+    case Intrinsic::rvgpu_fmax_ftz_f16x2:
       return {Intrinsic::maxnum, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fmax_nan_f16:
+    case Intrinsic::rvgpu_fmax_nan_f16:
       return {Intrinsic::maximum, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fmax_ftz_nan_f16:
+    case Intrinsic::rvgpu_fmax_ftz_nan_f16:
       return {Intrinsic::maximum, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fmax_nan_f16x2:
+    case Intrinsic::rvgpu_fmax_nan_f16x2:
       return {Intrinsic::maximum, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fmax_ftz_nan_f16x2:
+    case Intrinsic::rvgpu_fmax_ftz_nan_f16x2:
       return {Intrinsic::maximum, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fmin_d:
+    case Intrinsic::rvgpu_fmin_d:
       return {Intrinsic::minnum, FTZ_Any};
-    case Intrinsic::nvvm_fmin_f:
+    case Intrinsic::rvgpu_fmin_f:
       return {Intrinsic::minnum, FTZ_MustBeOff};
-    case Intrinsic::nvvm_fmin_ftz_f:
+    case Intrinsic::rvgpu_fmin_ftz_f:
       return {Intrinsic::minnum, FTZ_MustBeOn};
-    case Intrinsic::nvvm_fmin_nan_f:
+    case Intrinsic::rvgpu_fmin_nan_f:
       return {Intrinsic::minimum, FTZ_MustBeOff};
-    case Intrinsic::nvvm_fmin_ftz_nan_f:
+    case Intrinsic::rvgpu_fmin_ftz_nan_f:
       return {Intrinsic::minimum, FTZ_MustBeOn};
-    case Intrinsic::nvvm_fmin_f16:
+    case Intrinsic::rvgpu_fmin_f16:
       return {Intrinsic::minnum, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fmin_ftz_f16:
+    case Intrinsic::rvgpu_fmin_ftz_f16:
       return {Intrinsic::minnum, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fmin_f16x2:
+    case Intrinsic::rvgpu_fmin_f16x2:
       return {Intrinsic::minnum, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fmin_ftz_f16x2:
+    case Intrinsic::rvgpu_fmin_ftz_f16x2:
       return {Intrinsic::minnum, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fmin_nan_f16:
+    case Intrinsic::rvgpu_fmin_nan_f16:
       return {Intrinsic::minimum, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fmin_ftz_nan_f16:
+    case Intrinsic::rvgpu_fmin_ftz_nan_f16:
       return {Intrinsic::minimum, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_fmin_nan_f16x2:
+    case Intrinsic::rvgpu_fmin_nan_f16x2:
       return {Intrinsic::minimum, FTZ_MustBeOff, true};
-    case Intrinsic::nvvm_fmin_ftz_nan_f16x2:
+    case Intrinsic::rvgpu_fmin_ftz_nan_f16x2:
       return {Intrinsic::minimum, FTZ_MustBeOn, true};
-    case Intrinsic::nvvm_round_d:
+    case Intrinsic::rvgpu_round_d:
       return {Intrinsic::round, FTZ_Any};
-    case Intrinsic::nvvm_round_f:
+    case Intrinsic::rvgpu_round_f:
       return {Intrinsic::round, FTZ_MustBeOff};
-    case Intrinsic::nvvm_round_ftz_f:
+    case Intrinsic::rvgpu_round_ftz_f:
       return {Intrinsic::round, FTZ_MustBeOn};
-    case Intrinsic::nvvm_sqrt_rn_d:
+    case Intrinsic::rvgpu_sqrt_rn_d:
       return {Intrinsic::sqrt, FTZ_Any};
-    case Intrinsic::nvvm_sqrt_f:
+    case Intrinsic::rvgpu_sqrt_f:
       // nvvm_sqrt_f is a special case.  For  most intrinsics, foo_ftz_f is the
       // ftz version, and foo_f is the non-ftz version.  But nvvm_sqrt_f adopts
       // the ftz-ness of the surrounding code.  sqrt_rn_f and sqrt_rn_ftz_f are
       // the versions with explicit ftz-ness.
       return {Intrinsic::sqrt, FTZ_Any};
-    case Intrinsic::nvvm_sqrt_rn_f:
+    case Intrinsic::rvgpu_sqrt_rn_f:
       return {Intrinsic::sqrt, FTZ_MustBeOff};
-    case Intrinsic::nvvm_sqrt_rn_ftz_f:
+    case Intrinsic::rvgpu_sqrt_rn_ftz_f:
       return {Intrinsic::sqrt, FTZ_MustBeOn};
-    case Intrinsic::nvvm_trunc_d:
+    case Intrinsic::rvgpu_trunc_d:
       return {Intrinsic::trunc, FTZ_Any};
-    case Intrinsic::nvvm_trunc_f:
+    case Intrinsic::rvgpu_trunc_f:
       return {Intrinsic::trunc, FTZ_MustBeOff};
-    case Intrinsic::nvvm_trunc_ftz_f:
+    case Intrinsic::rvgpu_trunc_ftz_f:
       return {Intrinsic::trunc, FTZ_MustBeOn};
 
     // NVVM intrinsics that map to LLVM cast operations.
@@ -294,45 +294,45 @@ static Instruction *simplifyNvvmIntrinsic(IntrinsicInst *II, InstCombiner &IC) {
     // Note that llvm's target-generic conversion operators correspond to the rz
     // (round to zero) versions of the nvvm conversion intrinsics, even though
     // most everything else here uses the rn (round to nearest even) nvvm ops.
-    case Intrinsic::nvvm_d2i_rz:
-    case Intrinsic::nvvm_f2i_rz:
-    case Intrinsic::nvvm_d2ll_rz:
-    case Intrinsic::nvvm_f2ll_rz:
+    case Intrinsic::rvgpu_d2i_rz:
+    case Intrinsic::rvgpu_f2i_rz:
+    case Intrinsic::rvgpu_d2ll_rz:
+    case Intrinsic::rvgpu_f2ll_rz:
       return {Instruction::FPToSI};
-    case Intrinsic::nvvm_d2ui_rz:
-    case Intrinsic::nvvm_f2ui_rz:
-    case Intrinsic::nvvm_d2ull_rz:
-    case Intrinsic::nvvm_f2ull_rz:
+    case Intrinsic::rvgpu_d2ui_rz:
+    case Intrinsic::rvgpu_f2ui_rz:
+    case Intrinsic::rvgpu_d2ull_rz:
+    case Intrinsic::rvgpu_f2ull_rz:
       return {Instruction::FPToUI};
-    case Intrinsic::nvvm_i2d_rz:
-    case Intrinsic::nvvm_i2f_rz:
-    case Intrinsic::nvvm_ll2d_rz:
-    case Intrinsic::nvvm_ll2f_rz:
+    case Intrinsic::rvgpu_i2d_rz:
+    case Intrinsic::rvgpu_i2f_rz:
+    case Intrinsic::rvgpu_ll2d_rz:
+    case Intrinsic::rvgpu_ll2f_rz:
       return {Instruction::SIToFP};
-    case Intrinsic::nvvm_ui2d_rz:
-    case Intrinsic::nvvm_ui2f_rz:
-    case Intrinsic::nvvm_ull2d_rz:
-    case Intrinsic::nvvm_ull2f_rz:
+    case Intrinsic::rvgpu_ui2d_rz:
+    case Intrinsic::rvgpu_ui2f_rz:
+    case Intrinsic::rvgpu_ull2d_rz:
+    case Intrinsic::rvgpu_ull2f_rz:
       return {Instruction::UIToFP};
 
     // NVVM intrinsics that map to LLVM binary ops.
-    case Intrinsic::nvvm_add_rn_d:
+    case Intrinsic::rvgpu_add_rn_d:
       return {Instruction::FAdd, FTZ_Any};
-    case Intrinsic::nvvm_add_rn_f:
+    case Intrinsic::rvgpu_add_rn_f:
       return {Instruction::FAdd, FTZ_MustBeOff};
-    case Intrinsic::nvvm_add_rn_ftz_f:
+    case Intrinsic::rvgpu_add_rn_ftz_f:
       return {Instruction::FAdd, FTZ_MustBeOn};
-    case Intrinsic::nvvm_mul_rn_d:
+    case Intrinsic::rvgpu_mul_rn_d:
       return {Instruction::FMul, FTZ_Any};
-    case Intrinsic::nvvm_mul_rn_f:
+    case Intrinsic::rvgpu_mul_rn_f:
       return {Instruction::FMul, FTZ_MustBeOff};
-    case Intrinsic::nvvm_mul_rn_ftz_f:
+    case Intrinsic::rvgpu_mul_rn_ftz_f:
       return {Instruction::FMul, FTZ_MustBeOn};
-    case Intrinsic::nvvm_div_rn_d:
+    case Intrinsic::rvgpu_div_rn_d:
       return {Instruction::FDiv, FTZ_Any};
-    case Intrinsic::nvvm_div_rn_f:
+    case Intrinsic::rvgpu_div_rn_f:
       return {Instruction::FDiv, FTZ_MustBeOff};
-    case Intrinsic::nvvm_div_rn_ftz_f:
+    case Intrinsic::rvgpu_div_rn_ftz_f:
       return {Instruction::FDiv, FTZ_MustBeOn};
 
     // The remainder of cases are NVVM intrinsics that map to LLVM idioms, but
@@ -340,11 +340,11 @@ static Instruction *simplifyNvvmIntrinsic(IntrinsicInst *II, InstCombiner &IC) {
     //
     // We seem to be missing intrinsics for rcp.approx.{ftz.}f32, which is just
     // as well.
-    case Intrinsic::nvvm_rcp_rn_d:
+    case Intrinsic::rvgpu_rcp_rn_d:
       return {SPC_Reciprocal, FTZ_Any};
-    case Intrinsic::nvvm_rcp_rn_f:
+    case Intrinsic::rvgpu_rcp_rn_f:
       return {SPC_Reciprocal, FTZ_MustBeOff};
-    case Intrinsic::nvvm_rcp_rn_ftz_f:
+    case Intrinsic::rvgpu_rcp_rn_ftz_f:
       return {SPC_Reciprocal, FTZ_MustBeOn};
 
       // We do not currently simplify intrinsics that give an approximate

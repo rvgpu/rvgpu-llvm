@@ -17,7 +17,7 @@
 #include "llvm/CodeGen/ISDOpcodes.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/Support/AtomicOrdering.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -517,12 +517,12 @@ bool RVGPUDAGToDAGISel::tryIntrinsicChain(SDNode *N) {
   switch (IID) {
   default:
     return false;
-  case Intrinsic::nvvm_ldg_global_f:
-  case Intrinsic::nvvm_ldg_global_i:
-  case Intrinsic::nvvm_ldg_global_p:
-  case Intrinsic::nvvm_ldu_global_f:
-  case Intrinsic::nvvm_ldu_global_i:
-  case Intrinsic::nvvm_ldu_global_p:
+  case Intrinsic::rvgpu_ldg_global_f:
+  case Intrinsic::rvgpu_ldg_global_i:
+  case Intrinsic::rvgpu_ldg_global_p:
+  case Intrinsic::rvgpu_ldu_global_f:
+  case Intrinsic::rvgpu_ldu_global_i:
+  case Intrinsic::rvgpu_ldu_global_p:
     return tryLDGLDU(N);
   }
 }
@@ -734,7 +734,7 @@ bool RVGPUDAGToDAGISel::tryIntrinsicNoChain(SDNode *N) {
   switch (IID) {
   default:
     return false;
-  case Intrinsic::nvvm_texsurf_handle_internal:
+  case Intrinsic::rvgpu_texsurf_handle_internal:
     SelectTexSurfHandle(N);
     return true;
   }
@@ -1250,14 +1250,14 @@ bool RVGPUDAGToDAGISel::tryLDGLDU(SDNode *N) {
     switch (IID) {
     default:
       return false;
-    case Intrinsic::nvvm_ldg_global_f:
-    case Intrinsic::nvvm_ldg_global_i:
-    case Intrinsic::nvvm_ldg_global_p:
+    case Intrinsic::rvgpu_ldg_global_f:
+    case Intrinsic::rvgpu_ldg_global_i:
+    case Intrinsic::rvgpu_ldg_global_p:
       IsLDG = true;
       break;
-    case Intrinsic::nvvm_ldu_global_f:
-    case Intrinsic::nvvm_ldu_global_i:
-    case Intrinsic::nvvm_ldu_global_p:
+    case Intrinsic::rvgpu_ldu_global_f:
+    case Intrinsic::rvgpu_ldu_global_i:
+    case Intrinsic::rvgpu_ldu_global_p:
       IsLDG = false;
       break;
     }

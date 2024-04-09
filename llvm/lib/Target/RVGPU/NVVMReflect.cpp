@@ -26,7 +26,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
@@ -121,7 +121,7 @@ static bool runNVVMReflect(Function &F, unsigned SmVersion) {
     Function *Callee = Call->getCalledFunction();
     if (!Callee || (Callee->getName() != NVVM_REFLECT_FUNCTION &&
                     Callee->getName() != NVVM_REFLECT_OCL_FUNCTION &&
-                    Callee->getIntrinsicID() != Intrinsic::nvvm_reflect))
+                    Callee->getIntrinsicID() != Intrinsic::rvgpu_reflect))
       continue;
 
     // FIXME: Improve error handling here and elsewhere in this pass.

@@ -43,7 +43,7 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
@@ -1500,16 +1500,16 @@ SDValue RVGPUTargetLowering::getSqrtEstimate(SDValue Operand, SelectionDAG &DAG,
   // any refinement, we must return a regular sqrt.
   if (Reciprocal || ExtraSteps > 0) {
     if (VT == MVT::f32)
-      return MakeIntrinsicCall(Ftz ? Intrinsic::nvvm_rsqrt_approx_ftz_f
-                                   : Intrinsic::nvvm_rsqrt_approx_f);
+      return MakeIntrinsicCall(Ftz ? Intrinsic::rvgpu_rsqrt_approx_ftz_f
+                                   : Intrinsic::rvgpu_rsqrt_approx_f);
     else if (VT == MVT::f64)
-      return MakeIntrinsicCall(Intrinsic::nvvm_rsqrt_approx_d);
+      return MakeIntrinsicCall(Intrinsic::rvgpu_rsqrt_approx_d);
     else
       return SDValue();
   } else {
     if (VT == MVT::f32)
-      return MakeIntrinsicCall(Ftz ? Intrinsic::nvvm_sqrt_approx_ftz_f
-                                   : Intrinsic::nvvm_sqrt_approx_f);
+      return MakeIntrinsicCall(Ftz ? Intrinsic::rvgpu_sqrt_approx_ftz_f
+                                   : Intrinsic::rvgpu_sqrt_approx_f);
     else {
       // There's no sqrt.approx.f64 instruction, so we emit
       // reciprocal(rsqrt(x)).  This is faster than
@@ -1517,8 +1517,8 @@ SDValue RVGPUTargetLowering::getSqrtEstimate(SDValue Operand, SelectionDAG &DAG,
       // x * rsqrt(x).)
       return DAG.getNode(
           ISD::INTRINSIC_WO_CHAIN, DL, VT,
-          DAG.getConstant(Intrinsic::nvvm_rcp_approx_ftz_d, DL, MVT::i32),
-          MakeIntrinsicCall(Intrinsic::nvvm_rsqrt_approx_d));
+          DAG.getConstant(Intrinsic::rvgpu_rcp_approx_ftz_d, DL, MVT::i32),
+          MakeIntrinsicCall(Intrinsic::rvgpu_rsqrt_approx_d));
     }
   }
 }
@@ -3326,356 +3326,356 @@ static unsigned getOpcForTextureInstr(unsigned Intrinsic) {
   default:
     return 0;
 
-  case Intrinsic::nvvm_tex_1d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_1d_v4f32_s32:
     return RVGPUISD::Tex1DFloatS32;
-  case Intrinsic::nvvm_tex_1d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_v4f32_f32:
     return RVGPUISD::Tex1DFloatFloat;
-  case Intrinsic::nvvm_tex_1d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_level_v4f32_f32:
     return RVGPUISD::Tex1DFloatFloatLevel;
-  case Intrinsic::nvvm_tex_1d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_grad_v4f32_f32:
     return RVGPUISD::Tex1DFloatFloatGrad;
-  case Intrinsic::nvvm_tex_1d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_1d_v4s32_s32:
     return RVGPUISD::Tex1DS32S32;
-  case Intrinsic::nvvm_tex_1d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_v4s32_f32:
     return RVGPUISD::Tex1DS32Float;
-  case Intrinsic::nvvm_tex_1d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_level_v4s32_f32:
     return RVGPUISD::Tex1DS32FloatLevel;
-  case Intrinsic::nvvm_tex_1d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_grad_v4s32_f32:
     return RVGPUISD::Tex1DS32FloatGrad;
-  case Intrinsic::nvvm_tex_1d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_1d_v4u32_s32:
     return RVGPUISD::Tex1DU32S32;
-  case Intrinsic::nvvm_tex_1d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_v4u32_f32:
     return RVGPUISD::Tex1DU32Float;
-  case Intrinsic::nvvm_tex_1d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_level_v4u32_f32:
     return RVGPUISD::Tex1DU32FloatLevel;
-  case Intrinsic::nvvm_tex_1d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_grad_v4u32_f32:
     return RVGPUISD::Tex1DU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_1d_array_v4f32_s32:
+  case Intrinsic::rvgpu_tex_1d_array_v4f32_s32:
     return RVGPUISD::Tex1DArrayFloatS32;
-  case Intrinsic::nvvm_tex_1d_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_v4f32_f32:
     return RVGPUISD::Tex1DArrayFloatFloat;
-  case Intrinsic::nvvm_tex_1d_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_level_v4f32_f32:
     return RVGPUISD::Tex1DArrayFloatFloatLevel;
-  case Intrinsic::nvvm_tex_1d_array_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_grad_v4f32_f32:
     return RVGPUISD::Tex1DArrayFloatFloatGrad;
-  case Intrinsic::nvvm_tex_1d_array_v4s32_s32:
+  case Intrinsic::rvgpu_tex_1d_array_v4s32_s32:
     return RVGPUISD::Tex1DArrayS32S32;
-  case Intrinsic::nvvm_tex_1d_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_v4s32_f32:
     return RVGPUISD::Tex1DArrayS32Float;
-  case Intrinsic::nvvm_tex_1d_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_level_v4s32_f32:
     return RVGPUISD::Tex1DArrayS32FloatLevel;
-  case Intrinsic::nvvm_tex_1d_array_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_grad_v4s32_f32:
     return RVGPUISD::Tex1DArrayS32FloatGrad;
-  case Intrinsic::nvvm_tex_1d_array_v4u32_s32:
+  case Intrinsic::rvgpu_tex_1d_array_v4u32_s32:
     return RVGPUISD::Tex1DArrayU32S32;
-  case Intrinsic::nvvm_tex_1d_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_v4u32_f32:
     return RVGPUISD::Tex1DArrayU32Float;
-  case Intrinsic::nvvm_tex_1d_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_level_v4u32_f32:
     return RVGPUISD::Tex1DArrayU32FloatLevel;
-  case Intrinsic::nvvm_tex_1d_array_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_grad_v4u32_f32:
     return RVGPUISD::Tex1DArrayU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_2d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_2d_v4f32_s32:
     return RVGPUISD::Tex2DFloatS32;
-  case Intrinsic::nvvm_tex_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_v4f32_f32:
     return RVGPUISD::Tex2DFloatFloat;
-  case Intrinsic::nvvm_tex_2d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_level_v4f32_f32:
     return RVGPUISD::Tex2DFloatFloatLevel;
-  case Intrinsic::nvvm_tex_2d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_grad_v4f32_f32:
     return RVGPUISD::Tex2DFloatFloatGrad;
-  case Intrinsic::nvvm_tex_2d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_2d_v4s32_s32:
     return RVGPUISD::Tex2DS32S32;
-  case Intrinsic::nvvm_tex_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_v4s32_f32:
     return RVGPUISD::Tex2DS32Float;
-  case Intrinsic::nvvm_tex_2d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_level_v4s32_f32:
     return RVGPUISD::Tex2DS32FloatLevel;
-  case Intrinsic::nvvm_tex_2d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_grad_v4s32_f32:
     return RVGPUISD::Tex2DS32FloatGrad;
-  case Intrinsic::nvvm_tex_2d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_2d_v4u32_s32:
     return RVGPUISD::Tex2DU32S32;
-  case Intrinsic::nvvm_tex_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_v4u32_f32:
     return RVGPUISD::Tex2DU32Float;
-  case Intrinsic::nvvm_tex_2d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_level_v4u32_f32:
     return RVGPUISD::Tex2DU32FloatLevel;
-  case Intrinsic::nvvm_tex_2d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_grad_v4u32_f32:
     return RVGPUISD::Tex2DU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_2d_array_v4f32_s32:
+  case Intrinsic::rvgpu_tex_2d_array_v4f32_s32:
     return RVGPUISD::Tex2DArrayFloatS32;
-  case Intrinsic::nvvm_tex_2d_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_v4f32_f32:
     return RVGPUISD::Tex2DArrayFloatFloat;
-  case Intrinsic::nvvm_tex_2d_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_level_v4f32_f32:
     return RVGPUISD::Tex2DArrayFloatFloatLevel;
-  case Intrinsic::nvvm_tex_2d_array_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_grad_v4f32_f32:
     return RVGPUISD::Tex2DArrayFloatFloatGrad;
-  case Intrinsic::nvvm_tex_2d_array_v4s32_s32:
+  case Intrinsic::rvgpu_tex_2d_array_v4s32_s32:
     return RVGPUISD::Tex2DArrayS32S32;
-  case Intrinsic::nvvm_tex_2d_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_v4s32_f32:
     return RVGPUISD::Tex2DArrayS32Float;
-  case Intrinsic::nvvm_tex_2d_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_level_v4s32_f32:
     return RVGPUISD::Tex2DArrayS32FloatLevel;
-  case Intrinsic::nvvm_tex_2d_array_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_grad_v4s32_f32:
     return RVGPUISD::Tex2DArrayS32FloatGrad;
-  case Intrinsic::nvvm_tex_2d_array_v4u32_s32:
+  case Intrinsic::rvgpu_tex_2d_array_v4u32_s32:
     return RVGPUISD::Tex2DArrayU32S32;
-  case Intrinsic::nvvm_tex_2d_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_v4u32_f32:
     return RVGPUISD::Tex2DArrayU32Float;
-  case Intrinsic::nvvm_tex_2d_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_level_v4u32_f32:
     return RVGPUISD::Tex2DArrayU32FloatLevel;
-  case Intrinsic::nvvm_tex_2d_array_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_grad_v4u32_f32:
     return RVGPUISD::Tex2DArrayU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_3d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_3d_v4f32_s32:
     return RVGPUISD::Tex3DFloatS32;
-  case Intrinsic::nvvm_tex_3d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_3d_v4f32_f32:
     return RVGPUISD::Tex3DFloatFloat;
-  case Intrinsic::nvvm_tex_3d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_3d_level_v4f32_f32:
     return RVGPUISD::Tex3DFloatFloatLevel;
-  case Intrinsic::nvvm_tex_3d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_3d_grad_v4f32_f32:
     return RVGPUISD::Tex3DFloatFloatGrad;
-  case Intrinsic::nvvm_tex_3d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_3d_v4s32_s32:
     return RVGPUISD::Tex3DS32S32;
-  case Intrinsic::nvvm_tex_3d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_3d_v4s32_f32:
     return RVGPUISD::Tex3DS32Float;
-  case Intrinsic::nvvm_tex_3d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_3d_level_v4s32_f32:
     return RVGPUISD::Tex3DS32FloatLevel;
-  case Intrinsic::nvvm_tex_3d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_3d_grad_v4s32_f32:
     return RVGPUISD::Tex3DS32FloatGrad;
-  case Intrinsic::nvvm_tex_3d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_3d_v4u32_s32:
     return RVGPUISD::Tex3DU32S32;
-  case Intrinsic::nvvm_tex_3d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_3d_v4u32_f32:
     return RVGPUISD::Tex3DU32Float;
-  case Intrinsic::nvvm_tex_3d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_3d_level_v4u32_f32:
     return RVGPUISD::Tex3DU32FloatLevel;
-  case Intrinsic::nvvm_tex_3d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_3d_grad_v4u32_f32:
     return RVGPUISD::Tex3DU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_cube_v4f32_f32:
+  case Intrinsic::rvgpu_tex_cube_v4f32_f32:
     return RVGPUISD::TexCubeFloatFloat;
-  case Intrinsic::nvvm_tex_cube_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_cube_level_v4f32_f32:
     return RVGPUISD::TexCubeFloatFloatLevel;
-  case Intrinsic::nvvm_tex_cube_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_v4s32_f32:
     return RVGPUISD::TexCubeS32Float;
-  case Intrinsic::nvvm_tex_cube_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_level_v4s32_f32:
     return RVGPUISD::TexCubeS32FloatLevel;
-  case Intrinsic::nvvm_tex_cube_v4u32_f32:
+  case Intrinsic::rvgpu_tex_cube_v4u32_f32:
     return RVGPUISD::TexCubeU32Float;
-  case Intrinsic::nvvm_tex_cube_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_cube_level_v4u32_f32:
     return RVGPUISD::TexCubeU32FloatLevel;
 
-  case Intrinsic::nvvm_tex_cube_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_v4f32_f32:
     return RVGPUISD::TexCubeArrayFloatFloat;
-  case Intrinsic::nvvm_tex_cube_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_level_v4f32_f32:
     return RVGPUISD::TexCubeArrayFloatFloatLevel;
-  case Intrinsic::nvvm_tex_cube_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_v4s32_f32:
     return RVGPUISD::TexCubeArrayS32Float;
-  case Intrinsic::nvvm_tex_cube_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_level_v4s32_f32:
     return RVGPUISD::TexCubeArrayS32FloatLevel;
-  case Intrinsic::nvvm_tex_cube_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_v4u32_f32:
     return RVGPUISD::TexCubeArrayU32Float;
-  case Intrinsic::nvvm_tex_cube_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_level_v4u32_f32:
     return RVGPUISD::TexCubeArrayU32FloatLevel;
 
-  case Intrinsic::nvvm_tld4_r_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_r_2d_v4f32_f32:
     return RVGPUISD::Tld4R2DFloatFloat;
-  case Intrinsic::nvvm_tld4_g_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_g_2d_v4f32_f32:
     return RVGPUISD::Tld4G2DFloatFloat;
-  case Intrinsic::nvvm_tld4_b_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_b_2d_v4f32_f32:
     return RVGPUISD::Tld4B2DFloatFloat;
-  case Intrinsic::nvvm_tld4_a_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_a_2d_v4f32_f32:
     return RVGPUISD::Tld4A2DFloatFloat;
-  case Intrinsic::nvvm_tld4_r_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_r_2d_v4s32_f32:
     return RVGPUISD::Tld4R2DS64Float;
-  case Intrinsic::nvvm_tld4_g_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_g_2d_v4s32_f32:
     return RVGPUISD::Tld4G2DS64Float;
-  case Intrinsic::nvvm_tld4_b_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_b_2d_v4s32_f32:
     return RVGPUISD::Tld4B2DS64Float;
-  case Intrinsic::nvvm_tld4_a_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_a_2d_v4s32_f32:
     return RVGPUISD::Tld4A2DS64Float;
-  case Intrinsic::nvvm_tld4_r_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_r_2d_v4u32_f32:
     return RVGPUISD::Tld4R2DU64Float;
-  case Intrinsic::nvvm_tld4_g_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_g_2d_v4u32_f32:
     return RVGPUISD::Tld4G2DU64Float;
-  case Intrinsic::nvvm_tld4_b_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_b_2d_v4u32_f32:
     return RVGPUISD::Tld4B2DU64Float;
-  case Intrinsic::nvvm_tld4_a_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_a_2d_v4u32_f32:
     return RVGPUISD::Tld4A2DU64Float;
 
-  case Intrinsic::nvvm_tex_unified_1d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4f32_s32:
     return RVGPUISD::TexUnified1DFloatS32;
-  case Intrinsic::nvvm_tex_unified_1d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4f32_f32:
     return RVGPUISD::TexUnified1DFloatFloat;
-  case Intrinsic::nvvm_tex_unified_1d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_level_v4f32_f32:
     return RVGPUISD::TexUnified1DFloatFloatLevel;
-  case Intrinsic::nvvm_tex_unified_1d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_grad_v4f32_f32:
     return RVGPUISD::TexUnified1DFloatFloatGrad;
-  case Intrinsic::nvvm_tex_unified_1d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4s32_s32:
     return RVGPUISD::TexUnified1DS32S32;
-  case Intrinsic::nvvm_tex_unified_1d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4s32_f32:
     return RVGPUISD::TexUnified1DS32Float;
-  case Intrinsic::nvvm_tex_unified_1d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_level_v4s32_f32:
     return RVGPUISD::TexUnified1DS32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_1d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_grad_v4s32_f32:
     return RVGPUISD::TexUnified1DS32FloatGrad;
-  case Intrinsic::nvvm_tex_unified_1d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4u32_s32:
     return RVGPUISD::TexUnified1DU32S32;
-  case Intrinsic::nvvm_tex_unified_1d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4u32_f32:
     return RVGPUISD::TexUnified1DU32Float;
-  case Intrinsic::nvvm_tex_unified_1d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_level_v4u32_f32:
     return RVGPUISD::TexUnified1DU32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_1d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_grad_v4u32_f32:
     return RVGPUISD::TexUnified1DU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_unified_1d_array_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4f32_s32:
     return RVGPUISD::TexUnified1DArrayFloatS32;
-  case Intrinsic::nvvm_tex_unified_1d_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4f32_f32:
     return RVGPUISD::TexUnified1DArrayFloatFloat;
-  case Intrinsic::nvvm_tex_unified_1d_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_level_v4f32_f32:
     return RVGPUISD::TexUnified1DArrayFloatFloatLevel;
-  case Intrinsic::nvvm_tex_unified_1d_array_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_grad_v4f32_f32:
     return RVGPUISD::TexUnified1DArrayFloatFloatGrad;
-  case Intrinsic::nvvm_tex_unified_1d_array_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4s32_s32:
     return RVGPUISD::TexUnified1DArrayS32S32;
-  case Intrinsic::nvvm_tex_unified_1d_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4s32_f32:
     return RVGPUISD::TexUnified1DArrayS32Float;
-  case Intrinsic::nvvm_tex_unified_1d_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_level_v4s32_f32:
     return RVGPUISD::TexUnified1DArrayS32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_1d_array_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_grad_v4s32_f32:
     return RVGPUISD::TexUnified1DArrayS32FloatGrad;
-  case Intrinsic::nvvm_tex_unified_1d_array_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4u32_s32:
     return RVGPUISD::TexUnified1DArrayU32S32;
-  case Intrinsic::nvvm_tex_unified_1d_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4u32_f32:
     return RVGPUISD::TexUnified1DArrayU32Float;
-  case Intrinsic::nvvm_tex_unified_1d_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_level_v4u32_f32:
     return RVGPUISD::TexUnified1DArrayU32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_1d_array_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_grad_v4u32_f32:
     return RVGPUISD::TexUnified1DArrayU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_unified_2d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4f32_s32:
     return RVGPUISD::TexUnified2DFloatS32;
-  case Intrinsic::nvvm_tex_unified_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4f32_f32:
     return RVGPUISD::TexUnified2DFloatFloat;
-  case Intrinsic::nvvm_tex_unified_2d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_level_v4f32_f32:
     return RVGPUISD::TexUnified2DFloatFloatLevel;
-  case Intrinsic::nvvm_tex_unified_2d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_grad_v4f32_f32:
     return RVGPUISD::TexUnified2DFloatFloatGrad;
-  case Intrinsic::nvvm_tex_unified_2d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4s32_s32:
     return RVGPUISD::TexUnified2DS32S32;
-  case Intrinsic::nvvm_tex_unified_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4s32_f32:
     return RVGPUISD::TexUnified2DS32Float;
-  case Intrinsic::nvvm_tex_unified_2d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_level_v4s32_f32:
     return RVGPUISD::TexUnified2DS32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_2d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_grad_v4s32_f32:
     return RVGPUISD::TexUnified2DS32FloatGrad;
-  case Intrinsic::nvvm_tex_unified_2d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4u32_s32:
     return RVGPUISD::TexUnified2DU32S32;
-  case Intrinsic::nvvm_tex_unified_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4u32_f32:
     return RVGPUISD::TexUnified2DU32Float;
-  case Intrinsic::nvvm_tex_unified_2d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_level_v4u32_f32:
     return RVGPUISD::TexUnified2DU32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_2d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_grad_v4u32_f32:
     return RVGPUISD::TexUnified2DU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_unified_2d_array_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4f32_s32:
     return RVGPUISD::TexUnified2DArrayFloatS32;
-  case Intrinsic::nvvm_tex_unified_2d_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4f32_f32:
     return RVGPUISD::TexUnified2DArrayFloatFloat;
-  case Intrinsic::nvvm_tex_unified_2d_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_level_v4f32_f32:
     return RVGPUISD::TexUnified2DArrayFloatFloatLevel;
-  case Intrinsic::nvvm_tex_unified_2d_array_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_grad_v4f32_f32:
     return RVGPUISD::TexUnified2DArrayFloatFloatGrad;
-  case Intrinsic::nvvm_tex_unified_2d_array_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4s32_s32:
     return RVGPUISD::TexUnified2DArrayS32S32;
-  case Intrinsic::nvvm_tex_unified_2d_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4s32_f32:
     return RVGPUISD::TexUnified2DArrayS32Float;
-  case Intrinsic::nvvm_tex_unified_2d_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_level_v4s32_f32:
     return RVGPUISD::TexUnified2DArrayS32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_2d_array_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_grad_v4s32_f32:
     return RVGPUISD::TexUnified2DArrayS32FloatGrad;
-  case Intrinsic::nvvm_tex_unified_2d_array_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4u32_s32:
     return RVGPUISD::TexUnified2DArrayU32S32;
-  case Intrinsic::nvvm_tex_unified_2d_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4u32_f32:
     return RVGPUISD::TexUnified2DArrayU32Float;
-  case Intrinsic::nvvm_tex_unified_2d_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_level_v4u32_f32:
     return RVGPUISD::TexUnified2DArrayU32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_2d_array_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_grad_v4u32_f32:
     return RVGPUISD::TexUnified2DArrayU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_unified_3d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4f32_s32:
     return RVGPUISD::TexUnified3DFloatS32;
-  case Intrinsic::nvvm_tex_unified_3d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4f32_f32:
     return RVGPUISD::TexUnified3DFloatFloat;
-  case Intrinsic::nvvm_tex_unified_3d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_level_v4f32_f32:
     return RVGPUISD::TexUnified3DFloatFloatLevel;
-  case Intrinsic::nvvm_tex_unified_3d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_grad_v4f32_f32:
     return RVGPUISD::TexUnified3DFloatFloatGrad;
-  case Intrinsic::nvvm_tex_unified_3d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4s32_s32:
     return RVGPUISD::TexUnified3DS32S32;
-  case Intrinsic::nvvm_tex_unified_3d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4s32_f32:
     return RVGPUISD::TexUnified3DS32Float;
-  case Intrinsic::nvvm_tex_unified_3d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_level_v4s32_f32:
     return RVGPUISD::TexUnified3DS32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_3d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_grad_v4s32_f32:
     return RVGPUISD::TexUnified3DS32FloatGrad;
-  case Intrinsic::nvvm_tex_unified_3d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4u32_s32:
     return RVGPUISD::TexUnified3DU32S32;
-  case Intrinsic::nvvm_tex_unified_3d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4u32_f32:
     return RVGPUISD::TexUnified3DU32Float;
-  case Intrinsic::nvvm_tex_unified_3d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_level_v4u32_f32:
     return RVGPUISD::TexUnified3DU32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_3d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_grad_v4u32_f32:
     return RVGPUISD::TexUnified3DU32FloatGrad;
 
-  case Intrinsic::nvvm_tex_unified_cube_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_v4f32_f32:
     return RVGPUISD::TexUnifiedCubeFloatFloat;
-  case Intrinsic::nvvm_tex_unified_cube_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_level_v4f32_f32:
     return RVGPUISD::TexUnifiedCubeFloatFloatLevel;
-  case Intrinsic::nvvm_tex_unified_cube_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_v4s32_f32:
     return RVGPUISD::TexUnifiedCubeS32Float;
-  case Intrinsic::nvvm_tex_unified_cube_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_level_v4s32_f32:
     return RVGPUISD::TexUnifiedCubeS32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_cube_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_v4u32_f32:
     return RVGPUISD::TexUnifiedCubeU32Float;
-  case Intrinsic::nvvm_tex_unified_cube_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_level_v4u32_f32:
     return RVGPUISD::TexUnifiedCubeU32FloatLevel;
 
-  case Intrinsic::nvvm_tex_unified_cube_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_v4f32_f32:
     return RVGPUISD::TexUnifiedCubeArrayFloatFloat;
-  case Intrinsic::nvvm_tex_unified_cube_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_level_v4f32_f32:
     return RVGPUISD::TexUnifiedCubeArrayFloatFloatLevel;
-  case Intrinsic::nvvm_tex_unified_cube_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_v4s32_f32:
     return RVGPUISD::TexUnifiedCubeArrayS32Float;
-  case Intrinsic::nvvm_tex_unified_cube_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_level_v4s32_f32:
     return RVGPUISD::TexUnifiedCubeArrayS32FloatLevel;
-  case Intrinsic::nvvm_tex_unified_cube_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_v4u32_f32:
     return RVGPUISD::TexUnifiedCubeArrayU32Float;
-  case Intrinsic::nvvm_tex_unified_cube_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_level_v4u32_f32:
     return RVGPUISD::TexUnifiedCubeArrayU32FloatLevel;
 
-  case Intrinsic::nvvm_tld4_unified_r_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_unified_r_2d_v4f32_f32:
     return RVGPUISD::Tld4UnifiedR2DFloatFloat;
-  case Intrinsic::nvvm_tld4_unified_g_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_unified_g_2d_v4f32_f32:
     return RVGPUISD::Tld4UnifiedG2DFloatFloat;
-  case Intrinsic::nvvm_tld4_unified_b_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_unified_b_2d_v4f32_f32:
     return RVGPUISD::Tld4UnifiedB2DFloatFloat;
-  case Intrinsic::nvvm_tld4_unified_a_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_unified_a_2d_v4f32_f32:
     return RVGPUISD::Tld4UnifiedA2DFloatFloat;
-  case Intrinsic::nvvm_tld4_unified_r_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_unified_r_2d_v4s32_f32:
     return RVGPUISD::Tld4UnifiedR2DS64Float;
-  case Intrinsic::nvvm_tld4_unified_g_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_unified_g_2d_v4s32_f32:
     return RVGPUISD::Tld4UnifiedG2DS64Float;
-  case Intrinsic::nvvm_tld4_unified_b_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_unified_b_2d_v4s32_f32:
     return RVGPUISD::Tld4UnifiedB2DS64Float;
-  case Intrinsic::nvvm_tld4_unified_a_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_unified_a_2d_v4s32_f32:
     return RVGPUISD::Tld4UnifiedA2DS64Float;
-  case Intrinsic::nvvm_tld4_unified_r_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_unified_r_2d_v4u32_f32:
     return RVGPUISD::Tld4UnifiedR2DU64Float;
-  case Intrinsic::nvvm_tld4_unified_g_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_unified_g_2d_v4u32_f32:
     return RVGPUISD::Tld4UnifiedG2DU64Float;
-  case Intrinsic::nvvm_tld4_unified_b_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_unified_b_2d_v4u32_f32:
     return RVGPUISD::Tld4UnifiedB2DU64Float;
-  case Intrinsic::nvvm_tld4_unified_a_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_unified_a_2d_v4u32_f32:
     return RVGPUISD::Tld4UnifiedA2DU64Float;
   }
 }
@@ -3684,335 +3684,335 @@ static unsigned getOpcForSurfaceInstr(unsigned Intrinsic) {
   switch (Intrinsic) {
   default:
     return 0;
-  case Intrinsic::nvvm_suld_1d_i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_i8_clamp:
     return RVGPUISD::Suld1DI8Clamp;
-  case Intrinsic::nvvm_suld_1d_i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_i16_clamp:
     return RVGPUISD::Suld1DI16Clamp;
-  case Intrinsic::nvvm_suld_1d_i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_i32_clamp:
     return RVGPUISD::Suld1DI32Clamp;
-  case Intrinsic::nvvm_suld_1d_i64_clamp:
+  case Intrinsic::rvgpu_suld_1d_i64_clamp:
     return RVGPUISD::Suld1DI64Clamp;
-  case Intrinsic::nvvm_suld_1d_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_v2i8_clamp:
     return RVGPUISD::Suld1DV2I8Clamp;
-  case Intrinsic::nvvm_suld_1d_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_v2i16_clamp:
     return RVGPUISD::Suld1DV2I16Clamp;
-  case Intrinsic::nvvm_suld_1d_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_v2i32_clamp:
     return RVGPUISD::Suld1DV2I32Clamp;
-  case Intrinsic::nvvm_suld_1d_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_1d_v2i64_clamp:
     return RVGPUISD::Suld1DV2I64Clamp;
-  case Intrinsic::nvvm_suld_1d_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_v4i8_clamp:
     return RVGPUISD::Suld1DV4I8Clamp;
-  case Intrinsic::nvvm_suld_1d_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_v4i16_clamp:
     return RVGPUISD::Suld1DV4I16Clamp;
-  case Intrinsic::nvvm_suld_1d_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_v4i32_clamp:
     return RVGPUISD::Suld1DV4I32Clamp;
-  case Intrinsic::nvvm_suld_1d_array_i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_i8_clamp:
     return RVGPUISD::Suld1DArrayI8Clamp;
-  case Intrinsic::nvvm_suld_1d_array_i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_i16_clamp:
     return RVGPUISD::Suld1DArrayI16Clamp;
-  case Intrinsic::nvvm_suld_1d_array_i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_i32_clamp:
     return RVGPUISD::Suld1DArrayI32Clamp;
-  case Intrinsic::nvvm_suld_1d_array_i64_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_i64_clamp:
     return RVGPUISD::Suld1DArrayI64Clamp;
-  case Intrinsic::nvvm_suld_1d_array_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v2i8_clamp:
     return RVGPUISD::Suld1DArrayV2I8Clamp;
-  case Intrinsic::nvvm_suld_1d_array_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v2i16_clamp:
     return RVGPUISD::Suld1DArrayV2I16Clamp;
-  case Intrinsic::nvvm_suld_1d_array_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v2i32_clamp:
     return RVGPUISD::Suld1DArrayV2I32Clamp;
-  case Intrinsic::nvvm_suld_1d_array_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v2i64_clamp:
     return RVGPUISD::Suld1DArrayV2I64Clamp;
-  case Intrinsic::nvvm_suld_1d_array_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v4i8_clamp:
     return RVGPUISD::Suld1DArrayV4I8Clamp;
-  case Intrinsic::nvvm_suld_1d_array_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v4i16_clamp:
     return RVGPUISD::Suld1DArrayV4I16Clamp;
-  case Intrinsic::nvvm_suld_1d_array_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v4i32_clamp:
     return RVGPUISD::Suld1DArrayV4I32Clamp;
-  case Intrinsic::nvvm_suld_2d_i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_i8_clamp:
     return RVGPUISD::Suld2DI8Clamp;
-  case Intrinsic::nvvm_suld_2d_i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_i16_clamp:
     return RVGPUISD::Suld2DI16Clamp;
-  case Intrinsic::nvvm_suld_2d_i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_i32_clamp:
     return RVGPUISD::Suld2DI32Clamp;
-  case Intrinsic::nvvm_suld_2d_i64_clamp:
+  case Intrinsic::rvgpu_suld_2d_i64_clamp:
     return RVGPUISD::Suld2DI64Clamp;
-  case Intrinsic::nvvm_suld_2d_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_v2i8_clamp:
     return RVGPUISD::Suld2DV2I8Clamp;
-  case Intrinsic::nvvm_suld_2d_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_v2i16_clamp:
     return RVGPUISD::Suld2DV2I16Clamp;
-  case Intrinsic::nvvm_suld_2d_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_v2i32_clamp:
     return RVGPUISD::Suld2DV2I32Clamp;
-  case Intrinsic::nvvm_suld_2d_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_2d_v2i64_clamp:
     return RVGPUISD::Suld2DV2I64Clamp;
-  case Intrinsic::nvvm_suld_2d_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_v4i8_clamp:
     return RVGPUISD::Suld2DV4I8Clamp;
-  case Intrinsic::nvvm_suld_2d_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_v4i16_clamp:
     return RVGPUISD::Suld2DV4I16Clamp;
-  case Intrinsic::nvvm_suld_2d_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_v4i32_clamp:
     return RVGPUISD::Suld2DV4I32Clamp;
-  case Intrinsic::nvvm_suld_2d_array_i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_i8_clamp:
     return RVGPUISD::Suld2DArrayI8Clamp;
-  case Intrinsic::nvvm_suld_2d_array_i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_i16_clamp:
     return RVGPUISD::Suld2DArrayI16Clamp;
-  case Intrinsic::nvvm_suld_2d_array_i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_i32_clamp:
     return RVGPUISD::Suld2DArrayI32Clamp;
-  case Intrinsic::nvvm_suld_2d_array_i64_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_i64_clamp:
     return RVGPUISD::Suld2DArrayI64Clamp;
-  case Intrinsic::nvvm_suld_2d_array_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v2i8_clamp:
     return RVGPUISD::Suld2DArrayV2I8Clamp;
-  case Intrinsic::nvvm_suld_2d_array_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v2i16_clamp:
     return RVGPUISD::Suld2DArrayV2I16Clamp;
-  case Intrinsic::nvvm_suld_2d_array_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v2i32_clamp:
     return RVGPUISD::Suld2DArrayV2I32Clamp;
-  case Intrinsic::nvvm_suld_2d_array_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v2i64_clamp:
     return RVGPUISD::Suld2DArrayV2I64Clamp;
-  case Intrinsic::nvvm_suld_2d_array_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v4i8_clamp:
     return RVGPUISD::Suld2DArrayV4I8Clamp;
-  case Intrinsic::nvvm_suld_2d_array_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v4i16_clamp:
     return RVGPUISD::Suld2DArrayV4I16Clamp;
-  case Intrinsic::nvvm_suld_2d_array_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v4i32_clamp:
     return RVGPUISD::Suld2DArrayV4I32Clamp;
-  case Intrinsic::nvvm_suld_3d_i8_clamp:
+  case Intrinsic::rvgpu_suld_3d_i8_clamp:
     return RVGPUISD::Suld3DI8Clamp;
-  case Intrinsic::nvvm_suld_3d_i16_clamp:
+  case Intrinsic::rvgpu_suld_3d_i16_clamp:
     return RVGPUISD::Suld3DI16Clamp;
-  case Intrinsic::nvvm_suld_3d_i32_clamp:
+  case Intrinsic::rvgpu_suld_3d_i32_clamp:
     return RVGPUISD::Suld3DI32Clamp;
-  case Intrinsic::nvvm_suld_3d_i64_clamp:
+  case Intrinsic::rvgpu_suld_3d_i64_clamp:
     return RVGPUISD::Suld3DI64Clamp;
-  case Intrinsic::nvvm_suld_3d_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_3d_v2i8_clamp:
     return RVGPUISD::Suld3DV2I8Clamp;
-  case Intrinsic::nvvm_suld_3d_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_3d_v2i16_clamp:
     return RVGPUISD::Suld3DV2I16Clamp;
-  case Intrinsic::nvvm_suld_3d_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_3d_v2i32_clamp:
     return RVGPUISD::Suld3DV2I32Clamp;
-  case Intrinsic::nvvm_suld_3d_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_3d_v2i64_clamp:
     return RVGPUISD::Suld3DV2I64Clamp;
-  case Intrinsic::nvvm_suld_3d_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_3d_v4i8_clamp:
     return RVGPUISD::Suld3DV4I8Clamp;
-  case Intrinsic::nvvm_suld_3d_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_3d_v4i16_clamp:
     return RVGPUISD::Suld3DV4I16Clamp;
-  case Intrinsic::nvvm_suld_3d_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_3d_v4i32_clamp:
     return RVGPUISD::Suld3DV4I32Clamp;
-  case Intrinsic::nvvm_suld_1d_i8_trap:
+  case Intrinsic::rvgpu_suld_1d_i8_trap:
     return RVGPUISD::Suld1DI8Trap;
-  case Intrinsic::nvvm_suld_1d_i16_trap:
+  case Intrinsic::rvgpu_suld_1d_i16_trap:
     return RVGPUISD::Suld1DI16Trap;
-  case Intrinsic::nvvm_suld_1d_i32_trap:
+  case Intrinsic::rvgpu_suld_1d_i32_trap:
     return RVGPUISD::Suld1DI32Trap;
-  case Intrinsic::nvvm_suld_1d_i64_trap:
+  case Intrinsic::rvgpu_suld_1d_i64_trap:
     return RVGPUISD::Suld1DI64Trap;
-  case Intrinsic::nvvm_suld_1d_v2i8_trap:
+  case Intrinsic::rvgpu_suld_1d_v2i8_trap:
     return RVGPUISD::Suld1DV2I8Trap;
-  case Intrinsic::nvvm_suld_1d_v2i16_trap:
+  case Intrinsic::rvgpu_suld_1d_v2i16_trap:
     return RVGPUISD::Suld1DV2I16Trap;
-  case Intrinsic::nvvm_suld_1d_v2i32_trap:
+  case Intrinsic::rvgpu_suld_1d_v2i32_trap:
     return RVGPUISD::Suld1DV2I32Trap;
-  case Intrinsic::nvvm_suld_1d_v2i64_trap:
+  case Intrinsic::rvgpu_suld_1d_v2i64_trap:
     return RVGPUISD::Suld1DV2I64Trap;
-  case Intrinsic::nvvm_suld_1d_v4i8_trap:
+  case Intrinsic::rvgpu_suld_1d_v4i8_trap:
     return RVGPUISD::Suld1DV4I8Trap;
-  case Intrinsic::nvvm_suld_1d_v4i16_trap:
+  case Intrinsic::rvgpu_suld_1d_v4i16_trap:
     return RVGPUISD::Suld1DV4I16Trap;
-  case Intrinsic::nvvm_suld_1d_v4i32_trap:
+  case Intrinsic::rvgpu_suld_1d_v4i32_trap:
     return RVGPUISD::Suld1DV4I32Trap;
-  case Intrinsic::nvvm_suld_1d_array_i8_trap:
+  case Intrinsic::rvgpu_suld_1d_array_i8_trap:
     return RVGPUISD::Suld1DArrayI8Trap;
-  case Intrinsic::nvvm_suld_1d_array_i16_trap:
+  case Intrinsic::rvgpu_suld_1d_array_i16_trap:
     return RVGPUISD::Suld1DArrayI16Trap;
-  case Intrinsic::nvvm_suld_1d_array_i32_trap:
+  case Intrinsic::rvgpu_suld_1d_array_i32_trap:
     return RVGPUISD::Suld1DArrayI32Trap;
-  case Intrinsic::nvvm_suld_1d_array_i64_trap:
+  case Intrinsic::rvgpu_suld_1d_array_i64_trap:
     return RVGPUISD::Suld1DArrayI64Trap;
-  case Intrinsic::nvvm_suld_1d_array_v2i8_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v2i8_trap:
     return RVGPUISD::Suld1DArrayV2I8Trap;
-  case Intrinsic::nvvm_suld_1d_array_v2i16_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v2i16_trap:
     return RVGPUISD::Suld1DArrayV2I16Trap;
-  case Intrinsic::nvvm_suld_1d_array_v2i32_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v2i32_trap:
     return RVGPUISD::Suld1DArrayV2I32Trap;
-  case Intrinsic::nvvm_suld_1d_array_v2i64_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v2i64_trap:
     return RVGPUISD::Suld1DArrayV2I64Trap;
-  case Intrinsic::nvvm_suld_1d_array_v4i8_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v4i8_trap:
     return RVGPUISD::Suld1DArrayV4I8Trap;
-  case Intrinsic::nvvm_suld_1d_array_v4i16_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v4i16_trap:
     return RVGPUISD::Suld1DArrayV4I16Trap;
-  case Intrinsic::nvvm_suld_1d_array_v4i32_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v4i32_trap:
     return RVGPUISD::Suld1DArrayV4I32Trap;
-  case Intrinsic::nvvm_suld_2d_i8_trap:
+  case Intrinsic::rvgpu_suld_2d_i8_trap:
     return RVGPUISD::Suld2DI8Trap;
-  case Intrinsic::nvvm_suld_2d_i16_trap:
+  case Intrinsic::rvgpu_suld_2d_i16_trap:
     return RVGPUISD::Suld2DI16Trap;
-  case Intrinsic::nvvm_suld_2d_i32_trap:
+  case Intrinsic::rvgpu_suld_2d_i32_trap:
     return RVGPUISD::Suld2DI32Trap;
-  case Intrinsic::nvvm_suld_2d_i64_trap:
+  case Intrinsic::rvgpu_suld_2d_i64_trap:
     return RVGPUISD::Suld2DI64Trap;
-  case Intrinsic::nvvm_suld_2d_v2i8_trap:
+  case Intrinsic::rvgpu_suld_2d_v2i8_trap:
     return RVGPUISD::Suld2DV2I8Trap;
-  case Intrinsic::nvvm_suld_2d_v2i16_trap:
+  case Intrinsic::rvgpu_suld_2d_v2i16_trap:
     return RVGPUISD::Suld2DV2I16Trap;
-  case Intrinsic::nvvm_suld_2d_v2i32_trap:
+  case Intrinsic::rvgpu_suld_2d_v2i32_trap:
     return RVGPUISD::Suld2DV2I32Trap;
-  case Intrinsic::nvvm_suld_2d_v2i64_trap:
+  case Intrinsic::rvgpu_suld_2d_v2i64_trap:
     return RVGPUISD::Suld2DV2I64Trap;
-  case Intrinsic::nvvm_suld_2d_v4i8_trap:
+  case Intrinsic::rvgpu_suld_2d_v4i8_trap:
     return RVGPUISD::Suld2DV4I8Trap;
-  case Intrinsic::nvvm_suld_2d_v4i16_trap:
+  case Intrinsic::rvgpu_suld_2d_v4i16_trap:
     return RVGPUISD::Suld2DV4I16Trap;
-  case Intrinsic::nvvm_suld_2d_v4i32_trap:
+  case Intrinsic::rvgpu_suld_2d_v4i32_trap:
     return RVGPUISD::Suld2DV4I32Trap;
-  case Intrinsic::nvvm_suld_2d_array_i8_trap:
+  case Intrinsic::rvgpu_suld_2d_array_i8_trap:
     return RVGPUISD::Suld2DArrayI8Trap;
-  case Intrinsic::nvvm_suld_2d_array_i16_trap:
+  case Intrinsic::rvgpu_suld_2d_array_i16_trap:
     return RVGPUISD::Suld2DArrayI16Trap;
-  case Intrinsic::nvvm_suld_2d_array_i32_trap:
+  case Intrinsic::rvgpu_suld_2d_array_i32_trap:
     return RVGPUISD::Suld2DArrayI32Trap;
-  case Intrinsic::nvvm_suld_2d_array_i64_trap:
+  case Intrinsic::rvgpu_suld_2d_array_i64_trap:
     return RVGPUISD::Suld2DArrayI64Trap;
-  case Intrinsic::nvvm_suld_2d_array_v2i8_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v2i8_trap:
     return RVGPUISD::Suld2DArrayV2I8Trap;
-  case Intrinsic::nvvm_suld_2d_array_v2i16_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v2i16_trap:
     return RVGPUISD::Suld2DArrayV2I16Trap;
-  case Intrinsic::nvvm_suld_2d_array_v2i32_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v2i32_trap:
     return RVGPUISD::Suld2DArrayV2I32Trap;
-  case Intrinsic::nvvm_suld_2d_array_v2i64_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v2i64_trap:
     return RVGPUISD::Suld2DArrayV2I64Trap;
-  case Intrinsic::nvvm_suld_2d_array_v4i8_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v4i8_trap:
     return RVGPUISD::Suld2DArrayV4I8Trap;
-  case Intrinsic::nvvm_suld_2d_array_v4i16_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v4i16_trap:
     return RVGPUISD::Suld2DArrayV4I16Trap;
-  case Intrinsic::nvvm_suld_2d_array_v4i32_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v4i32_trap:
     return RVGPUISD::Suld2DArrayV4I32Trap;
-  case Intrinsic::nvvm_suld_3d_i8_trap:
+  case Intrinsic::rvgpu_suld_3d_i8_trap:
     return RVGPUISD::Suld3DI8Trap;
-  case Intrinsic::nvvm_suld_3d_i16_trap:
+  case Intrinsic::rvgpu_suld_3d_i16_trap:
     return RVGPUISD::Suld3DI16Trap;
-  case Intrinsic::nvvm_suld_3d_i32_trap:
+  case Intrinsic::rvgpu_suld_3d_i32_trap:
     return RVGPUISD::Suld3DI32Trap;
-  case Intrinsic::nvvm_suld_3d_i64_trap:
+  case Intrinsic::rvgpu_suld_3d_i64_trap:
     return RVGPUISD::Suld3DI64Trap;
-  case Intrinsic::nvvm_suld_3d_v2i8_trap:
+  case Intrinsic::rvgpu_suld_3d_v2i8_trap:
     return RVGPUISD::Suld3DV2I8Trap;
-  case Intrinsic::nvvm_suld_3d_v2i16_trap:
+  case Intrinsic::rvgpu_suld_3d_v2i16_trap:
     return RVGPUISD::Suld3DV2I16Trap;
-  case Intrinsic::nvvm_suld_3d_v2i32_trap:
+  case Intrinsic::rvgpu_suld_3d_v2i32_trap:
     return RVGPUISD::Suld3DV2I32Trap;
-  case Intrinsic::nvvm_suld_3d_v2i64_trap:
+  case Intrinsic::rvgpu_suld_3d_v2i64_trap:
     return RVGPUISD::Suld3DV2I64Trap;
-  case Intrinsic::nvvm_suld_3d_v4i8_trap:
+  case Intrinsic::rvgpu_suld_3d_v4i8_trap:
     return RVGPUISD::Suld3DV4I8Trap;
-  case Intrinsic::nvvm_suld_3d_v4i16_trap:
+  case Intrinsic::rvgpu_suld_3d_v4i16_trap:
     return RVGPUISD::Suld3DV4I16Trap;
-  case Intrinsic::nvvm_suld_3d_v4i32_trap:
+  case Intrinsic::rvgpu_suld_3d_v4i32_trap:
     return RVGPUISD::Suld3DV4I32Trap;
-  case Intrinsic::nvvm_suld_1d_i8_zero:
+  case Intrinsic::rvgpu_suld_1d_i8_zero:
     return RVGPUISD::Suld1DI8Zero;
-  case Intrinsic::nvvm_suld_1d_i16_zero:
+  case Intrinsic::rvgpu_suld_1d_i16_zero:
     return RVGPUISD::Suld1DI16Zero;
-  case Intrinsic::nvvm_suld_1d_i32_zero:
+  case Intrinsic::rvgpu_suld_1d_i32_zero:
     return RVGPUISD::Suld1DI32Zero;
-  case Intrinsic::nvvm_suld_1d_i64_zero:
+  case Intrinsic::rvgpu_suld_1d_i64_zero:
     return RVGPUISD::Suld1DI64Zero;
-  case Intrinsic::nvvm_suld_1d_v2i8_zero:
+  case Intrinsic::rvgpu_suld_1d_v2i8_zero:
     return RVGPUISD::Suld1DV2I8Zero;
-  case Intrinsic::nvvm_suld_1d_v2i16_zero:
+  case Intrinsic::rvgpu_suld_1d_v2i16_zero:
     return RVGPUISD::Suld1DV2I16Zero;
-  case Intrinsic::nvvm_suld_1d_v2i32_zero:
+  case Intrinsic::rvgpu_suld_1d_v2i32_zero:
     return RVGPUISD::Suld1DV2I32Zero;
-  case Intrinsic::nvvm_suld_1d_v2i64_zero:
+  case Intrinsic::rvgpu_suld_1d_v2i64_zero:
     return RVGPUISD::Suld1DV2I64Zero;
-  case Intrinsic::nvvm_suld_1d_v4i8_zero:
+  case Intrinsic::rvgpu_suld_1d_v4i8_zero:
     return RVGPUISD::Suld1DV4I8Zero;
-  case Intrinsic::nvvm_suld_1d_v4i16_zero:
+  case Intrinsic::rvgpu_suld_1d_v4i16_zero:
     return RVGPUISD::Suld1DV4I16Zero;
-  case Intrinsic::nvvm_suld_1d_v4i32_zero:
+  case Intrinsic::rvgpu_suld_1d_v4i32_zero:
     return RVGPUISD::Suld1DV4I32Zero;
-  case Intrinsic::nvvm_suld_1d_array_i8_zero:
+  case Intrinsic::rvgpu_suld_1d_array_i8_zero:
     return RVGPUISD::Suld1DArrayI8Zero;
-  case Intrinsic::nvvm_suld_1d_array_i16_zero:
+  case Intrinsic::rvgpu_suld_1d_array_i16_zero:
     return RVGPUISD::Suld1DArrayI16Zero;
-  case Intrinsic::nvvm_suld_1d_array_i32_zero:
+  case Intrinsic::rvgpu_suld_1d_array_i32_zero:
     return RVGPUISD::Suld1DArrayI32Zero;
-  case Intrinsic::nvvm_suld_1d_array_i64_zero:
+  case Intrinsic::rvgpu_suld_1d_array_i64_zero:
     return RVGPUISD::Suld1DArrayI64Zero;
-  case Intrinsic::nvvm_suld_1d_array_v2i8_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v2i8_zero:
     return RVGPUISD::Suld1DArrayV2I8Zero;
-  case Intrinsic::nvvm_suld_1d_array_v2i16_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v2i16_zero:
     return RVGPUISD::Suld1DArrayV2I16Zero;
-  case Intrinsic::nvvm_suld_1d_array_v2i32_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v2i32_zero:
     return RVGPUISD::Suld1DArrayV2I32Zero;
-  case Intrinsic::nvvm_suld_1d_array_v2i64_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v2i64_zero:
     return RVGPUISD::Suld1DArrayV2I64Zero;
-  case Intrinsic::nvvm_suld_1d_array_v4i8_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v4i8_zero:
     return RVGPUISD::Suld1DArrayV4I8Zero;
-  case Intrinsic::nvvm_suld_1d_array_v4i16_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v4i16_zero:
     return RVGPUISD::Suld1DArrayV4I16Zero;
-  case Intrinsic::nvvm_suld_1d_array_v4i32_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v4i32_zero:
     return RVGPUISD::Suld1DArrayV4I32Zero;
-  case Intrinsic::nvvm_suld_2d_i8_zero:
+  case Intrinsic::rvgpu_suld_2d_i8_zero:
     return RVGPUISD::Suld2DI8Zero;
-  case Intrinsic::nvvm_suld_2d_i16_zero:
+  case Intrinsic::rvgpu_suld_2d_i16_zero:
     return RVGPUISD::Suld2DI16Zero;
-  case Intrinsic::nvvm_suld_2d_i32_zero:
+  case Intrinsic::rvgpu_suld_2d_i32_zero:
     return RVGPUISD::Suld2DI32Zero;
-  case Intrinsic::nvvm_suld_2d_i64_zero:
+  case Intrinsic::rvgpu_suld_2d_i64_zero:
     return RVGPUISD::Suld2DI64Zero;
-  case Intrinsic::nvvm_suld_2d_v2i8_zero:
+  case Intrinsic::rvgpu_suld_2d_v2i8_zero:
     return RVGPUISD::Suld2DV2I8Zero;
-  case Intrinsic::nvvm_suld_2d_v2i16_zero:
+  case Intrinsic::rvgpu_suld_2d_v2i16_zero:
     return RVGPUISD::Suld2DV2I16Zero;
-  case Intrinsic::nvvm_suld_2d_v2i32_zero:
+  case Intrinsic::rvgpu_suld_2d_v2i32_zero:
     return RVGPUISD::Suld2DV2I32Zero;
-  case Intrinsic::nvvm_suld_2d_v2i64_zero:
+  case Intrinsic::rvgpu_suld_2d_v2i64_zero:
     return RVGPUISD::Suld2DV2I64Zero;
-  case Intrinsic::nvvm_suld_2d_v4i8_zero:
+  case Intrinsic::rvgpu_suld_2d_v4i8_zero:
     return RVGPUISD::Suld2DV4I8Zero;
-  case Intrinsic::nvvm_suld_2d_v4i16_zero:
+  case Intrinsic::rvgpu_suld_2d_v4i16_zero:
     return RVGPUISD::Suld2DV4I16Zero;
-  case Intrinsic::nvvm_suld_2d_v4i32_zero:
+  case Intrinsic::rvgpu_suld_2d_v4i32_zero:
     return RVGPUISD::Suld2DV4I32Zero;
-  case Intrinsic::nvvm_suld_2d_array_i8_zero:
+  case Intrinsic::rvgpu_suld_2d_array_i8_zero:
     return RVGPUISD::Suld2DArrayI8Zero;
-  case Intrinsic::nvvm_suld_2d_array_i16_zero:
+  case Intrinsic::rvgpu_suld_2d_array_i16_zero:
     return RVGPUISD::Suld2DArrayI16Zero;
-  case Intrinsic::nvvm_suld_2d_array_i32_zero:
+  case Intrinsic::rvgpu_suld_2d_array_i32_zero:
     return RVGPUISD::Suld2DArrayI32Zero;
-  case Intrinsic::nvvm_suld_2d_array_i64_zero:
+  case Intrinsic::rvgpu_suld_2d_array_i64_zero:
     return RVGPUISD::Suld2DArrayI64Zero;
-  case Intrinsic::nvvm_suld_2d_array_v2i8_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v2i8_zero:
     return RVGPUISD::Suld2DArrayV2I8Zero;
-  case Intrinsic::nvvm_suld_2d_array_v2i16_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v2i16_zero:
     return RVGPUISD::Suld2DArrayV2I16Zero;
-  case Intrinsic::nvvm_suld_2d_array_v2i32_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v2i32_zero:
     return RVGPUISD::Suld2DArrayV2I32Zero;
-  case Intrinsic::nvvm_suld_2d_array_v2i64_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v2i64_zero:
     return RVGPUISD::Suld2DArrayV2I64Zero;
-  case Intrinsic::nvvm_suld_2d_array_v4i8_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v4i8_zero:
     return RVGPUISD::Suld2DArrayV4I8Zero;
-  case Intrinsic::nvvm_suld_2d_array_v4i16_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v4i16_zero:
     return RVGPUISD::Suld2DArrayV4I16Zero;
-  case Intrinsic::nvvm_suld_2d_array_v4i32_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v4i32_zero:
     return RVGPUISD::Suld2DArrayV4I32Zero;
-  case Intrinsic::nvvm_suld_3d_i8_zero:
+  case Intrinsic::rvgpu_suld_3d_i8_zero:
     return RVGPUISD::Suld3DI8Zero;
-  case Intrinsic::nvvm_suld_3d_i16_zero:
+  case Intrinsic::rvgpu_suld_3d_i16_zero:
     return RVGPUISD::Suld3DI16Zero;
-  case Intrinsic::nvvm_suld_3d_i32_zero:
+  case Intrinsic::rvgpu_suld_3d_i32_zero:
     return RVGPUISD::Suld3DI32Zero;
-  case Intrinsic::nvvm_suld_3d_i64_zero:
+  case Intrinsic::rvgpu_suld_3d_i64_zero:
     return RVGPUISD::Suld3DI64Zero;
-  case Intrinsic::nvvm_suld_3d_v2i8_zero:
+  case Intrinsic::rvgpu_suld_3d_v2i8_zero:
     return RVGPUISD::Suld3DV2I8Zero;
-  case Intrinsic::nvvm_suld_3d_v2i16_zero:
+  case Intrinsic::rvgpu_suld_3d_v2i16_zero:
     return RVGPUISD::Suld3DV2I16Zero;
-  case Intrinsic::nvvm_suld_3d_v2i32_zero:
+  case Intrinsic::rvgpu_suld_3d_v2i32_zero:
     return RVGPUISD::Suld3DV2I32Zero;
-  case Intrinsic::nvvm_suld_3d_v2i64_zero:
+  case Intrinsic::rvgpu_suld_3d_v2i64_zero:
     return RVGPUISD::Suld3DV2I64Zero;
-  case Intrinsic::nvvm_suld_3d_v4i8_zero:
+  case Intrinsic::rvgpu_suld_3d_v4i8_zero:
     return RVGPUISD::Suld3DV4I8Zero;
-  case Intrinsic::nvvm_suld_3d_v4i16_zero:
+  case Intrinsic::rvgpu_suld_3d_v4i16_zero:
     return RVGPUISD::Suld3DV4I16Zero;
-  case Intrinsic::nvvm_suld_3d_v4i32_zero:
+  case Intrinsic::rvgpu_suld_3d_v4i32_zero:
     return RVGPUISD::Suld3DV4I32Zero;
   }
 }
@@ -4028,8 +4028,8 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
   switch (Intrinsic) {
   default:
     return false;
-  case Intrinsic::nvvm_match_all_sync_i32p:
-  case Intrinsic::nvvm_match_all_sync_i64p:
+  case Intrinsic::rvgpu_match_all_sync_i32p:
+  case Intrinsic::rvgpu_match_all_sync_i64p:
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     // memVT is bogus. These intrinsics have IntrInaccessibleMemOnly attribute
     // in order to model data exchange with other threads, but perform no real
@@ -4039,30 +4039,30 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     // Our result depends on both our and other thread's arguments.
     Info.flags = MachineMemOperand::MOLoad | MachineMemOperand::MOStore;
     return true;
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_f16_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_f16_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_f16_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_f16_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_f16_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_f16_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_f16_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_f16_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_f16_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_f16_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_f16_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_f16_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_f16_row_stride: {
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_f16_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_f16_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_f16_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_f16_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_f16_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_f16_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_f16_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_f16_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_f16_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_f16_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_f16_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_f16_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_f16_row_stride: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v8f16;
     Info.ptrVal = I.getArgOperand(0);
@@ -4071,30 +4071,30 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     Info.align = Align(16);
     return true;
   }
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_s8_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_s8_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_u8_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_u8_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_s8_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_s8_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_u8_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_u8_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_bf16_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_bf16_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_bf16_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_bf16_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_s8_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_s8_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_u8_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_u8_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_s8_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_s8_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_u8_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_u8_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_bf16_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_bf16_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_bf16_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_bf16_row_stride: {
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_s8_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_s8_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_u8_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_u8_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_s8_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_s8_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_u8_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_u8_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_bf16_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_bf16_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_bf16_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_bf16_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_s8_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_s8_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_u8_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_u8_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_s8_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_s8_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_u8_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_u8_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_bf16_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_bf16_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_bf16_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_bf16_row_stride: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v2i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4104,41 +4104,41 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_s8_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_s8_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_u8_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_u8_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_s8_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_s8_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_u8_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_u8_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_bf16_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_bf16_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_bf16_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_a_bf16_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_a_tf32_col:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_a_tf32_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_a_tf32_row:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_a_tf32_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_s8_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_s8_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_u8_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_u8_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_s8_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_s8_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_u8_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_u8_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_bf16_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_bf16_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_bf16_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_a_bf16_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_a_tf32_col:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_a_tf32_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_a_tf32_row:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_a_tf32_row_stride:
 
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_s8_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_s8_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_u8_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_u8_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_s8_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_s8_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_u8_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_u8_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_bf16_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_bf16_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_bf16_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_b_bf16_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_col:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_row:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_b_tf32_row_stride:
-  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x4_b16:
-  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x4_trans_b16: {
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_s8_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_s8_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_u8_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_u8_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_s8_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_s8_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_u8_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_u8_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_bf16_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_bf16_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_bf16_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_b_bf16_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_b_tf32_col:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_b_tf32_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_b_tf32_row:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_b_tf32_row_stride:
+  case Intrinsic::rvgpu_ldmatrix_sync_aligned_m8n8_x4_b16:
+  case Intrinsic::rvgpu_ldmatrix_sync_aligned_m8n8_x4_trans_b16: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v4i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4148,37 +4148,37 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_s8_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_s8_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_u8_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_u8_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_s8_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_s8_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_u8_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_b_u8_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_s8_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_s8_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_u8_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_u8_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_s8_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_s8_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_u8_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_b_u8_row:
 
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_s8_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_s8_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_u8_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_u8_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_s8_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_s8_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_u8_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_a_u8_row:
-  case Intrinsic::nvvm_wmma_m8n8k128_load_a_b1_row:
-  case Intrinsic::nvvm_wmma_m8n8k128_load_a_b1_row_stride:
-  case Intrinsic::nvvm_wmma_m8n8k128_load_b_b1_col:
-  case Intrinsic::nvvm_wmma_m8n8k128_load_b_b1_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_a_s4_row:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_a_s4_row_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_a_u4_row_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_a_u4_row:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_b_s4_col:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_b_s4_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_b_u4_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_b_u4_col:
-  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x1_b16:
-  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x1_trans_b16: {
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_s8_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_s8_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_u8_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_u8_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_s8_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_s8_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_u8_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_a_u8_row:
+  case Intrinsic::rvgpu_wmma_m8n8k128_load_a_b1_row:
+  case Intrinsic::rvgpu_wmma_m8n8k128_load_a_b1_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k128_load_b_b1_col:
+  case Intrinsic::rvgpu_wmma_m8n8k128_load_b_b1_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_a_s4_row:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_a_s4_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_a_u4_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_a_u4_row:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_b_s4_col:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_b_s4_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_b_u4_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_b_u4_col:
+  case Intrinsic::rvgpu_ldmatrix_sync_aligned_m8n8_x1_b16:
+  case Intrinsic::rvgpu_ldmatrix_sync_aligned_m8n8_x1_trans_b16: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4188,18 +4188,18 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_f16_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_f16_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_f16_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_f16_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_f16_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_f16_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_f16_row_stride: {
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_f16_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_f16_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_f16_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_f16_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_f16_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_f16_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_f16_row_stride: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v4f16;
     Info.ptrVal = I.getArgOperand(0);
@@ -4209,22 +4209,22 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_f32_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_f32_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_f32_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_f32_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_f32_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_f32_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_f32_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_f32_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_f32_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_f32_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_f32_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_f32_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_c_f32_col:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_c_f32_row:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_c_f32_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k8_load_c_f32_row_stride: {
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_f32_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_f32_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_f32_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_f32_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_f32_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_f32_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_f32_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_f32_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_f32_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_f32_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_f32_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_f32_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_c_f32_col:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_c_f32_row:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_c_f32_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k8_load_c_f32_row_stride: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v8f32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4234,28 +4234,28 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_bf16_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_bf16_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_bf16_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_a_bf16_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_bf16_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_bf16_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_bf16_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_a_bf16_row_stride:
 
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_bf16_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_bf16_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_bf16_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_b_bf16_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_bf16_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_bf16_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_bf16_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_b_bf16_row_stride:
 
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_s32_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_s32_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_load_c_s32_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_s32_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_s32_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_load_c_s32_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_s32_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_s32_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_load_c_s32_row_stride: {
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_s32_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_s32_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_load_c_s32_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_s32_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_s32_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_load_c_s32_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_s32_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_s32_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_load_c_s32_row_stride: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v8i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4265,16 +4265,16 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m8n8k128_load_c_s32_col:
-  case Intrinsic::nvvm_wmma_m8n8k128_load_c_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k128_load_c_s32_row:
-  case Intrinsic::nvvm_wmma_m8n8k128_load_c_s32_row_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_col:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_row:
-  case Intrinsic::nvvm_wmma_m8n8k32_load_c_s32_row_stride:
-  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x2_b16:
-  case Intrinsic::nvvm_ldmatrix_sync_aligned_m8n8_x2_trans_b16: {
+  case Intrinsic::rvgpu_wmma_m8n8k128_load_c_s32_col:
+  case Intrinsic::rvgpu_wmma_m8n8k128_load_c_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k128_load_c_s32_row:
+  case Intrinsic::rvgpu_wmma_m8n8k128_load_c_s32_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_c_s32_col:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_c_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_c_s32_row:
+  case Intrinsic::rvgpu_wmma_m8n8k32_load_c_s32_row_stride:
+  case Intrinsic::rvgpu_ldmatrix_sync_aligned_m8n8_x2_b16:
+  case Intrinsic::rvgpu_ldmatrix_sync_aligned_m8n8_x2_trans_b16: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v2i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4284,15 +4284,15 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m8n8k4_load_a_f64_col:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_a_f64_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_a_f64_row:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_a_f64_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_a_f64_col:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_a_f64_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_a_f64_row:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_a_f64_row_stride:
 
-  case Intrinsic::nvvm_wmma_m8n8k4_load_b_f64_col:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_b_f64_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_b_f64_row:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_b_f64_row_stride: {
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_b_f64_col:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_b_f64_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_b_f64_row:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_b_f64_row_stride: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::f64;
     Info.ptrVal = I.getArgOperand(0);
@@ -4302,10 +4302,10 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m8n8k4_load_c_f64_col:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_c_f64_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_c_f64_row:
-  case Intrinsic::nvvm_wmma_m8n8k4_load_c_f64_row_stride: {
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_c_f64_col:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_c_f64_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_c_f64_row:
+  case Intrinsic::rvgpu_wmma_m8n8k4_load_c_f64_row_stride: {
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = MVT::v2f64;
     Info.ptrVal = I.getArgOperand(0);
@@ -4315,18 +4315,18 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_f16_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_f16_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_f16_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_f16_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_f16_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_f16_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_f16_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_f16_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_f16_row_stride: {
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_f16_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_f16_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_f16_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_f16_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_f16_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_f16_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_f16_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_f16_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_f16_row_stride: {
     Info.opc = ISD::INTRINSIC_VOID;
     Info.memVT = MVT::v4f16;
     Info.ptrVal = I.getArgOperand(0);
@@ -4336,22 +4336,22 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_f32_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_f32_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_f32_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_f32_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_f32_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_f32_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_f32_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_f32_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_f32_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_f32_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_f32_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_f32_row_stride:
-  case Intrinsic::nvvm_wmma_m16n16k8_store_d_f32_col:
-  case Intrinsic::nvvm_wmma_m16n16k8_store_d_f32_row:
-  case Intrinsic::nvvm_wmma_m16n16k8_store_d_f32_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k8_store_d_f32_row_stride: {
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_f32_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_f32_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_f32_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_f32_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_f32_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_f32_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_f32_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_f32_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_f32_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_f32_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_f32_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_f32_row_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k8_store_d_f32_col:
+  case Intrinsic::rvgpu_wmma_m16n16k8_store_d_f32_row:
+  case Intrinsic::rvgpu_wmma_m16n16k8_store_d_f32_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k8_store_d_f32_row_stride: {
     Info.opc = ISD::INTRINSIC_VOID;
     Info.memVT = MVT::v8f32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4361,18 +4361,18 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_s32_col:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_s32_row:
-  case Intrinsic::nvvm_wmma_m16n16k16_store_d_s32_row_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_s32_col:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_s32_row:
-  case Intrinsic::nvvm_wmma_m32n8k16_store_d_s32_row_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_s32_col:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_s32_row:
-  case Intrinsic::nvvm_wmma_m8n32k16_store_d_s32_row_stride: {
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_s32_col:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_s32_row:
+  case Intrinsic::rvgpu_wmma_m16n16k16_store_d_s32_row_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_s32_col:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_s32_row:
+  case Intrinsic::rvgpu_wmma_m32n8k16_store_d_s32_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_s32_col:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_s32_row:
+  case Intrinsic::rvgpu_wmma_m8n32k16_store_d_s32_row_stride: {
     Info.opc = ISD::INTRINSIC_VOID;
     Info.memVT = MVT::v8i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4382,14 +4382,14 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m8n8k128_store_d_s32_col:
-  case Intrinsic::nvvm_wmma_m8n8k128_store_d_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k128_store_d_s32_row:
-  case Intrinsic::nvvm_wmma_m8n8k128_store_d_s32_row_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_store_d_s32_col:
-  case Intrinsic::nvvm_wmma_m8n8k32_store_d_s32_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k32_store_d_s32_row:
-  case Intrinsic::nvvm_wmma_m8n8k32_store_d_s32_row_stride: {
+  case Intrinsic::rvgpu_wmma_m8n8k128_store_d_s32_col:
+  case Intrinsic::rvgpu_wmma_m8n8k128_store_d_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k128_store_d_s32_row:
+  case Intrinsic::rvgpu_wmma_m8n8k128_store_d_s32_row_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_store_d_s32_col:
+  case Intrinsic::rvgpu_wmma_m8n8k32_store_d_s32_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k32_store_d_s32_row:
+  case Intrinsic::rvgpu_wmma_m8n8k32_store_d_s32_row_stride: {
     Info.opc = ISD::INTRINSIC_VOID;
     Info.memVT = MVT::v2i32;
     Info.ptrVal = I.getArgOperand(0);
@@ -4399,10 +4399,10 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_wmma_m8n8k4_store_d_f64_col:
-  case Intrinsic::nvvm_wmma_m8n8k4_store_d_f64_col_stride:
-  case Intrinsic::nvvm_wmma_m8n8k4_store_d_f64_row:
-  case Intrinsic::nvvm_wmma_m8n8k4_store_d_f64_row_stride: {
+  case Intrinsic::rvgpu_wmma_m8n8k4_store_d_f64_col:
+  case Intrinsic::rvgpu_wmma_m8n8k4_store_d_f64_col_stride:
+  case Intrinsic::rvgpu_wmma_m8n8k4_store_d_f64_row:
+  case Intrinsic::rvgpu_wmma_m8n8k4_store_d_f64_row_stride: {
     Info.opc = ISD::INTRINSIC_VOID;
     Info.memVT = MVT::v2f64;
     Info.ptrVal = I.getArgOperand(0);
@@ -4412,31 +4412,31 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_atomic_load_inc_32:
-  case Intrinsic::nvvm_atomic_load_dec_32:
+  case Intrinsic::rvgpu_atomic_load_inc_32:
+  case Intrinsic::rvgpu_atomic_load_dec_32:
 
-  case Intrinsic::nvvm_atomic_add_gen_f_cta:
-  case Intrinsic::nvvm_atomic_add_gen_f_sys:
-  case Intrinsic::nvvm_atomic_add_gen_i_cta:
-  case Intrinsic::nvvm_atomic_add_gen_i_sys:
-  case Intrinsic::nvvm_atomic_and_gen_i_cta:
-  case Intrinsic::nvvm_atomic_and_gen_i_sys:
-  case Intrinsic::nvvm_atomic_cas_gen_i_cta:
-  case Intrinsic::nvvm_atomic_cas_gen_i_sys:
-  case Intrinsic::nvvm_atomic_dec_gen_i_cta:
-  case Intrinsic::nvvm_atomic_dec_gen_i_sys:
-  case Intrinsic::nvvm_atomic_inc_gen_i_cta:
-  case Intrinsic::nvvm_atomic_inc_gen_i_sys:
-  case Intrinsic::nvvm_atomic_max_gen_i_cta:
-  case Intrinsic::nvvm_atomic_max_gen_i_sys:
-  case Intrinsic::nvvm_atomic_min_gen_i_cta:
-  case Intrinsic::nvvm_atomic_min_gen_i_sys:
-  case Intrinsic::nvvm_atomic_or_gen_i_cta:
-  case Intrinsic::nvvm_atomic_or_gen_i_sys:
-  case Intrinsic::nvvm_atomic_exch_gen_i_cta:
-  case Intrinsic::nvvm_atomic_exch_gen_i_sys:
-  case Intrinsic::nvvm_atomic_xor_gen_i_cta:
-  case Intrinsic::nvvm_atomic_xor_gen_i_sys: {
+  case Intrinsic::rvgpu_atomic_add_gen_f_cta:
+  case Intrinsic::rvgpu_atomic_add_gen_f_sys:
+  case Intrinsic::rvgpu_atomic_add_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_add_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_and_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_and_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_cas_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_cas_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_dec_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_dec_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_inc_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_inc_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_max_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_max_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_min_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_min_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_or_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_or_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_exch_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_exch_gen_i_sys:
+  case Intrinsic::rvgpu_atomic_xor_gen_i_cta:
+  case Intrinsic::rvgpu_atomic_xor_gen_i_sys: {
     auto &DL = I.getModule()->getDataLayout();
     Info.opc = ISD::INTRINSIC_W_CHAIN;
     Info.memVT = getValueType(DL, I.getType());
@@ -4447,14 +4447,14 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_ldu_global_i:
-  case Intrinsic::nvvm_ldu_global_f:
-  case Intrinsic::nvvm_ldu_global_p: {
+  case Intrinsic::rvgpu_ldu_global_i:
+  case Intrinsic::rvgpu_ldu_global_f:
+  case Intrinsic::rvgpu_ldu_global_p: {
     auto &DL = I.getModule()->getDataLayout();
     Info.opc = ISD::INTRINSIC_W_CHAIN;
-    if (Intrinsic == Intrinsic::nvvm_ldu_global_i)
+    if (Intrinsic == Intrinsic::rvgpu_ldu_global_i)
       Info.memVT = getValueType(DL, I.getType());
-    else if(Intrinsic == Intrinsic::nvvm_ldu_global_p)
+    else if(Intrinsic == Intrinsic::rvgpu_ldu_global_p)
       Info.memVT = getPointerTy(DL);
     else
       Info.memVT = getValueType(DL, I.getType());
@@ -4465,15 +4465,15 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
 
     return true;
   }
-  case Intrinsic::nvvm_ldg_global_i:
-  case Intrinsic::nvvm_ldg_global_f:
-  case Intrinsic::nvvm_ldg_global_p: {
+  case Intrinsic::rvgpu_ldg_global_i:
+  case Intrinsic::rvgpu_ldg_global_f:
+  case Intrinsic::rvgpu_ldg_global_p: {
     auto &DL = I.getModule()->getDataLayout();
 
     Info.opc = ISD::INTRINSIC_W_CHAIN;
-    if (Intrinsic == Intrinsic::nvvm_ldg_global_i)
+    if (Intrinsic == Intrinsic::rvgpu_ldg_global_i)
       Info.memVT = getValueType(DL, I.getType());
-    else if(Intrinsic == Intrinsic::nvvm_ldg_global_p)
+    else if(Intrinsic == Intrinsic::rvgpu_ldg_global_p)
       Info.memVT = getPointerTy(DL);
     else
       Info.memVT = getValueType(DL, I.getType());
@@ -4485,62 +4485,62 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     return true;
   }
 
-  case Intrinsic::nvvm_tex_1d_v4f32_s32:
-  case Intrinsic::nvvm_tex_1d_v4f32_f32:
-  case Intrinsic::nvvm_tex_1d_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_1d_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_1d_array_v4f32_s32:
-  case Intrinsic::nvvm_tex_1d_array_v4f32_f32:
-  case Intrinsic::nvvm_tex_1d_array_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_1d_array_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_2d_v4f32_s32:
-  case Intrinsic::nvvm_tex_2d_v4f32_f32:
-  case Intrinsic::nvvm_tex_2d_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_2d_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_2d_array_v4f32_s32:
-  case Intrinsic::nvvm_tex_2d_array_v4f32_f32:
-  case Intrinsic::nvvm_tex_2d_array_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_2d_array_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_3d_v4f32_s32:
-  case Intrinsic::nvvm_tex_3d_v4f32_f32:
-  case Intrinsic::nvvm_tex_3d_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_3d_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_cube_v4f32_f32:
-  case Intrinsic::nvvm_tex_cube_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_cube_array_v4f32_f32:
-  case Intrinsic::nvvm_tex_cube_array_level_v4f32_f32:
-  case Intrinsic::nvvm_tld4_r_2d_v4f32_f32:
-  case Intrinsic::nvvm_tld4_g_2d_v4f32_f32:
-  case Intrinsic::nvvm_tld4_b_2d_v4f32_f32:
-  case Intrinsic::nvvm_tld4_a_2d_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_v4f32_s32:
-  case Intrinsic::nvvm_tex_unified_1d_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_v4f32_s32:
-  case Intrinsic::nvvm_tex_unified_1d_array_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_v4f32_s32:
-  case Intrinsic::nvvm_tex_unified_2d_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_v4f32_s32:
-  case Intrinsic::nvvm_tex_unified_2d_array_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_v4f32_s32:
-  case Intrinsic::nvvm_tex_unified_3d_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_grad_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_level_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_array_v4f32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_array_level_v4f32_f32:
-  case Intrinsic::nvvm_tld4_unified_r_2d_v4f32_f32:
-  case Intrinsic::nvvm_tld4_unified_g_2d_v4f32_f32:
-  case Intrinsic::nvvm_tld4_unified_b_2d_v4f32_f32:
-  case Intrinsic::nvvm_tld4_unified_a_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_1d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_v4f32_s32:
+  case Intrinsic::rvgpu_tex_1d_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_v4f32_s32:
+  case Intrinsic::rvgpu_tex_2d_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_3d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_3d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_3d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_3d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_cube_v4f32_f32:
+  case Intrinsic::rvgpu_tex_cube_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_r_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_g_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_b_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_a_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4f32_s32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_grad_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_level_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_v4f32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_level_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_unified_r_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_unified_g_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_unified_b_2d_v4f32_f32:
+  case Intrinsic::rvgpu_tld4_unified_a_2d_v4f32_f32:
     Info.opc = getOpcForTextureInstr(Intrinsic);
     Info.memVT = MVT::v4f32;
     Info.ptrVal = nullptr;
@@ -4549,118 +4549,118 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     Info.align = Align(16);
     return true;
 
-  case Intrinsic::nvvm_tex_1d_v4s32_s32:
-  case Intrinsic::nvvm_tex_1d_v4s32_f32:
-  case Intrinsic::nvvm_tex_1d_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_1d_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_1d_array_v4s32_s32:
-  case Intrinsic::nvvm_tex_1d_array_v4s32_f32:
-  case Intrinsic::nvvm_tex_1d_array_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_1d_array_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_2d_v4s32_s32:
-  case Intrinsic::nvvm_tex_2d_v4s32_f32:
-  case Intrinsic::nvvm_tex_2d_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_2d_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_2d_array_v4s32_s32:
-  case Intrinsic::nvvm_tex_2d_array_v4s32_f32:
-  case Intrinsic::nvvm_tex_2d_array_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_2d_array_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_3d_v4s32_s32:
-  case Intrinsic::nvvm_tex_3d_v4s32_f32:
-  case Intrinsic::nvvm_tex_3d_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_3d_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_cube_v4s32_f32:
-  case Intrinsic::nvvm_tex_cube_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_cube_array_v4s32_f32:
-  case Intrinsic::nvvm_tex_cube_array_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_cube_v4u32_f32:
-  case Intrinsic::nvvm_tex_cube_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_cube_array_v4u32_f32:
-  case Intrinsic::nvvm_tex_cube_array_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_1d_v4u32_s32:
-  case Intrinsic::nvvm_tex_1d_v4u32_f32:
-  case Intrinsic::nvvm_tex_1d_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_1d_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_1d_array_v4u32_s32:
-  case Intrinsic::nvvm_tex_1d_array_v4u32_f32:
-  case Intrinsic::nvvm_tex_1d_array_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_1d_array_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_2d_v4u32_s32:
-  case Intrinsic::nvvm_tex_2d_v4u32_f32:
-  case Intrinsic::nvvm_tex_2d_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_2d_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_2d_array_v4u32_s32:
-  case Intrinsic::nvvm_tex_2d_array_v4u32_f32:
-  case Intrinsic::nvvm_tex_2d_array_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_2d_array_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_3d_v4u32_s32:
-  case Intrinsic::nvvm_tex_3d_v4u32_f32:
-  case Intrinsic::nvvm_tex_3d_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_3d_grad_v4u32_f32:
-  case Intrinsic::nvvm_tld4_r_2d_v4s32_f32:
-  case Intrinsic::nvvm_tld4_g_2d_v4s32_f32:
-  case Intrinsic::nvvm_tld4_b_2d_v4s32_f32:
-  case Intrinsic::nvvm_tld4_a_2d_v4s32_f32:
-  case Intrinsic::nvvm_tld4_r_2d_v4u32_f32:
-  case Intrinsic::nvvm_tld4_g_2d_v4u32_f32:
-  case Intrinsic::nvvm_tld4_b_2d_v4u32_f32:
-  case Intrinsic::nvvm_tld4_a_2d_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_v4s32_s32:
-  case Intrinsic::nvvm_tex_unified_1d_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_v4s32_s32:
-  case Intrinsic::nvvm_tex_unified_1d_array_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_v4s32_s32:
-  case Intrinsic::nvvm_tex_unified_2d_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_v4s32_s32:
-  case Intrinsic::nvvm_tex_unified_2d_array_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_v4s32_s32:
-  case Intrinsic::nvvm_tex_unified_3d_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_grad_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_v4u32_s32:
-  case Intrinsic::nvvm_tex_unified_1d_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_v4u32_s32:
-  case Intrinsic::nvvm_tex_unified_1d_array_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_1d_array_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_v4u32_s32:
-  case Intrinsic::nvvm_tex_unified_2d_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_v4u32_s32:
-  case Intrinsic::nvvm_tex_unified_2d_array_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_2d_array_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_v4u32_s32:
-  case Intrinsic::nvvm_tex_unified_3d_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_3d_grad_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_array_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_array_level_v4s32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_level_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_array_v4u32_f32:
-  case Intrinsic::nvvm_tex_unified_cube_array_level_v4u32_f32:
-  case Intrinsic::nvvm_tld4_unified_r_2d_v4s32_f32:
-  case Intrinsic::nvvm_tld4_unified_g_2d_v4s32_f32:
-  case Intrinsic::nvvm_tld4_unified_b_2d_v4s32_f32:
-  case Intrinsic::nvvm_tld4_unified_a_2d_v4s32_f32:
-  case Intrinsic::nvvm_tld4_unified_r_2d_v4u32_f32:
-  case Intrinsic::nvvm_tld4_unified_g_2d_v4u32_f32:
-  case Intrinsic::nvvm_tld4_unified_b_2d_v4u32_f32:
-  case Intrinsic::nvvm_tld4_unified_a_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_1d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_v4s32_s32:
+  case Intrinsic::rvgpu_tex_1d_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_v4s32_s32:
+  case Intrinsic::rvgpu_tex_2d_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_3d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_3d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_3d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_3d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_cube_v4u32_f32:
+  case Intrinsic::rvgpu_tex_cube_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_cube_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_1d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_v4u32_s32:
+  case Intrinsic::rvgpu_tex_1d_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_1d_array_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_v4u32_s32:
+  case Intrinsic::rvgpu_tex_2d_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_2d_array_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_3d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_3d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_3d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_3d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_r_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_g_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_b_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_a_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_r_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_g_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_b_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_a_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4s32_s32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_grad_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_1d_array_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_2d_array_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4u32_s32:
+  case Intrinsic::rvgpu_tex_unified_3d_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_3d_grad_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_level_v4s32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_level_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_v4u32_f32:
+  case Intrinsic::rvgpu_tex_unified_cube_array_level_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_unified_r_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_unified_g_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_unified_b_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_unified_a_2d_v4s32_f32:
+  case Intrinsic::rvgpu_tld4_unified_r_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_unified_g_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_unified_b_2d_v4u32_f32:
+  case Intrinsic::rvgpu_tld4_unified_a_2d_v4u32_f32:
     Info.opc = getOpcForTextureInstr(Intrinsic);
     Info.memVT = MVT::v4i32;
     Info.ptrVal = nullptr;
@@ -4669,51 +4669,51 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     Info.align = Align(16);
     return true;
 
-  case Intrinsic::nvvm_suld_1d_i8_clamp:
-  case Intrinsic::nvvm_suld_1d_v2i8_clamp:
-  case Intrinsic::nvvm_suld_1d_v4i8_clamp:
-  case Intrinsic::nvvm_suld_1d_array_i8_clamp:
-  case Intrinsic::nvvm_suld_1d_array_v2i8_clamp:
-  case Intrinsic::nvvm_suld_1d_array_v4i8_clamp:
-  case Intrinsic::nvvm_suld_2d_i8_clamp:
-  case Intrinsic::nvvm_suld_2d_v2i8_clamp:
-  case Intrinsic::nvvm_suld_2d_v4i8_clamp:
-  case Intrinsic::nvvm_suld_2d_array_i8_clamp:
-  case Intrinsic::nvvm_suld_2d_array_v2i8_clamp:
-  case Intrinsic::nvvm_suld_2d_array_v4i8_clamp:
-  case Intrinsic::nvvm_suld_3d_i8_clamp:
-  case Intrinsic::nvvm_suld_3d_v2i8_clamp:
-  case Intrinsic::nvvm_suld_3d_v4i8_clamp:
-  case Intrinsic::nvvm_suld_1d_i8_trap:
-  case Intrinsic::nvvm_suld_1d_v2i8_trap:
-  case Intrinsic::nvvm_suld_1d_v4i8_trap:
-  case Intrinsic::nvvm_suld_1d_array_i8_trap:
-  case Intrinsic::nvvm_suld_1d_array_v2i8_trap:
-  case Intrinsic::nvvm_suld_1d_array_v4i8_trap:
-  case Intrinsic::nvvm_suld_2d_i8_trap:
-  case Intrinsic::nvvm_suld_2d_v2i8_trap:
-  case Intrinsic::nvvm_suld_2d_v4i8_trap:
-  case Intrinsic::nvvm_suld_2d_array_i8_trap:
-  case Intrinsic::nvvm_suld_2d_array_v2i8_trap:
-  case Intrinsic::nvvm_suld_2d_array_v4i8_trap:
-  case Intrinsic::nvvm_suld_3d_i8_trap:
-  case Intrinsic::nvvm_suld_3d_v2i8_trap:
-  case Intrinsic::nvvm_suld_3d_v4i8_trap:
-  case Intrinsic::nvvm_suld_1d_i8_zero:
-  case Intrinsic::nvvm_suld_1d_v2i8_zero:
-  case Intrinsic::nvvm_suld_1d_v4i8_zero:
-  case Intrinsic::nvvm_suld_1d_array_i8_zero:
-  case Intrinsic::nvvm_suld_1d_array_v2i8_zero:
-  case Intrinsic::nvvm_suld_1d_array_v4i8_zero:
-  case Intrinsic::nvvm_suld_2d_i8_zero:
-  case Intrinsic::nvvm_suld_2d_v2i8_zero:
-  case Intrinsic::nvvm_suld_2d_v4i8_zero:
-  case Intrinsic::nvvm_suld_2d_array_i8_zero:
-  case Intrinsic::nvvm_suld_2d_array_v2i8_zero:
-  case Intrinsic::nvvm_suld_2d_array_v4i8_zero:
-  case Intrinsic::nvvm_suld_3d_i8_zero:
-  case Intrinsic::nvvm_suld_3d_v2i8_zero:
-  case Intrinsic::nvvm_suld_3d_v4i8_zero:
+  case Intrinsic::rvgpu_suld_1d_i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_3d_i8_clamp:
+  case Intrinsic::rvgpu_suld_3d_v2i8_clamp:
+  case Intrinsic::rvgpu_suld_3d_v4i8_clamp:
+  case Intrinsic::rvgpu_suld_1d_i8_trap:
+  case Intrinsic::rvgpu_suld_1d_v2i8_trap:
+  case Intrinsic::rvgpu_suld_1d_v4i8_trap:
+  case Intrinsic::rvgpu_suld_1d_array_i8_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v2i8_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v4i8_trap:
+  case Intrinsic::rvgpu_suld_2d_i8_trap:
+  case Intrinsic::rvgpu_suld_2d_v2i8_trap:
+  case Intrinsic::rvgpu_suld_2d_v4i8_trap:
+  case Intrinsic::rvgpu_suld_2d_array_i8_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v2i8_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v4i8_trap:
+  case Intrinsic::rvgpu_suld_3d_i8_trap:
+  case Intrinsic::rvgpu_suld_3d_v2i8_trap:
+  case Intrinsic::rvgpu_suld_3d_v4i8_trap:
+  case Intrinsic::rvgpu_suld_1d_i8_zero:
+  case Intrinsic::rvgpu_suld_1d_v2i8_zero:
+  case Intrinsic::rvgpu_suld_1d_v4i8_zero:
+  case Intrinsic::rvgpu_suld_1d_array_i8_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v2i8_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v4i8_zero:
+  case Intrinsic::rvgpu_suld_2d_i8_zero:
+  case Intrinsic::rvgpu_suld_2d_v2i8_zero:
+  case Intrinsic::rvgpu_suld_2d_v4i8_zero:
+  case Intrinsic::rvgpu_suld_2d_array_i8_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v2i8_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v4i8_zero:
+  case Intrinsic::rvgpu_suld_3d_i8_zero:
+  case Intrinsic::rvgpu_suld_3d_v2i8_zero:
+  case Intrinsic::rvgpu_suld_3d_v4i8_zero:
     Info.opc = getOpcForSurfaceInstr(Intrinsic);
     Info.memVT = MVT::i8;
     Info.ptrVal = nullptr;
@@ -4722,51 +4722,51 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     Info.align = Align(16);
     return true;
 
-  case Intrinsic::nvvm_suld_1d_i16_clamp:
-  case Intrinsic::nvvm_suld_1d_v2i16_clamp:
-  case Intrinsic::nvvm_suld_1d_v4i16_clamp:
-  case Intrinsic::nvvm_suld_1d_array_i16_clamp:
-  case Intrinsic::nvvm_suld_1d_array_v2i16_clamp:
-  case Intrinsic::nvvm_suld_1d_array_v4i16_clamp:
-  case Intrinsic::nvvm_suld_2d_i16_clamp:
-  case Intrinsic::nvvm_suld_2d_v2i16_clamp:
-  case Intrinsic::nvvm_suld_2d_v4i16_clamp:
-  case Intrinsic::nvvm_suld_2d_array_i16_clamp:
-  case Intrinsic::nvvm_suld_2d_array_v2i16_clamp:
-  case Intrinsic::nvvm_suld_2d_array_v4i16_clamp:
-  case Intrinsic::nvvm_suld_3d_i16_clamp:
-  case Intrinsic::nvvm_suld_3d_v2i16_clamp:
-  case Intrinsic::nvvm_suld_3d_v4i16_clamp:
-  case Intrinsic::nvvm_suld_1d_i16_trap:
-  case Intrinsic::nvvm_suld_1d_v2i16_trap:
-  case Intrinsic::nvvm_suld_1d_v4i16_trap:
-  case Intrinsic::nvvm_suld_1d_array_i16_trap:
-  case Intrinsic::nvvm_suld_1d_array_v2i16_trap:
-  case Intrinsic::nvvm_suld_1d_array_v4i16_trap:
-  case Intrinsic::nvvm_suld_2d_i16_trap:
-  case Intrinsic::nvvm_suld_2d_v2i16_trap:
-  case Intrinsic::nvvm_suld_2d_v4i16_trap:
-  case Intrinsic::nvvm_suld_2d_array_i16_trap:
-  case Intrinsic::nvvm_suld_2d_array_v2i16_trap:
-  case Intrinsic::nvvm_suld_2d_array_v4i16_trap:
-  case Intrinsic::nvvm_suld_3d_i16_trap:
-  case Intrinsic::nvvm_suld_3d_v2i16_trap:
-  case Intrinsic::nvvm_suld_3d_v4i16_trap:
-  case Intrinsic::nvvm_suld_1d_i16_zero:
-  case Intrinsic::nvvm_suld_1d_v2i16_zero:
-  case Intrinsic::nvvm_suld_1d_v4i16_zero:
-  case Intrinsic::nvvm_suld_1d_array_i16_zero:
-  case Intrinsic::nvvm_suld_1d_array_v2i16_zero:
-  case Intrinsic::nvvm_suld_1d_array_v4i16_zero:
-  case Intrinsic::nvvm_suld_2d_i16_zero:
-  case Intrinsic::nvvm_suld_2d_v2i16_zero:
-  case Intrinsic::nvvm_suld_2d_v4i16_zero:
-  case Intrinsic::nvvm_suld_2d_array_i16_zero:
-  case Intrinsic::nvvm_suld_2d_array_v2i16_zero:
-  case Intrinsic::nvvm_suld_2d_array_v4i16_zero:
-  case Intrinsic::nvvm_suld_3d_i16_zero:
-  case Intrinsic::nvvm_suld_3d_v2i16_zero:
-  case Intrinsic::nvvm_suld_3d_v4i16_zero:
+  case Intrinsic::rvgpu_suld_1d_i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_3d_i16_clamp:
+  case Intrinsic::rvgpu_suld_3d_v2i16_clamp:
+  case Intrinsic::rvgpu_suld_3d_v4i16_clamp:
+  case Intrinsic::rvgpu_suld_1d_i16_trap:
+  case Intrinsic::rvgpu_suld_1d_v2i16_trap:
+  case Intrinsic::rvgpu_suld_1d_v4i16_trap:
+  case Intrinsic::rvgpu_suld_1d_array_i16_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v2i16_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v4i16_trap:
+  case Intrinsic::rvgpu_suld_2d_i16_trap:
+  case Intrinsic::rvgpu_suld_2d_v2i16_trap:
+  case Intrinsic::rvgpu_suld_2d_v4i16_trap:
+  case Intrinsic::rvgpu_suld_2d_array_i16_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v2i16_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v4i16_trap:
+  case Intrinsic::rvgpu_suld_3d_i16_trap:
+  case Intrinsic::rvgpu_suld_3d_v2i16_trap:
+  case Intrinsic::rvgpu_suld_3d_v4i16_trap:
+  case Intrinsic::rvgpu_suld_1d_i16_zero:
+  case Intrinsic::rvgpu_suld_1d_v2i16_zero:
+  case Intrinsic::rvgpu_suld_1d_v4i16_zero:
+  case Intrinsic::rvgpu_suld_1d_array_i16_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v2i16_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v4i16_zero:
+  case Intrinsic::rvgpu_suld_2d_i16_zero:
+  case Intrinsic::rvgpu_suld_2d_v2i16_zero:
+  case Intrinsic::rvgpu_suld_2d_v4i16_zero:
+  case Intrinsic::rvgpu_suld_2d_array_i16_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v2i16_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v4i16_zero:
+  case Intrinsic::rvgpu_suld_3d_i16_zero:
+  case Intrinsic::rvgpu_suld_3d_v2i16_zero:
+  case Intrinsic::rvgpu_suld_3d_v4i16_zero:
     Info.opc = getOpcForSurfaceInstr(Intrinsic);
     Info.memVT = MVT::i16;
     Info.ptrVal = nullptr;
@@ -4775,51 +4775,51 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     Info.align = Align(16);
     return true;
 
-  case Intrinsic::nvvm_suld_1d_i32_clamp:
-  case Intrinsic::nvvm_suld_1d_v2i32_clamp:
-  case Intrinsic::nvvm_suld_1d_v4i32_clamp:
-  case Intrinsic::nvvm_suld_1d_array_i32_clamp:
-  case Intrinsic::nvvm_suld_1d_array_v2i32_clamp:
-  case Intrinsic::nvvm_suld_1d_array_v4i32_clamp:
-  case Intrinsic::nvvm_suld_2d_i32_clamp:
-  case Intrinsic::nvvm_suld_2d_v2i32_clamp:
-  case Intrinsic::nvvm_suld_2d_v4i32_clamp:
-  case Intrinsic::nvvm_suld_2d_array_i32_clamp:
-  case Intrinsic::nvvm_suld_2d_array_v2i32_clamp:
-  case Intrinsic::nvvm_suld_2d_array_v4i32_clamp:
-  case Intrinsic::nvvm_suld_3d_i32_clamp:
-  case Intrinsic::nvvm_suld_3d_v2i32_clamp:
-  case Intrinsic::nvvm_suld_3d_v4i32_clamp:
-  case Intrinsic::nvvm_suld_1d_i32_trap:
-  case Intrinsic::nvvm_suld_1d_v2i32_trap:
-  case Intrinsic::nvvm_suld_1d_v4i32_trap:
-  case Intrinsic::nvvm_suld_1d_array_i32_trap:
-  case Intrinsic::nvvm_suld_1d_array_v2i32_trap:
-  case Intrinsic::nvvm_suld_1d_array_v4i32_trap:
-  case Intrinsic::nvvm_suld_2d_i32_trap:
-  case Intrinsic::nvvm_suld_2d_v2i32_trap:
-  case Intrinsic::nvvm_suld_2d_v4i32_trap:
-  case Intrinsic::nvvm_suld_2d_array_i32_trap:
-  case Intrinsic::nvvm_suld_2d_array_v2i32_trap:
-  case Intrinsic::nvvm_suld_2d_array_v4i32_trap:
-  case Intrinsic::nvvm_suld_3d_i32_trap:
-  case Intrinsic::nvvm_suld_3d_v2i32_trap:
-  case Intrinsic::nvvm_suld_3d_v4i32_trap:
-  case Intrinsic::nvvm_suld_1d_i32_zero:
-  case Intrinsic::nvvm_suld_1d_v2i32_zero:
-  case Intrinsic::nvvm_suld_1d_v4i32_zero:
-  case Intrinsic::nvvm_suld_1d_array_i32_zero:
-  case Intrinsic::nvvm_suld_1d_array_v2i32_zero:
-  case Intrinsic::nvvm_suld_1d_array_v4i32_zero:
-  case Intrinsic::nvvm_suld_2d_i32_zero:
-  case Intrinsic::nvvm_suld_2d_v2i32_zero:
-  case Intrinsic::nvvm_suld_2d_v4i32_zero:
-  case Intrinsic::nvvm_suld_2d_array_i32_zero:
-  case Intrinsic::nvvm_suld_2d_array_v2i32_zero:
-  case Intrinsic::nvvm_suld_2d_array_v4i32_zero:
-  case Intrinsic::nvvm_suld_3d_i32_zero:
-  case Intrinsic::nvvm_suld_3d_v2i32_zero:
-  case Intrinsic::nvvm_suld_3d_v4i32_zero:
+  case Intrinsic::rvgpu_suld_1d_i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_3d_i32_clamp:
+  case Intrinsic::rvgpu_suld_3d_v2i32_clamp:
+  case Intrinsic::rvgpu_suld_3d_v4i32_clamp:
+  case Intrinsic::rvgpu_suld_1d_i32_trap:
+  case Intrinsic::rvgpu_suld_1d_v2i32_trap:
+  case Intrinsic::rvgpu_suld_1d_v4i32_trap:
+  case Intrinsic::rvgpu_suld_1d_array_i32_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v2i32_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v4i32_trap:
+  case Intrinsic::rvgpu_suld_2d_i32_trap:
+  case Intrinsic::rvgpu_suld_2d_v2i32_trap:
+  case Intrinsic::rvgpu_suld_2d_v4i32_trap:
+  case Intrinsic::rvgpu_suld_2d_array_i32_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v2i32_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v4i32_trap:
+  case Intrinsic::rvgpu_suld_3d_i32_trap:
+  case Intrinsic::rvgpu_suld_3d_v2i32_trap:
+  case Intrinsic::rvgpu_suld_3d_v4i32_trap:
+  case Intrinsic::rvgpu_suld_1d_i32_zero:
+  case Intrinsic::rvgpu_suld_1d_v2i32_zero:
+  case Intrinsic::rvgpu_suld_1d_v4i32_zero:
+  case Intrinsic::rvgpu_suld_1d_array_i32_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v2i32_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v4i32_zero:
+  case Intrinsic::rvgpu_suld_2d_i32_zero:
+  case Intrinsic::rvgpu_suld_2d_v2i32_zero:
+  case Intrinsic::rvgpu_suld_2d_v4i32_zero:
+  case Intrinsic::rvgpu_suld_2d_array_i32_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v2i32_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v4i32_zero:
+  case Intrinsic::rvgpu_suld_3d_i32_zero:
+  case Intrinsic::rvgpu_suld_3d_v2i32_zero:
+  case Intrinsic::rvgpu_suld_3d_v4i32_zero:
     Info.opc = getOpcForSurfaceInstr(Intrinsic);
     Info.memVT = MVT::i32;
     Info.ptrVal = nullptr;
@@ -4828,36 +4828,36 @@ bool RVGPUTargetLowering::getTgtMemIntrinsic(
     Info.align = Align(16);
     return true;
 
-  case Intrinsic::nvvm_suld_1d_i64_clamp:
-  case Intrinsic::nvvm_suld_1d_v2i64_clamp:
-  case Intrinsic::nvvm_suld_1d_array_i64_clamp:
-  case Intrinsic::nvvm_suld_1d_array_v2i64_clamp:
-  case Intrinsic::nvvm_suld_2d_i64_clamp:
-  case Intrinsic::nvvm_suld_2d_v2i64_clamp:
-  case Intrinsic::nvvm_suld_2d_array_i64_clamp:
-  case Intrinsic::nvvm_suld_2d_array_v2i64_clamp:
-  case Intrinsic::nvvm_suld_3d_i64_clamp:
-  case Intrinsic::nvvm_suld_3d_v2i64_clamp:
-  case Intrinsic::nvvm_suld_1d_i64_trap:
-  case Intrinsic::nvvm_suld_1d_v2i64_trap:
-  case Intrinsic::nvvm_suld_1d_array_i64_trap:
-  case Intrinsic::nvvm_suld_1d_array_v2i64_trap:
-  case Intrinsic::nvvm_suld_2d_i64_trap:
-  case Intrinsic::nvvm_suld_2d_v2i64_trap:
-  case Intrinsic::nvvm_suld_2d_array_i64_trap:
-  case Intrinsic::nvvm_suld_2d_array_v2i64_trap:
-  case Intrinsic::nvvm_suld_3d_i64_trap:
-  case Intrinsic::nvvm_suld_3d_v2i64_trap:
-  case Intrinsic::nvvm_suld_1d_i64_zero:
-  case Intrinsic::nvvm_suld_1d_v2i64_zero:
-  case Intrinsic::nvvm_suld_1d_array_i64_zero:
-  case Intrinsic::nvvm_suld_1d_array_v2i64_zero:
-  case Intrinsic::nvvm_suld_2d_i64_zero:
-  case Intrinsic::nvvm_suld_2d_v2i64_zero:
-  case Intrinsic::nvvm_suld_2d_array_i64_zero:
-  case Intrinsic::nvvm_suld_2d_array_v2i64_zero:
-  case Intrinsic::nvvm_suld_3d_i64_zero:
-  case Intrinsic::nvvm_suld_3d_v2i64_zero:
+  case Intrinsic::rvgpu_suld_1d_i64_clamp:
+  case Intrinsic::rvgpu_suld_1d_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_i64_clamp:
+  case Intrinsic::rvgpu_suld_1d_array_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_2d_i64_clamp:
+  case Intrinsic::rvgpu_suld_2d_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_i64_clamp:
+  case Intrinsic::rvgpu_suld_2d_array_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_3d_i64_clamp:
+  case Intrinsic::rvgpu_suld_3d_v2i64_clamp:
+  case Intrinsic::rvgpu_suld_1d_i64_trap:
+  case Intrinsic::rvgpu_suld_1d_v2i64_trap:
+  case Intrinsic::rvgpu_suld_1d_array_i64_trap:
+  case Intrinsic::rvgpu_suld_1d_array_v2i64_trap:
+  case Intrinsic::rvgpu_suld_2d_i64_trap:
+  case Intrinsic::rvgpu_suld_2d_v2i64_trap:
+  case Intrinsic::rvgpu_suld_2d_array_i64_trap:
+  case Intrinsic::rvgpu_suld_2d_array_v2i64_trap:
+  case Intrinsic::rvgpu_suld_3d_i64_trap:
+  case Intrinsic::rvgpu_suld_3d_v2i64_trap:
+  case Intrinsic::rvgpu_suld_1d_i64_zero:
+  case Intrinsic::rvgpu_suld_1d_v2i64_zero:
+  case Intrinsic::rvgpu_suld_1d_array_i64_zero:
+  case Intrinsic::rvgpu_suld_1d_array_v2i64_zero:
+  case Intrinsic::rvgpu_suld_2d_i64_zero:
+  case Intrinsic::rvgpu_suld_2d_v2i64_zero:
+  case Intrinsic::rvgpu_suld_2d_array_i64_zero:
+  case Intrinsic::rvgpu_suld_2d_array_v2i64_zero:
+  case Intrinsic::rvgpu_suld_3d_i64_zero:
+  case Intrinsic::rvgpu_suld_3d_v2i64_zero:
     Info.opc = getOpcForSurfaceInstr(Intrinsic);
     Info.memVT = MVT::i64;
     Info.ptrVal = nullptr;
@@ -5815,12 +5815,12 @@ static void ReplaceINTRINSIC_W_CHAIN(SDNode *N, SelectionDAG &DAG,
   switch (IntrinNo) {
   default:
     return;
-  case Intrinsic::nvvm_ldg_global_i:
-  case Intrinsic::nvvm_ldg_global_f:
-  case Intrinsic::nvvm_ldg_global_p:
-  case Intrinsic::nvvm_ldu_global_i:
-  case Intrinsic::nvvm_ldu_global_f:
-  case Intrinsic::nvvm_ldu_global_p: {
+  case Intrinsic::rvgpu_ldg_global_i:
+  case Intrinsic::rvgpu_ldg_global_f:
+  case Intrinsic::rvgpu_ldg_global_p:
+  case Intrinsic::rvgpu_ldu_global_i:
+  case Intrinsic::rvgpu_ldu_global_f:
+  case Intrinsic::rvgpu_ldu_global_p: {
     EVT ResVT = N->getValueType(0);
 
     if (ResVT.isVector()) {
@@ -5849,14 +5849,14 @@ static void ReplaceINTRINSIC_W_CHAIN(SDNode *N, SelectionDAG &DAG,
         switch (IntrinNo) {
         default:
           return;
-        case Intrinsic::nvvm_ldg_global_i:
-        case Intrinsic::nvvm_ldg_global_f:
-        case Intrinsic::nvvm_ldg_global_p:
+        case Intrinsic::rvgpu_ldg_global_i:
+        case Intrinsic::rvgpu_ldg_global_f:
+        case Intrinsic::rvgpu_ldg_global_p:
           Opcode = RVGPUISD::LDGV2;
           break;
-        case Intrinsic::nvvm_ldu_global_i:
-        case Intrinsic::nvvm_ldu_global_f:
-        case Intrinsic::nvvm_ldu_global_p:
+        case Intrinsic::rvgpu_ldu_global_i:
+        case Intrinsic::rvgpu_ldu_global_f:
+        case Intrinsic::rvgpu_ldu_global_p:
           Opcode = RVGPUISD::LDUV2;
           break;
         }
@@ -5866,14 +5866,14 @@ static void ReplaceINTRINSIC_W_CHAIN(SDNode *N, SelectionDAG &DAG,
         switch (IntrinNo) {
         default:
           return;
-        case Intrinsic::nvvm_ldg_global_i:
-        case Intrinsic::nvvm_ldg_global_f:
-        case Intrinsic::nvvm_ldg_global_p:
+        case Intrinsic::rvgpu_ldg_global_i:
+        case Intrinsic::rvgpu_ldg_global_f:
+        case Intrinsic::rvgpu_ldg_global_p:
           Opcode = RVGPUISD::LDGV4;
           break;
-        case Intrinsic::nvvm_ldu_global_i:
-        case Intrinsic::nvvm_ldu_global_f:
-        case Intrinsic::nvvm_ldu_global_p:
+        case Intrinsic::rvgpu_ldu_global_i:
+        case Intrinsic::rvgpu_ldu_global_f:
+        case Intrinsic::rvgpu_ldu_global_p:
           Opcode = RVGPUISD::LDUV4;
           break;
         }

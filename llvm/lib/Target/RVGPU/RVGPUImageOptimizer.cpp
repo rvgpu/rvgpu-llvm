@@ -18,7 +18,7 @@
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/IntrinsicsNVPTX.h"
+#include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 
@@ -67,13 +67,13 @@ bool RVGPUImageOptimizer::runOnFunction(Function &F) {
           // This is an intrinsic function call, check if its an istypep
           switch (CalledF->getIntrinsicID()) {
           default: break;
-          case Intrinsic::nvvm_istypep_sampler:
+          case Intrinsic::rvgpu_istypep_sampler:
             Changed |= replaceIsTypePSampler(Instr);
             break;
-          case Intrinsic::nvvm_istypep_surface:
+          case Intrinsic::rvgpu_istypep_surface:
             Changed |= replaceIsTypePSurface(Instr);
             break;
-          case Intrinsic::nvvm_istypep_texture:
+          case Intrinsic::rvgpu_istypep_texture:
             Changed |= replaceIsTypePTexture(Instr);
             break;
           }
