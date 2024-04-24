@@ -21,7 +21,7 @@ def VecNOP : VecInstTypeEnum<0>;
 
 class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   : Instruction {
-  field bits<14> Inst;
+  field bits<64> Inst = 0;
 
   let Namespace = "RVGPU";
   dag OutOperandList = outs;
@@ -55,4 +55,30 @@ class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   let TSFlags{10}      = IsSust;
   let TSFlags{11}      = IsSurfTexQuery;
   let TSFlags{12}      = IsTexModeUnified;
+}
+
+class RVGPUInstR<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> rd = 0;
+  bits<8> rs1 = 0;
+  bits<8> rs2 = 0;
+
+  let Inst{63-56} = opcode;
+  let Inst{55-53} = optype;
+  let Inst{23-16} = rs2;
+  let Inst{15-8}  = rs1;
+  let Inst{7-0}   = rd;
+}
+
+class RVGPUInstI<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> rd = 0;
+  bits<8> rs1 = 0;
+  bits<16> imm16 = 0;
+
+  let Inst{63-56} = opcode;
+  let Inst{55-53} = optype;
+  let Inst{31-16} = imm16;
+  let Inst{15-8}  = rs1;
+  let Inst{7-0}   = rd;
 }

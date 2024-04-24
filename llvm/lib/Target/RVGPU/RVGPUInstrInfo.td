@@ -202,31 +202,37 @@ class ValueToRegClass<ValueType T> {
 
 // Template for instructions which take three int64, int32, or int16 args.
 // The instructions are named "<OpcStr><Width>" (e.g. "add.s64").
-multiclass I3<string OpcStr, SDNode OpNode> {
+multiclass I3<bits<8> OpCode, string OpcStr, SDNode OpNode> {
   def i64rr :
-    RVGPUInst<(outs Int64Regs:$dst), (ins Int64Regs:$a, Int64Regs:$b),
-              !strconcat(OpcStr, "64 \t$dst, $a, $b;"),
-              [(set Int64Regs:$dst, (OpNode Int64Regs:$a, Int64Regs:$b))]>;
+    RVGPUInstR<OpCode, 0b010,
+              (outs Int64Regs:$rd), (ins Int64Regs:$rs1, Int64Regs:$rs2),
+              !strconcat(OpcStr, "64 \t$rd, $rs1, $rs2;"),
+              [(set Int64Regs:$rd, (OpNode Int64Regs:$rs1, Int64Regs:$rs2))]>;
   def i64ri :
-    RVGPUInst<(outs Int64Regs:$dst), (ins Int64Regs:$a, i64imm:$b),
-              !strconcat(OpcStr, "64 \t$dst, $a, $b;"),
-              [(set Int64Regs:$dst, (OpNode Int64Regs:$a, imm:$b))]>;
+    RVGPUInstI<OpCode, 0b010,
+              (outs Int64Regs:$rd), (ins Int64Regs:$rs1, i64imm:$imm16),
+              !strconcat(OpcStr, "64 \t$rd, $rs1, $imm16;"),
+              [(set Int64Regs:$rd, (OpNode Int64Regs:$rs1, imm:$imm16))]>;
   def i32rr :
-    RVGPUInst<(outs Int32Regs:$dst), (ins Int32Regs:$a, Int32Regs:$b),
-              !strconcat(OpcStr, "32 \t$dst, $a, $b;"),
-              [(set Int32Regs:$dst, (OpNode (i32 Int32Regs:$a), (i32 Int32Regs:$b)))]>;
+    RVGPUInstR<OpCode, 0b001,
+              (outs Int32Regs:$rd), (ins Int32Regs:$rs1, Int32Regs:$rs2),
+              !strconcat(OpcStr, "32 \t$rd, $rs1, $rs2;"),
+              [(set Int32Regs:$rd, (OpNode (i32 Int32Regs:$rs1), (i32 Int32Regs:$rs2)))]>;
   def i32ri :
-    RVGPUInst<(outs Int32Regs:$dst), (ins Int32Regs:$a, i32imm:$b),
-              !strconcat(OpcStr, "32 \t$dst, $a, $b;"),
-              [(set Int32Regs:$dst, (OpNode (i32 Int32Regs:$a), imm:$b))]>;
+    RVGPUInstI<OpCode, 0b001,
+              (outs Int32Regs:$rd), (ins Int32Regs:$rs1, i32imm:$imm16),
+              !strconcat(OpcStr, "32 \t$rd, $rs1, $imm16;"),
+              [(set Int32Regs:$rd, (OpNode (i32 Int32Regs:$rs1), imm:$imm16))]>;
   def i16rr :
-    RVGPUInst<(outs Int16Regs:$dst), (ins Int16Regs:$a, Int16Regs:$b),
-              !strconcat(OpcStr, "16 \t$dst, $a, $b;"),
-              [(set Int16Regs:$dst, (OpNode Int16Regs:$a, Int16Regs:$b))]>;
+    RVGPUInstR<OpCode, 0b000,
+              (outs Int16Regs:$rd), (ins Int16Regs:$rs1, Int16Regs:$rs2),
+              !strconcat(OpcStr, "16 \t$rd, $rs1, $rs2;"),
+              [(set Int16Regs:$rd, (OpNode Int16Regs:$rs1, Int16Regs:$rs2))]>;
   def i16ri :
-    RVGPUInst<(outs Int16Regs:$dst), (ins Int16Regs:$a, i16imm:$b),
-              !strconcat(OpcStr, "16 \t$dst, $a, $b;"),
-              [(set Int16Regs:$dst, (OpNode Int16Regs:$a, (imm):$b))]>;
+    RVGPUInstI<OpCode, 0b000,
+              (outs Int16Regs:$rd), (ins Int16Regs:$rs1, i16imm:$imm16),
+              !strconcat(OpcStr, "16 \t$rd, $rs1, $imm16;"),
+              [(set Int16Regs:$rd, (OpNode Int16Regs:$rs1, (imm):$imm16))]>;
 }
 
 class I16x2<string OpcStr, SDNode OpNode> :
@@ -831,8 +837,8 @@ defm SUB_i1 : ADD_SUB_i1<sub>;
 
 // int16, int32, and int64 signed addition.  Since nvptx is 2's complement, we
 // also use these for unsigned arithmetic.
-defm ADD : I3<"add.s", add>;
-defm SUB : I3<"sub.s", sub>;
+defm ADD : I3<0b00000000, "add.s", add>;
+defm SUB : I3<0b00000001, "sub.s", sub>;
 
 def ADD16x2 : I16x2<"add.s", add>;
 def SUB16x2 : I16x2<"sub.s", sub>;
@@ -845,18 +851,18 @@ defm SUBCC : ADD_SUB_INT_CARRY<"sub.cc", subc>;
 defm ADDCCC : ADD_SUB_INT_CARRY<"addc.cc", adde>;
 defm SUBCCC : ADD_SUB_INT_CARRY<"subc.cc", sube>;
 
-defm MULT : I3<"mul.lo.s", mul>;
+defm MULT : I3<0b00000010, "mul.lo.s", mul>;
 
-defm MULTHS : I3<"mul.hi.s", mulhs>;
-defm MULTHU : I3<"mul.hi.u", mulhu>;
+defm MULTHS : I3<0b00000011, "mul.hi.s", mulhs>;
+defm MULTHU : I3<0b00000100, "mul.hi.u", mulhu>;
 
-defm SDIV : I3<"div.s", sdiv>;
-defm UDIV : I3<"div.u", udiv>;
+defm SDIV : I3<0b00000101, "div.s", sdiv>;
+defm UDIV : I3<0b00000110, "div.u", udiv>;
 
 // The ri versions of rem.s and rem.u won't be selected; DAGCombiner::visitSREM
 // will lower it.
-defm SREM : I3<"rem.s", srem>;
-defm UREM : I3<"rem.u", urem>;
+defm SREM : I3<0b00000111, "rem.s", srem>;
+defm UREM : I3<0b00001000, "rem.u", urem>;
 
 // Integer absolute value.  NumBits should be one minus the bit width of RC.
 // This idiom implements the algorithm at
@@ -871,10 +877,10 @@ defm ABS_32 : ABS<i32, Int32Regs, ".s32">;
 defm ABS_64 : ABS<i64, Int64Regs, ".s64">;
 
 // Integer min/max.
-defm SMAX : I3<"max.s", smax>;
-defm UMAX : I3<"max.u", umax>;
-defm SMIN : I3<"min.s", smin>;
-defm UMIN : I3<"min.u", umin>;
+defm SMAX : I3<0b00001001, "max.s", smax>;
+defm UMAX : I3<0b00001010, "max.u", umax>;
+defm SMIN : I3<0b00001011, "min.s", smin>;
+defm UMIN : I3<0b00001100, "min.u", umin>;
 
 def SMAX16x2 : I16x2<"max.s", smax>;
 def UMAX16x2 : I16x2<"max.u", umax>;
