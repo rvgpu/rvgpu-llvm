@@ -30,45 +30,32 @@ def VRFrameLocal64    : RVGPUReg<"%SPL">;
 // Special Registers used as the stack
 def VRDepot  : RVGPUReg<"%Depot">;
 
-// We use virtual registers, but define a few physical registers here to keep
-// SDAG and the MachineInstr layers happy.
-foreach i = 0...4 in {
-  def P#i  : RVGPUReg<"%p"#i>;  // Predicate
-  def RS#i : RVGPUReg<"%rs"#i>; // 16-bit
-  def R#i  : RVGPUReg<"%r"#i>;  // 32-bit
-  def RL#i : RVGPUReg<"%rd"#i>; // 64-bit
-  def H#i  : RVGPUReg<"%h"#i>;  // 16-bit float
-  def HH#i : RVGPUReg<"%hh"#i>; // 2x16-bit float
-  def F#i  : RVGPUReg<"%f"#i>;  // 32-bit float
-  def FL#i : RVGPUReg<"%fd"#i>; // 64-bit float
+// 定义1个Predicate Register
+def PREG : RVGPUReg<"%p">;
 
-  // Arguments
-  def ia#i : RVGPUReg<"%ia"#i>;
-  def la#i : RVGPUReg<"%la"#i>;
-  def fa#i : RVGPUReg<"%fa"#i>;
-  def da#i : RVGPUReg<"%da"#i>;
+// 定义 GR0 ~ GR127，共128个32位的通用寄存器
+foreach i = 0...127 in {
+  def R#i : RVGPUReg<"%r" # i>;
 }
 
 foreach i = 0...31 in {
-  def ENVREG#i : RVGPUReg<"%envreg"#i>;
+  def ENVREG#i : RVGPUReg<"%sreg"#i>;
 }
 
 //===----------------------------------------------------------------------===//
-//  Register classes
+//  Register classes: 为128个通用寄存器定义
 //===----------------------------------------------------------------------===//
-def Int1Regs : RVGPURegClass<[i1], 8, (add (sequence "P%u", 0, 4))>;
-def Int16Regs : RVGPURegClass<[i16, f16, bf16], 16, (add (sequence "RS%u", 0, 4))>;
-def Int32Regs : RVGPURegClass<[i32, v2f16, v2bf16, v2i16, v4i8], 32,
-                              (add (sequence "R%u", 0, 4),
-                              VRFrame32, VRFrameLocal32)>;
-def Int64Regs : RVGPURegClass<[i64], 64, (add (sequence "RL%u", 0, 4), VRFrame64, VRFrameLocal64)>;
-def Float32Regs : RVGPURegClass<[f32], 32, (add (sequence "F%u", 0, 4))>;
-def Float64Regs : RVGPURegClass<[f64], 64, (add (sequence "FL%u", 0, 4))>;
-def Int32ArgRegs : RVGPURegClass<[i32], 32, (add (sequence "ia%u", 0, 4))>;
-def Int64ArgRegs : RVGPURegClass<[i64], 64, (add (sequence "la%u", 0, 4))>;
-def Float32ArgRegs : RVGPURegClass<[f32], 32, (add (sequence "fa%u", 0, 4))>;
-def Float64ArgRegs : RVGPURegClass<[f64], 64, (add (sequence "da%u", 0, 4))>;
+def Int1Regs : RVGPURegClass<[i1], 32, (add PREG)>;
+
+def Int16Regs : RVGPURegClass<[i16, f16, bf16], 32, (add (sequence "R%u", 0, 127))>;
+def Int32Regs : RVGPURegClass<[i32, v2f16, v2bf16, v2i16, v4i8], 32, (add (sequence "R%u", 0, 127))>;
+def Int64Regs : RVGPURegClass<[i64], 64, (add (sequence "R%u", 0, 127, 2))>;
+def Float32Regs : RVGPURegClass<[f32], 32, (add (sequence "R%u", 0, 127))>;
+def Float64Regs : RVGPURegClass<[f64], 64, (add (sequence "R%u", 0, 127, 2))>;
+def Int32ArgRegs : RVGPURegClass<[i32], 32, (add (sequence "R%u", 0, 127))>;
+def Int64ArgRegs : RVGPURegClass<[i64], 64, (add (sequence "R%u", 0, 127, 2))>;
+def Float32ArgRegs : RVGPURegClass<[f32], 32, (add (sequence "R%u", 0, 127))>;
+def Float64ArgRegs : RVGPURegClass<[f64], 64, (add (sequence "R%u", 0, 127, 2))>;
 
 // Read RVGPURegisterInfo.cpp to see how VRFrame and VRDepot are used.
-def SpecialRegs : RVGPURegClass<[i32], 32, (add VRFrame32, VRFrameLocal32, VRDepot,
-                                            (sequence "ENVREG%u", 0, 31))>;
+def SpecialRegs : RVGPURegClass<[i32], 32, (add (sequence "ENVREG%u", 0, 31))>;
