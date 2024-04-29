@@ -169,6 +169,15 @@ bool insertWaveSizeFeature(StringRef GPU, const Triple &T,
                            StringMap<bool> &Features, std::string &ErrorMsg);
 
 } // namespace AMDGPU
+
+
+namespace RVGPU {
+enum GPUKind : uint32_t {
+  // Not specified processor.
+  GK_NONE = 0,  
+  GK_R1000 = 1,
+};
+}//namespace RVGPU
 } // namespace llvm
 
 #endif

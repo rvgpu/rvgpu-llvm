@@ -147,6 +147,6 @@ INITIALIZE_PASS(RVGPULowerAggrCopies, "nvptx-lower-aggr-copies",
                 "Lower aggregate copies, and llvm.mem* intrinsics into loops",
                 false, false)
 
-FunctionPass *llvm::createLowerAggrCopies() {
+FunctionPass *llvm::createRVGPULowerAggrCopies() {
   return new RVGPULowerAggrCopies();
 }

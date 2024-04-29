@@ -2,9 +2,11 @@ add_llvm_component_group(RVGPU)
 
 set(LLVM_TARGET_DEFINITIONS RVGPU.td)
 
+#tablegen(LLVM RVGPUGenAsmMatcher.inc -gen-asm-matcher)
 tablegen(LLVM RVGPUGenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM RVGPUGenDAGISel.inc -gen-dag-isel)
 tablegen(LLVM RVGPUGenInstrInfo.inc -gen-instr-info)
+tablegen(LLVM RVGPUGenMCCodeEmitter.inc -gen-emitter)
 tablegen(LLVM RVGPUGenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM RVGPUGenSubtargetInfo.inc -gen-subtarget)
 
@@ -39,6 +41,7 @@ set(RVGPUCodeGen_sources
   NVVMReflect.cpp
   RVGPUProxyRegErasure.cpp
   RVGPUCtorDtorLowering.cpp
+#  RVGPUHSAMetadataStreamer.cpp
   )
 
 add_llvm_target(RVGPUCodeGen

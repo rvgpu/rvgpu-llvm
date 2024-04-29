@@ -320,6 +320,7 @@ enum {
   EM_VE = 251,            // NEC SX-Aurora VE
   EM_CSKY = 252,          // C-SKY 32-bit processor
   EM_LOONGARCH = 258,     // LoongArch
+  EM_RVGPU = 260,        // RVGPU architecture
 };
 
 // Object file classes.
@@ -364,7 +365,8 @@ enum {
   ELFOSABI_C6000_ELFABI = 64,  // Bare-metal TMS320C6000
   ELFOSABI_C6000_LINUX = 65,   // Linux TMS320C6000
   ELFOSABI_STANDALONE = 255,   // Standalone (embedded) application
-  ELFOSABI_LAST_ARCH = 255     // Last Architecture-specific OS ABI
+  ELFOSABI_RVGPU = 256,    // RV runtime
+  ELFOSABI_LAST_ARCH = 256     // Last Architecture-specific OS ABI
 };
 
 // AMDGPU OS ABI Version identification.
@@ -697,7 +699,12 @@ enum {
 enum {
 #include "ELFRelocs/Sparc.def"
 };
-
+// RVGPU specific e_flags.
+enum : unsigned {  
+  // Not specified processor.
+  EF_RVGPU_MACH_NONE = 0x000,
+  EF_RVGPU_MATCH_R1000 = 0x001,
+};
 // AMDGPU specific e_flags.
 enum : unsigned {
   // Processor selection mask for EF_AMDGPU_MACH_* values.
@@ -844,6 +851,11 @@ enum : unsigned {
 // ELF Relocation types for AMDGPU
 enum {
 #include "ELFRelocs/AMDGPU.def"
+};
+
+// ELF Relocation types for RVGPU
+enum {
+#include "ELFRelocs/RVGPU.def"
 };
 
 // NVPTX specific e_flags.
@@ -1315,7 +1327,8 @@ enum {
   STT_HIPROC = 15,    // Highest processor-specific symbol type
 
   // AMDGPU symbol types
-  STT_AMDGPU_HSA_KERNEL = 10
+  STT_AMDGPU_HSA_KERNEL = 10,
+  STT_RVGPU_HSA_KERNEL = 20
 };
 
 enum {
@@ -1814,7 +1827,9 @@ enum {
 enum {
   SHN_AMDGPU_LDS = 0xff00, // Variable in LDS; symbol encoded like SHN_COMMON
 };
-
+enum {
+  SHN_RVGPU_LDS = 0xff00, // Variable in LDS; symbol encoded like SHN_COMMON
+};
 // AMD vendor specific notes. (Code Object V2)
 enum {
   NT_AMD_HSA_CODE_OBJECT_VERSION = 1,
@@ -1831,7 +1846,11 @@ enum {
   // Note types with values between 0 and 31 (inclusive) are reserved.
   NT_AMDGPU_METADATA = 32
 };
-
+// RVGPU vendor specific notes.
+enum {
+  // Note types with values between 0 and 31 (inclusive) are reserved.
+  NT_RVGPU_METADATA = 32
+};
 // LLVMOMPOFFLOAD specific notes.
 enum : unsigned {
   NT_LLVM_OPENMP_OFFLOAD_VERSION = 1,

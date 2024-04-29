@@ -1,4 +1,4 @@
-//=====-- RVGPUTargetStreamer.h - RVGPU Target Streamer ------*- C++ -*--=====//
+//===-- RVGPUTargetStreamer.h - RVGPU Target Streamer --------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -9,53 +9,224 @@
 #ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUTARGETSTREAMER_H
 #define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUTARGETSTREAMER_H
 
+//#include "Utils/RVGPUBaseInfo.h"
+//#include "Utils/RVGPUPALMetadata.h"
+#include "llvm/BinaryFormat/MsgPackDocument.h"
 #include "llvm/MC/MCStreamer.h"
 
+struct rv_kernel_code_t;
+
 namespace llvm {
-class MCSection;
 
-/// Implments RVGPU-specific streamer.
+class MCELFStreamer;
+class MCSymbol;
+class formatted_raw_ostream;
+
+namespace RVGPU {
+namespace HSAMD {
+struct Metadata;
+}
+} // namespace RVGPU
+
+namespace rvhsa {
+struct kernel_descriptor_t;
+}
+
 class RVGPUTargetStreamer : public MCTargetStreamer {
-private:
-  SmallVector<std::string, 4> DwarfFiles;
-  bool HasSections = false;
+  //RVGPUPALMetadata PALMetadata;
+
+protected:
+  // TODO: Move HSAMetadataStream to RVGPUTargetStreamer.
+//  std::optional<RVGPU::IsaInfo::RVGPUTargetID> TargetID;
+
+  MCContext &getContext() const { return Streamer.getContext(); }
 
 public:
-  RVGPUTargetStreamer(MCStreamer &S);
-  ~RVGPUTargetStreamer() override;
+  RVGPUTargetStreamer(MCStreamer &S) : MCTargetStreamer(S) {}
 
-  /// Outputs the list of the DWARF '.file' directives to the streamer.
-  void outputDwarfFileDirectives();
-  /// Close last section.
-  void closeLastSection();
+  //RVGPUPALMetadata *getPALMetadata() { return &PALMetadata; }
 
-  /// Record DWARF file directives for later output.
-  /// According to PTX ISA, CUDA Toolkit documentation, 11.5.3. Debugging
-  /// Directives: .file
-  /// (http://docs.nvidia.com/cuda/parallel-thread-execution/index.html#debugging-directives-file),
-  /// The .file directive is allowed only in the outermost scope, i.e., at the
-  /// same level as kernel and device function declarations. Also, the order of
-  /// the .loc and .file directive does not matter, .file directives may follow
-  /// the .loc directives where the file is referenced.
-  /// LLVM emits .file directives immediately the location debug info is
-  /// emitted, i.e. they may be emitted inside functions. We gather all these
-  /// directives and emit them outside of the sections and, thus, outside of the
-  /// functions.
-  void emitDwarfFileDirective(StringRef Directive) override;
-  void changeSection(const MCSection *CurSection, MCSection *Section,
-                     const MCExpr *SubSection, raw_ostream &OS) override;
-  /// Emit the bytes in \p Data into the output.
+  virtual void EmitDirectiveRVGPUTarget(){};
+
+  virtual void EmitDirectiveHSACodeObjectVersion(uint32_t Major,
+                                                 uint32_t Minor){};
+
+  virtual void EmitDirectiveHSACodeObjectISAV2(uint32_t Major, uint32_t Minor,
+                                               uint32_t Stepping,
+                                               StringRef VendorName,
+                                               StringRef ArchName){};
+
+  virtual void EmitRVKernelCodeT(const rv_kernel_code_t &Header){};
+
+  virtual void EmitRVGPUSymbolType(StringRef SymbolName, unsigned Type){};
+
+  virtual void emitRVGPULDS(MCSymbol *Symbol, unsigned Size, Align Alignment) {
+  }
+
+  /// \returns True on success, false on failure.
+  virtual bool EmitISAVersion() { return true; }
+
+  /// \returns True on success, false on failure.
+  virtual bool EmitHSAMetadataV3(StringRef HSAMetadataString);
+
+  /// Emit HSA Metadata
   ///
-  /// This is used to emit bytes in \p Data as sequence of .byte directives.
-  void emitRawBytes(StringRef Data) override;
+  /// When \p Strict is true, known metadata elements must already be
+  /// well-typed. When \p Strict is false, known types are inferred and
+  /// the \p HSAMetadata structure is updated with the correct types.
+  ///
+  /// \returns True on success, false on failure.
+  virtual bool EmitHSAMetadata(msgpack::Document &HSAMetadata, bool Strict) {
+    return true;
+  }
+
+  /// \returns True on success, false on failure.
+  virtual bool EmitHSAMetadata(const RVGPU::HSAMD::Metadata &HSAMetadata) {
+    return true;
+  }
+
+  /// \returns True on success, false on failure.
+  virtual bool EmitCodeEnd(const MCSubtargetInfo &STI) { return true; }
+
+  /// \returns True on success, false on failure.
+  virtual bool EmitKernargPreloadHeader(const MCSubtargetInfo &STI) {
+    return true;
+  }
+
+  virtual void EmitRvhsaKernelDescriptor(
+      const MCSubtargetInfo &STI, StringRef KernelName,
+      const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
+      uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
+      unsigned CodeObjectVersion){};
+
+  static StringRef getArchNameFromElfMach(unsigned ElfMach);
+  static unsigned getElfMach(StringRef GPU);
+#if 0
+  const std::optional<RVGPU::IsaInfo::RVGPUTargetID> &getTargetID() const {
+    return TargetID;
+  }
+  std::optional<RVGPU::IsaInfo::RVGPUTargetID> &getTargetID() {
+    return TargetID;
+  }
+  void initializeTargetID(const MCSubtargetInfo &STI,
+                          unsigned CodeObjectVersion) {
+    assert(TargetID == std::nullopt && "TargetID can only be initialized once");
+    TargetID.emplace(STI);
+    getTargetID()->setCodeObjectVersion(CodeObjectVersion);
+  }
+  void initializeTargetID(const MCSubtargetInfo &STI, StringRef FeatureString,
+                          unsigned CodeObjectVersion) {
+    initializeTargetID(STI, CodeObjectVersion);
+
+    assert(getTargetID() != std::nullopt && "TargetID is None");
+    getTargetID()->setTargetIDFromFeaturesString(FeatureString);
+  }
+#endif   
 };
 
-class RVGPUAsmTargetStreamer : public RVGPUTargetStreamer {
+class RVGPUTargetAsmStreamer final : public RVGPUTargetStreamer {
+  formatted_raw_ostream &OS;
 public:
-  RVGPUAsmTargetStreamer(MCStreamer &S);
-  ~RVGPUAsmTargetStreamer() override;
+  RVGPUTargetAsmStreamer(MCStreamer &S, formatted_raw_ostream &OS);
+
+  void finish() override;
+
+  void EmitDirectiveRVGPUTarget() override;
+
+  void EmitDirectiveHSACodeObjectVersion(uint32_t Major,
+                                         uint32_t Minor) override;
+
+  void EmitDirectiveHSACodeObjectISAV2(uint32_t Major, uint32_t Minor,
+                                       uint32_t Stepping, StringRef VendorName,
+                                       StringRef ArchName) override;
+
+  void EmitRVKernelCodeT(const rv_kernel_code_t &Header) override;
+
+  void EmitRVGPUSymbolType(StringRef SymbolName, unsigned Type) override;
+
+  void emitRVGPULDS(MCSymbol *Sym, unsigned Size, Align Alignment) override;
+
+  /// \returns True on success, false on failure.
+  bool EmitISAVersion() override;
+
+  /// \returns True on success, false on failure.
+  bool EmitHSAMetadata(msgpack::Document &HSAMetadata, bool Strict) override;
+
+  /// \returns True on success, false on failure.
+  bool EmitHSAMetadata(const RVGPU::HSAMD::Metadata &HSAMetadata) override;
+
+  /// \returns True on success, false on failure.
+  bool EmitCodeEnd(const MCSubtargetInfo &STI) override;
+
+  /// \returns True on success, false on failure.
+  bool EmitKernargPreloadHeader(const MCSubtargetInfo &STI) override;
+
+  void EmitRvhsaKernelDescriptor(
+      const MCSubtargetInfo &STI, StringRef KernelName,
+      const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
+      uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
+      unsigned CodeObjectVersion) override;
 };
 
-} // end namespace llvm
+class RVGPUTargetELFStreamer final : public RVGPUTargetStreamer {
+  const MCSubtargetInfo &STI;
+  MCStreamer &Streamer;
 
+  void EmitNote(StringRef Name, const MCExpr *DescSize, unsigned NoteType,
+                function_ref<void(MCELFStreamer &)> EmitDesc);
+
+  unsigned getEFlags();
+
+  unsigned getEFlagsRV();
+
+  unsigned getEFlagsUnknownOS();
+  unsigned getEFlagsRVHSA();
+  unsigned getEFlagsV3();
+  unsigned getEFlagsV4();
+
+public:
+  RVGPUTargetELFStreamer(MCStreamer &S, const MCSubtargetInfo &STI);
+
+  MCELFStreamer &getStreamer();
+
+  void finish() override;
+
+  void EmitDirectiveRVGPUTarget() override;
+
+  void EmitDirectiveHSACodeObjectVersion(uint32_t Major,
+                                         uint32_t Minor) override;
+
+  void EmitDirectiveHSACodeObjectISAV2(uint32_t Major, uint32_t Minor,
+                                       uint32_t Stepping, StringRef VendorName,
+                                       StringRef ArchName) override;
+
+  void EmitRVKernelCodeT(const rv_kernel_code_t &Header) override;
+
+  void EmitRVGPUSymbolType(StringRef SymbolName, unsigned Type) override;
+
+  void emitRVGPULDS(MCSymbol *Sym, unsigned Size, Align Alignment) override;
+
+  /// \returns True on success, false on failure.
+  bool EmitISAVersion() override;
+
+  /// \returns True on success, false on failure.
+  bool EmitHSAMetadata(msgpack::Document &HSAMetadata, bool Strict) override;
+
+  /// \returns True on success, false on failure.
+  bool EmitHSAMetadata(const RVGPU::HSAMD::Metadata &HSAMetadata) override;
+
+  /// \returns True on success, false on failure.
+  bool EmitCodeEnd(const MCSubtargetInfo &STI) override;
+
+  /// \returns True on success, false on failure.
+  bool EmitKernargPreloadHeader(const MCSubtargetInfo &STI) override;
+
+  void EmitRvhsaKernelDescriptor(
+      const MCSubtargetInfo &STI, StringRef KernelName,
+      const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
+      uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
+      unsigned CodeObjectVersion) override;
+};
+
+}
 #endif

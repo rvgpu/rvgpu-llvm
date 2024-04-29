@@ -14,6 +14,33 @@
 #define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUMCTARGETDESC_H
 
 #include <stdint.h>
+#include <memory>
+
+namespace llvm {
+class Target;
+class MCAsmBackend;
+class MCCodeEmitter;
+class MCContext;
+class MCInstrInfo;
+class MCObjectTargetWriter;
+class MCRegisterInfo;
+class MCSubtargetInfo;
+class MCTargetOptions;
+
+enum RVGPUDwarfFlavour : unsigned { Wave64 = 0, Wave32 = 1 };
+
+MCCodeEmitter *createRVGPUMCCodeEmitter(const MCInstrInfo &MCII,
+                                         MCContext &Ctx);
+
+MCAsmBackend *createRVGPUAsmBackend(const Target &T,
+                                     const MCSubtargetInfo &STI,
+                                     const MCRegisterInfo &MRI,
+                                     const MCTargetOptions &Options);
+
+std::unique_ptr<MCObjectTargetWriter>
+createRVGPUELFObjectWriter(bool Is64Bit, uint8_t OSABI,
+                            bool HasRelocationAddend, uint8_t ABIVersion);
+} // End llvm namespace
 
 // Defines symbolic names for PTX registers.
 #define GET_REGINFO_ENUM

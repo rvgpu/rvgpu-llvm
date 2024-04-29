@@ -3,6 +3,10 @@ add_llvm_component_library(LLVMRVGPUDesc
   RVGPUMCAsmInfo.cpp
   RVGPUMCTargetDesc.cpp
   RVGPUTargetStreamer.cpp
+  RVGPUAsmBackend.cpp
+  RVGPUELFObjectWriter.cpp
+  RVGPUMCCodeEmitter.cpp
+  RVGPUELFStreamer.cpp
 
   LINK_COMPONENTS
   MC

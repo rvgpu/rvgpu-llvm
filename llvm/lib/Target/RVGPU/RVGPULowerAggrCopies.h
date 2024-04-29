@@ -17,7 +17,7 @@
 namespace llvm {
 class FunctionPass;
 
-FunctionPass *createLowerAggrCopies();
+FunctionPass *createRVGPULowerAggrCopies();
 }
 
 #endif

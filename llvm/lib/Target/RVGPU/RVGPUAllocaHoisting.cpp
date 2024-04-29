@@ -66,4 +66,4 @@ INITIALIZE_PASS(
     "Hoisting alloca instructions in non-entry blocks to the entry block",
     false, false)
 
-FunctionPass *llvm::createAllocaHoisting() { return new RVGPUAllocaHoisting; }
+FunctionPass *llvm::createRVGPUAllocaHoisting() { return new RVGPUAllocaHoisting; }

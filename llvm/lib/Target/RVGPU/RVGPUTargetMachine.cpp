@@ -411,8 +411,8 @@ void RVGPUPassConfig::addIRPasses() {
 bool RVGPUPassConfig::addInstSelector() {
   const RVGPUSubtarget &ST = *getTM<RVGPUTargetMachine>().getSubtargetImpl();
 
-  addPass(createLowerAggrCopies());
-  addPass(createAllocaHoisting());
+  addPass(createRVGPULowerAggrCopies());
+  addPass(createRVGPUAllocaHoisting());
   addPass(createRVGPUISelDag(getRVGPUTargetMachine(), getOptLevel()));
 
   if (!ST.hasImageHandles())

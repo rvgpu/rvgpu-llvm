@@ -11,12 +11,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPUMCTargetDesc.h"
+#include "RVGPUELFStreamer.h"
 #include "RVGPUInstPrinter.h"
 #include "RVGPUMCAsmInfo.h"
 #include "RVGPUTargetStreamer.h"
 #include "TargetInfo/RVGPUTargetInfo.h"
+#include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCCodeEmitter.h"
+#include "llvm/MC/MCELFStreamer.h"
+#include "llvm/MC/MCInstPrinter.h"
+#include "llvm/MC/MCInstrAnalysis.h"
+#include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/TargetRegistry.h"
 
@@ -55,11 +64,9 @@ static MCInstPrinter *createRVGPUMCInstPrinter(const Triple &T,
                                                const MCAsmInfo &MAI,
                                                const MCInstrInfo &MII,
                                                const MCRegisterInfo &MRI) {
-  if (SyntaxVariant == 0)
     return new RVGPUInstPrinter(MAI, MII, MRI);
-  return nullptr;
 }
-
+#if 0
 static MCTargetStreamer *createTargetAsmStreamer(MCStreamer &S,
                                                  formatted_raw_ostream &,
                                                  MCInstPrinter *, bool) {
@@ -69,7 +76,37 @@ static MCTargetStreamer *createTargetAsmStreamer(MCStreamer &S,
 static MCTargetStreamer *createNullTargetStreamer(MCStreamer &S) {
   return new RVGPUTargetStreamer(S);
 }
+static MCTargetStreamer * createRVGPUObjectTargetStreamer(
+                                                   MCStreamer &S,
+                                                   const MCSubtargetInfo &STI) {
+  return new RVGPUTargetELFStreamer(S, STI);
+}
+#endif 
+static MCTargetStreamer *createRVGPUAsmTargetStreamer(MCStreamer &S,
+                                                      formatted_raw_ostream &OS,
+                                                      MCInstPrinter *InstPrint,
+                                                      bool isVerboseAsm) {
+  return new RVGPUTargetAsmStreamer(S, OS);
+}
 
+static MCTargetStreamer * createRVGPUObjectTargetStreamer(
+                                                   MCStreamer &S,
+                                                   const MCSubtargetInfo &STI) {
+  return new RVGPUTargetELFStreamer(S, STI);
+}
+
+static MCTargetStreamer *createRVGPUNullTargetStreamer(MCStreamer &S) {
+  return new RVGPUTargetStreamer(S);
+}
+
+static MCStreamer *createMCStreamer(const Triple &T, MCContext &Context,
+                                    std::unique_ptr<MCAsmBackend> &&MAB,
+                                    std::unique_ptr<MCObjectWriter> &&OW,
+                                    std::unique_ptr<MCCodeEmitter> &&Emitter,
+                                    bool RelaxAll) {
+  return createRVGPUELFStreamer(T, Context, std::move(MAB), std::move(OW),
+                                 std::move(Emitter), RelaxAll);
+}
 // Force static initialization.
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTargetMC() {
   for (Target *T : {&getTheRVGPUTarget32(), &getTheRVGPUTarget64()}) {
@@ -87,11 +124,25 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTargetMC() {
 
     // Register the MCInstPrinter.
     TargetRegistry::RegisterMCInstPrinter(*T, createRVGPUMCInstPrinter);
+    
+    TargetRegistry::RegisterMCAsmBackend(*T, createRVGPUAsmBackend);
+    TargetRegistry::RegisterELFStreamer(*T, createMCStreamer);
+  
+    TargetRegistry::RegisterMCCodeEmitter(*T,
+                                          createRVGPUMCCodeEmitter);
 
+    TargetRegistry::RegisterAsmTargetStreamer(*T,
+                                              createRVGPUAsmTargetStreamer);
+    TargetRegistry::RegisterObjectTargetStreamer(*T, 
+                                                 createRVGPUObjectTargetStreamer);
+    TargetRegistry::RegisterNullTargetStreamer(*T,
+                                               createRVGPUNullTargetStreamer);
+#if 0
     // Register the MCTargetStreamer.
     TargetRegistry::RegisterAsmTargetStreamer(*T, createTargetAsmStreamer);
 
     // Register the MCTargetStreamer.
     TargetRegistry::RegisterNullTargetStreamer(*T, createNullTargetStreamer);
+#endif     
   }
 }

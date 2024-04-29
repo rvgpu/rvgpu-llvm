@@ -950,14 +950,14 @@ bool RVGPUAsmPrinter::doFinalization(Module &M) {
   auto *TS =
       static_cast<RVGPUTargetStreamer *>(OutStreamer->getTargetStreamer());
   // Close the last emitted section
-  if (HasDebugInfo) {
-    TS->closeLastSection();
+//  if (HasDebugInfo) {
+ //   TS->closeLastSection();
     // Emit empty .debug_loc section for better support of the empty files.
-    OutStreamer->emitRawText("\t.section\t.debug_loc\t{\t}");
-  }
+//    OutStreamer->emitRawText("\t.section\t.debug_loc\t{\t}");
+//  }
 
   // Output last DWARF .file directives, if any.
-  TS->outputDwarfFileDirectives();
+ // TS->outputDwarfFileDirectives();
 
   return ret;
 }
