@@ -67,7 +67,7 @@ public:
   virtual bool EmitISAVersion() { return true; }
 
   /// \returns True on success, false on failure.
-  virtual bool EmitHSAMetadataV3(StringRef HSAMetadataString);
+//  virtual bool EmitHSAMetadataV3(StringRef HSAMetadataString);
 
   /// Emit HSA Metadata
   ///

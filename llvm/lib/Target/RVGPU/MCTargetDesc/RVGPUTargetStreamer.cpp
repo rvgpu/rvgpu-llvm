@@ -125,6 +125,7 @@ bool RVGPUTargetAsmStreamer::EmitISAVersion() {
 
 bool RVGPUTargetAsmStreamer::EmitHSAMetadata(
     const RVGPU::HSAMD::Metadata &HSAMetadata) {
+#if 0  
   std::string HSAMetadataString;
   if (HSAMD::toString(HSAMetadata, HSAMetadataString))
     return false;
@@ -132,6 +133,7 @@ bool RVGPUTargetAsmStreamer::EmitHSAMetadata(
   OS << '\t' << ".rv_rvgpu_hsa_metadata" << '\n';
   OS << HSAMetadataString << '\n';
   OS << '\t' << ".end_rv_rvgpu_hsa_metadata" << '\n';
+#endif   
   return true;
 }
 
@@ -516,6 +518,7 @@ bool RVGPUTargetELFStreamer::EmitHSAMetadata(msgpack::Document &HSAMetadataDoc,
 
 bool RVGPUTargetELFStreamer::EmitHSAMetadata(
     const RVGPU::HSAMD::Metadata &HSAMetadata) {
+#if 0
   std::string HSAMetadataString;
   if (HSAMD::toString(HSAMetadata, HSAMetadataString))
     return false;
@@ -535,6 +538,7 @@ bool RVGPUTargetELFStreamer::EmitHSAMetadata(
              OS.emitBytes(HSAMetadataString);
              OS.emitLabel(DescEnd);
            });
+#endif 
   return true;
 }
 

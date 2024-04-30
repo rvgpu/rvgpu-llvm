@@ -9,6 +9,7 @@ tablegen(LLVM RVGPUGenInstrInfo.inc -gen-instr-info)
 tablegen(LLVM RVGPUGenMCCodeEmitter.inc -gen-emitter)
 tablegen(LLVM RVGPUGenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM RVGPUGenSubtargetInfo.inc -gen-subtarget)
+tablegen(LLVM RVGPUGenDisassemblerTables.inc -gen-disassembler)
 
 add_public_tablegen_target(RVGPUCommonTableGen)
 
@@ -71,3 +72,4 @@ add_llvm_target(RVGPUCodeGen
 
 add_subdirectory(MCTargetDesc)
 add_subdirectory(TargetInfo)
+add_subdirectory(Disassembler)

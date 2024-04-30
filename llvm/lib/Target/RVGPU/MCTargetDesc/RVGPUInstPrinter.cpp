@@ -25,6 +25,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "asm-printer"
 
+//#define PRINT_ALIAS_INSTR
 #include "RVGPUGenAsmWriter.inc"
 
 RVGPUInstPrinter::RVGPUInstPrinter(const MCAsmInfo &MAI, const MCInstrInfo &MII,
@@ -69,14 +70,14 @@ void RVGPUInstPrinter::printRegName(raw_ostream &OS, MCRegister Reg) const {
 void RVGPUInstPrinter::printInst(const MCInst *MI, uint64_t Address,
                                  StringRef Annot, const MCSubtargetInfo &STI,
                                  raw_ostream &OS) {
-  printInstruction(MI, Address, OS);
+  printInstruction(MI, Address, STI, OS);
 
   // Next always print the annotation.
   printAnnotation(OS, Annot);
 }
 
 void RVGPUInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
-                                    raw_ostream &O) {
+                                    const MCSubtargetInfo &STI, raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
   if (Op.isReg()) {
     unsigned Reg = Op.getReg();
@@ -89,7 +90,9 @@ void RVGPUInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   }
 }
 
-void RVGPUInstPrinter::printCvtMode(const MCInst *MI, int OpNum, raw_ostream &O,
+void RVGPUInstPrinter::printCvtMode(const MCInst *MI, int OpNum, 
+                                    const MCSubtargetInfo &STI,                                
+                                    raw_ostream &O,
                                     const char *Modifier) {
   const MCOperand &MO = MI->getOperand(OpNum);
   int64_t Imm = MO.getImm();
@@ -146,7 +149,9 @@ void RVGPUInstPrinter::printCvtMode(const MCInst *MI, int OpNum, raw_ostream &O,
   }
 }
 
-void RVGPUInstPrinter::printCmpMode(const MCInst *MI, int OpNum, raw_ostream &O,
+void RVGPUInstPrinter::printCmpMode(const MCInst *MI, int OpNum,
+                                    const MCSubtargetInfo &STI,
+                                    raw_ostream &O,
                                     const char *Modifier) {
   const MCOperand &MO = MI->getOperand(OpNum);
   int64_t Imm = MO.getImm();
@@ -220,6 +225,7 @@ void RVGPUInstPrinter::printCmpMode(const MCInst *MI, int OpNum, raw_ostream &O,
 }
 
 void RVGPUInstPrinter::printLdStCode(const MCInst *MI, int OpNum,
+                                     const MCSubtargetInfo &STI, 
                                      raw_ostream &O, const char *Modifier) {
   if (Modifier) {
     const MCOperand &MO = MI->getOperand(OpNum);
@@ -271,7 +277,9 @@ void RVGPUInstPrinter::printLdStCode(const MCInst *MI, int OpNum,
     llvm_unreachable("Empty Modifier");
 }
 
-void RVGPUInstPrinter::printMmaCode(const MCInst *MI, int OpNum, raw_ostream &O,
+void RVGPUInstPrinter::printMmaCode(const MCInst *MI, int OpNum, 
+                                    const MCSubtargetInfo &STI, 
+                                    raw_ostream &O,
                                     const char *Modifier) {
   const MCOperand &MO = MI->getOperand(OpNum);
   int Imm = (int)MO.getImm();
@@ -286,22 +294,24 @@ void RVGPUInstPrinter::printMmaCode(const MCInst *MI, int OpNum, raw_ostream &O,
 }
 
 void RVGPUInstPrinter::printMemOperand(const MCInst *MI, int OpNum,
+                                       const MCSubtargetInfo &STI,
                                        raw_ostream &O, const char *Modifier) {
-  printOperand(MI, OpNum, O);
+  printOperand(MI, OpNum, STI, O);
 
   if (Modifier && !strcmp(Modifier, "add")) {
     O << ", ";
-    printOperand(MI, OpNum + 1, O);
+    printOperand(MI, OpNum + 1, STI, O);
   } else {
     if (MI->getOperand(OpNum + 1).isImm() &&
         MI->getOperand(OpNum + 1).getImm() == 0)
       return; // don't print ',0' or '+0'
     O << "+";
-    printOperand(MI, OpNum + 1, O);
+    printOperand(MI, OpNum + 1, STI, O);
   }
 }
 
 void RVGPUInstPrinter::printProtoIdent(const MCInst *MI, int OpNum,
+                                       const MCSubtargetInfo &STI,
                                        raw_ostream &O, const char *Modifier) {
   const MCOperand &Op = MI->getOperand(OpNum);
   assert(Op.isExpr() && "Call prototype is not an MCExpr?");
@@ -311,6 +321,7 @@ void RVGPUInstPrinter::printProtoIdent(const MCInst *MI, int OpNum,
 }
 
 void RVGPUInstPrinter::printPrmtMode(const MCInst *MI, int OpNum,
+                                     const MCSubtargetInfo &STI,
                                      raw_ostream &O, const char *Modifier) {
   const MCOperand &MO = MI->getOperand(OpNum);
   int64_t Imm = MO.getImm();

@@ -26,6 +26,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/EndianStream.h"
 #include "llvm/TargetParser/SubtargetFeature.h"
+#include "llvm/Support/raw_ostream.h"
 #include <optional>
 
 using namespace llvm;
@@ -60,10 +61,16 @@ private:
   std::optional<uint32_t> getLitEncoding(const MCOperand &MO,
                                          const MCOperandInfo &OpInfo,
                                          const MCSubtargetInfo &STI) const;
-
+#if 0
   void getBinaryCodeForInstr(const MCInst &MI, SmallVectorImpl<MCFixup> &Fixups,
                              APInt &Inst, APInt &Scratch,
                              const MCSubtargetInfo &STI) const;
+#endif 
+  /// TableGen'erated function for getting the binary encoding for an
+  /// instruction.
+  uint64_t getBinaryCodeForInstr(const MCInst &MI,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const;
 };
 
 } // end anonymous namespace
@@ -273,15 +280,20 @@ void RVGPUMCCodeEmitter::encodeInstruction(const MCInst &MI,
                                             SmallVectorImpl<MCFixup> &Fixups,
                                             const MCSubtargetInfo &STI) const {
   int Opcode = MI.getOpcode();
+#if 0                                              
   APInt Encoding, Scratch;
   getBinaryCodeForInstr(MI, Fixups, Encoding, Scratch,  STI);
+#else                                              
+  uint64_t Binary;                                              
+  Binary = getBinaryCodeForInstr(MI, Fixups, STI);
+  support::endian::write(CB, Binary, llvm::endianness::little);
+#endif                                               
   const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
+#if 0                                              
   unsigned bytes = Desc.getSize();
-
   for (unsigned i = 0; i < bytes; i++) {
     CB.push_back((uint8_t)Encoding.extractBitsAsZExtValue(8, 8 * i));
   }
-
   // Check for additional literals
   for (unsigned i = 0, e = Desc.getNumOperands(); i < e; ++i) {
 
@@ -310,6 +322,7 @@ void RVGPUMCCodeEmitter::encodeInstruction(const MCInst &MI,
     // Only one literal value allowed
     break;
   }
+#endif 
 }
 
 static bool needsPCRel(const MCExpr *Expr) {

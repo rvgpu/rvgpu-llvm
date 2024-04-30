@@ -76,7 +76,11 @@ def : Proc<"r1000", [SM90a, PTX80]>;
 
 def RVGPUInstrInfo : InstrInfo {
 }
+def RVGPUAsmWriter : AsmWriter {
+  int PassSubtarget = 1;
+}
 
 def RVGPU : Target {
   let InstructionSet = RVGPUInstrInfo;
+  let AssemblyWriters = [RVGPUAsmWriter];
 }
