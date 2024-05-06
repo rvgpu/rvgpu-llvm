@@ -43,7 +43,7 @@
 
 using namespace llvm;
 
-#define DEBUG_TYPE "nvptx-reflect"
+#define DEBUG_TYPE "rvgpu-reflect"
 
 namespace llvm { void initializeNVVMReflectPass(PassRegistry &); }
 

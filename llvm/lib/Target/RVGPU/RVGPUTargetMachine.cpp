@@ -45,20 +45,20 @@ using namespace llvm;
 // LSV is still relatively new; this switch lets us turn it off in case we
 // encounter (or suspect) a bug.
 static cl::opt<bool>
-    DisableLoadStoreVectorizer("disable-nvptx-load-store-vectorizer",
+    DisableLoadStoreVectorizer("disable-rvgpu-load-store-vectorizer",
                                cl::desc("Disable load/store vectorizer"),
                                cl::init(false), cl::Hidden);
 
 // TODO: Remove this flag when we are confident with no regressions.
 static cl::opt<bool> DisableRequireStructuredCFG(
-    "disable-nvptx-require-structured-cfg",
+    "disable-rvgpu-require-structured-cfg",
     cl::desc("Transitional flag to turn off RVGPU's requirement on preserving "
              "structured CFG. The requirement should be disabled only when "
              "unexpected regressions happen."),
     cl::init(false), cl::Hidden);
 
 static cl::opt<bool> UseShortPointersOpt(
-    "nvptx-short-ptr",
+    "rvgpu-short-ptr",
     cl::desc(
         "Use 32-bit pointers for accessing const/local/shared address spaces."),
     cl::init(false), cl::Hidden);
@@ -245,7 +245,7 @@ void RVGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
   });
 
   PB.registerParseAACallback([](StringRef AAName, AAManager &AAM) {
-    if (AAName == "nvptx-aa") {
+    if (AAName == "rvgpu-aa") {
       AAM.registerFunctionAnalysis<RVGPUAA>();
       return true;
     }
@@ -255,7 +255,7 @@ void RVGPUTargetMachine::registerPassBuilderCallbacks(PassBuilder &PB) {
   PB.registerPipelineParsingCallback(
       [](StringRef PassName, ModulePassManager &PM,
          ArrayRef<PassBuilder::PipelineElement>) {
-        if (PassName == "nvptx-lower-ctor-dtor") {
+        if (PassName == "rvgpu-lower-ctor-dtor") {
           PM.addPass(RVGPUCtorDtorLoweringPass());
           return true;
         }

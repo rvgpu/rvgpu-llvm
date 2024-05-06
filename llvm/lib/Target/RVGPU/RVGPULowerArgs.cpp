@@ -103,7 +103,7 @@
 #include <numeric>
 #include <queue>
 
-#define DEBUG_TYPE "nvptx-lower-args"
+#define DEBUG_TYPE "rvgpu-lower-args"
 
 using namespace llvm;
 
@@ -140,10 +140,10 @@ public:
 
 char RVGPULowerArgs::ID = 1;
 
-INITIALIZE_PASS_BEGIN(RVGPULowerArgs, "nvptx-lower-args",
+INITIALIZE_PASS_BEGIN(RVGPULowerArgs, "rvgpu-lower-args",
                       "Lower arguments (RVGPU)", false, false)
 INITIALIZE_PASS_DEPENDENCY(TargetPassConfig)
-INITIALIZE_PASS_END(RVGPULowerArgs, "nvptx-lower-args",
+INITIALIZE_PASS_END(RVGPULowerArgs, "rvgpu-lower-args",
                     "Lower arguments (RVGPU)", false, false)
 
 // =============================================================================

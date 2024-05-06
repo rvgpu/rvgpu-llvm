@@ -27,7 +27,7 @@
 
 using namespace llvm;
 
-#define DEBUG_TYPE "nvptx-isel"
+#define DEBUG_TYPE "rvgpu-isel"
 #define PASS_NAME "RVGPU DAG->DAG Pattern Instruction Selection"
 
 /// createRVGPUISelDag - This pass converts a legalized DAG into a

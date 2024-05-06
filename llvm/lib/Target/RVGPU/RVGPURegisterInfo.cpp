@@ -23,7 +23,7 @@
 
 using namespace llvm;
 
-#define DEBUG_TYPE "nvptx-reg-info"
+#define DEBUG_TYPE "rvgpu-reg-info"
 
 namespace llvm {
 std::string getRVGPURegClassName(TargetRegisterClass const *RC) {

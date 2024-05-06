@@ -61,7 +61,7 @@ namespace llvm {
 void initializeRVGPUAtomicLowerPass(PassRegistry &);
 }
 
-INITIALIZE_PASS(RVGPUAtomicLower, "nvptx-atomic-lower",
+INITIALIZE_PASS(RVGPUAtomicLower, "rvgpu-atomic-lower",
                 "Lower atomics of local memory to simple load/stores", false,
                 false)
 

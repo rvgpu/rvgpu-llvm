@@ -46,7 +46,7 @@ namespace llvm {
 void initializeRVGPUAssignValidGlobalNamesPass(PassRegistry &);
 }
 
-INITIALIZE_PASS(RVGPUAssignValidGlobalNames, "nvptx-assign-valid-global-names",
+INITIALIZE_PASS(RVGPUAssignValidGlobalNames, "rvgpu-assign-valid-global-names",
                 "Assign valid PTX names to globals", false, false)
 
 bool RVGPUAssignValidGlobalNames::runOnModule(Module &M) {

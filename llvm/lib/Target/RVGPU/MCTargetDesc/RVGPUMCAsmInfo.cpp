@@ -19,7 +19,7 @@ void RVGPUMCAsmInfo::anchor() {}
 
 RVGPUMCAsmInfo::RVGPUMCAsmInfo(const Triple &TheTriple,
                                const MCTargetOptions &Options) {
-  if (TheTriple.getArch() == Triple::nvptx64) {
+  if (TheTriple.getArch() == Triple::rvgpu) {
     CodePointerSize = CalleeSaveStackSlotSize = 8;
   }
 

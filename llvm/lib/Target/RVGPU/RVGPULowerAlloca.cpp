@@ -55,7 +55,7 @@ public:
 
 char RVGPULowerAlloca::ID = 1;
 
-INITIALIZE_PASS(RVGPULowerAlloca, "nvptx-lower-alloca",
+INITIALIZE_PASS(RVGPULowerAlloca, "rvgpu-lower-alloca",
                 "Lower Alloca", false, false)
 
 // =============================================================================

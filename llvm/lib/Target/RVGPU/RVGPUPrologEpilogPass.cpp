@@ -26,7 +26,7 @@
 
 using namespace llvm;
 
-#define DEBUG_TYPE "nvptx-prolog-epilog"
+#define DEBUG_TYPE "rvgpu-prolog-epilog"
 
 namespace {
 class RVGPUPrologEpilogPass : public MachineFunctionPass {

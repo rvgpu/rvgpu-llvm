@@ -142,10 +142,10 @@ bool RVGPUTargetAsmStreamer::EmitHSAMetadata(
 
   std::string HSAMetadataString;
   raw_string_ostream StrOS(HSAMetadataString);
-  HSAMetadataDoc.toYAML(StrOS);
+//  HSAMetadataDoc.toYAML(StrOS);
 
   OS << '\t' << ".rv_rvgpu_hsa_metadata" << '\n';
-  OS << StrOS.str() << '\n';
+//  OS << StrOS.str() << '\n';
   OS << '\t' << ".end_rv_rvgpu_hsa_metadata" << '\n';
   return true;
 }

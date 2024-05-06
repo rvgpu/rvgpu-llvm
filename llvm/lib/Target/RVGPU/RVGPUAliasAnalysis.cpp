@@ -25,10 +25,10 @@ AnalysisKey RVGPUAA::Key;
 char RVGPUAAWrapperPass::ID = 0;
 char RVGPUExternalAAWrapper::ID = 0;
 
-INITIALIZE_PASS(RVGPUAAWrapperPass, "nvptx-aa",
+INITIALIZE_PASS(RVGPUAAWrapperPass, "rvgpu-aa",
                 "RVGPU Address space based Alias Analysis", false, true)
 
-INITIALIZE_PASS(RVGPUExternalAAWrapper, "nvptx-aa-wrapper",
+INITIALIZE_PASS(RVGPUExternalAAWrapper, "rvgpu-aa-wrapper",
                 "RVGPU Address space based Alias Analysis Wrapper", false, true)
 
 ImmutablePass *llvm::createRVGPUAAWrapperPass() {

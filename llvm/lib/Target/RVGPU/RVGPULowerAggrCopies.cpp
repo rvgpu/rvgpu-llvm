@@ -28,7 +28,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/LowerMemIntrinsics.h"
 
-#define DEBUG_TYPE "nvptx"
+#define DEBUG_TYPE "rvgpu"
 
 using namespace llvm;
 
@@ -143,7 +143,7 @@ namespace llvm {
 void initializeRVGPULowerAggrCopiesPass(PassRegistry &);
 }
 
-INITIALIZE_PASS(RVGPULowerAggrCopies, "nvptx-lower-aggr-copies",
+INITIALIZE_PASS(RVGPULowerAggrCopies, "rvgpu-lower-aggr-copies",
                 "Lower aggregate copies, and llvm.mem* intrinsics into loops",
                 false, false)
 

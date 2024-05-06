@@ -26,15 +26,15 @@
 
 using namespace llvm;
 
-#define DEBUG_TYPE "nvptx-lower-ctor-dtor"
+#define DEBUG_TYPE "rvgpu-lower-ctor-dtor"
 
 static cl::opt<std::string>
-    GlobalStr("nvptx-lower-global-ctor-dtor-id",
+    GlobalStr("rvgpu-lower-global-ctor-dtor-id",
               cl::desc("Override unique ID of ctor/dtor globals."),
               cl::init(""), cl::Hidden);
 
 static cl::opt<bool>
-    CreateKernels("nvptx-emit-init-fini-kernel",
+    CreateKernels("rvgpu-emit-init-fini-kernel",
                   cl::desc("Emit kernels to call ctor/dtor globals."),
                   cl::init(true), cl::Hidden);
 
@@ -89,7 +89,7 @@ static void addKernelMetadata(Module &M, GlobalValue *GV) {
 
 static Function *createInitOrFiniKernelFunction(Module &M, bool IsCtor) {
   StringRef InitOrFiniKernelName =
-      IsCtor ? "nvptx$device$init" : "nvptx$device$fini";
+      IsCtor ? "rvgpu$device$init" : "rvgpu$device$fini";
   if (M.getFunction(InitOrFiniKernelName))
     return nullptr;
 

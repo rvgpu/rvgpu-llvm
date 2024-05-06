@@ -61,7 +61,7 @@ private:
 
 char RVGPUProxyRegErasure::ID = 0;
 
-INITIALIZE_PASS(RVGPUProxyRegErasure, "nvptx-proxyreg-erasure", "RVGPU ProxyReg Erasure", false, false)
+INITIALIZE_PASS(RVGPUProxyRegErasure, "rvgpu-proxyreg-erasure", "RVGPU ProxyReg Erasure", false, false)
 
 bool RVGPUProxyRegErasure::runOnMachineFunction(MachineFunction &MF) {
   SmallVector<MachineInstr *, 16> RemoveList;

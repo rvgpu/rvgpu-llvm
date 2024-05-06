@@ -15,7 +15,7 @@
 
 using namespace llvm;
 
-#define DEBUG_TYPE "nvptx-subtarget"
+#define DEBUG_TYPE "rvgpu-subtarget"
 
 #define GET_SUBTARGETINFO_ENUM
 #define GET_SUBTARGETINFO_TARGET_DESC
@@ -23,7 +23,7 @@ using namespace llvm;
 #include "RVGPUGenSubtargetInfo.inc"
 
 static cl::opt<bool>
-    NoF16Math("nvptx-no-f16-math", cl::Hidden,
+    NoF16Math("rvgpu-no-f16-math", cl::Hidden,
               cl::desc("RVGPU Specific: Disable generation of f16 math ops."),
               cl::init(false));
 // Pin the vtable to this file.

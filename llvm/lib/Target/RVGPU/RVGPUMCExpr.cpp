@@ -13,7 +13,7 @@
 #include "llvm/Support/Format.h"
 using namespace llvm;
 
-#define DEBUG_TYPE "nvptx-mcexpr"
+#define DEBUG_TYPE "rvgpu-mcexpr"
 
 const RVGPUFloatMCExpr *
 RVGPUFloatMCExpr::create(VariantKind Kind, const APFloat &Flt, MCContext &Ctx) {

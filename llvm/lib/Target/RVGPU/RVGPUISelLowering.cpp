@@ -64,42 +64,42 @@
 #include <utility>
 #include <vector>
 
-#define DEBUG_TYPE "nvptx-lower"
+#define DEBUG_TYPE "rvgpu-lower"
 
 using namespace llvm;
 
 static std::atomic<unsigned> GlobalUniqueCallSite;
 
 static cl::opt<bool> sched4reg(
-    "nvptx-sched4reg",
+    "rvgpu-sched4reg",
     cl::desc("RVGPU Specific: schedule for register pressue"), cl::init(false));
 
 static cl::opt<unsigned> FMAContractLevelOpt(
-    "nvptx-fma-level", cl::Hidden,
+    "rvgpu-fma-level", cl::Hidden,
     cl::desc("RVGPU Specific: FMA contraction (0: don't do it"
              " 1: do it  2: do it aggressively"),
     cl::init(2));
 
 static cl::opt<int> UsePrecDivF32(
-    "nvptx-prec-divf32", cl::Hidden,
+    "rvgpu-prec-divf32", cl::Hidden,
     cl::desc("RVGPU Specifies: 0 use div.approx, 1 use div.full, 2 use"
              " IEEE Compliant F32 div.rnd if available."),
     cl::init(2));
 
 static cl::opt<bool> UsePrecSqrtF32(
-    "nvptx-prec-sqrtf32", cl::Hidden,
+    "rvgpu-prec-sqrtf32", cl::Hidden,
     cl::desc("RVGPU Specific: 0 use sqrt.approx, 1 use sqrt.rn."),
     cl::init(true));
 
 static cl::opt<bool> ForceMinByValParamAlign(
-    "nvptx-force-min-byval-param-align", cl::Hidden,
+    "rvgpu-force-min-byval-param-align", cl::Hidden,
     cl::desc("RVGPU Specific: force 4-byte minimal alignment for byval"
              " params of device functions."),
     cl::init(false));
 
 int RVGPUTargetLowering::getDivF32Level() const {
   if (UsePrecDivF32.getNumOccurrences() > 0) {
-    // If nvptx-prec-div32=N is used on the command-line, always honor it
+    // If rvgpu-prec-div32=N is used on the command-line, always honor it
     return UsePrecDivF32;
   } else {
     // Otherwise, use div.approx if fast math is enabled
@@ -112,7 +112,7 @@ int RVGPUTargetLowering::getDivF32Level() const {
 
 bool RVGPUTargetLowering::usePrecSqrtF32() const {
   if (UsePrecSqrtF32.getNumOccurrences() > 0) {
-    // If nvptx-prec-sqrtf32 is used on the command-line, always honor it
+    // If rvgpu-prec-sqrtf32 is used on the command-line, always honor it
     return UsePrecSqrtF32;
   } else {
     // Otherwise, use sqrt.approx if fast math is enabled
@@ -732,7 +732,7 @@ RVGPUTargetLowering::RVGPUTargetLowering(const RVGPUTargetMachine &TM,
     setTargetDAGCombine(ISD::SETCC);
 
   // Promote fp16 arithmetic if fp16 hardware isn't available or the
-  // user passed --nvptx-no-fp16-math. The flag is useful because,
+  // user passed --rvgpu-no-fp16-math. The flag is useful because,
   // although sm_53+ GPUs have some sort of FP16 support in
   // hardware, only sm_53 and sm_60 have full implementation. Others
   // only have token amount of hardware and are likely to run faster
@@ -2002,7 +2002,7 @@ SDValue RVGPUTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 
     // Set the "libcall callee" attribute to indicate that the function
     // must always have a declaration.
-    CalleeFunc->addFnAttr("nvptx-libcall-callee", "true");
+    CalleeFunc->addFnAttr("rvgpu-libcall-callee", "true");
   }
 
   if (isIndirectCall) {

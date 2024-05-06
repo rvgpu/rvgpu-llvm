@@ -42,7 +42,7 @@
 
 using namespace llvm;
 
-#define DEBUG_TYPE "nvptx-peephole"
+#define DEBUG_TYPE "rvgpu-peephole"
 
 namespace llvm {
 void initializeRVGPUPeepholePass(PassRegistry &);
@@ -70,7 +70,7 @@ struct RVGPUPeephole : public MachineFunctionPass {
 
 char RVGPUPeephole::ID = 0;
 
-INITIALIZE_PASS(RVGPUPeephole, "nvptx-peephole", "RVGPU Peephole", false, false)
+INITIALIZE_PASS(RVGPUPeephole, "rvgpu-peephole", "RVGPU Peephole", false, false)
 
 static bool isCVTAToLocalCombinationCandidate(MachineInstr &Root) {
   auto &MBB = *Root.getParent();

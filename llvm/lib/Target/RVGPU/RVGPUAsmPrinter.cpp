@@ -93,7 +93,7 @@
 using namespace llvm;
 
 static cl::opt<bool>
-    LowerCtorDtor("nvptx-lower-global-ctor-dtor",
+    LowerCtorDtor("rvgpu-lower-global-ctor-dtor",
                   cl::desc("Lower GPU ctor / dtors to globals on the device."),
                   cl::init(false), cl::Hidden);
 
@@ -709,7 +709,7 @@ static bool useFuncSeen(const Constant *C,
 void RVGPUAsmPrinter::emitDeclarations(const Module &M, raw_ostream &O) {
   DenseMap<const Function *, bool> seenMap;
   for (const Function &F : M) {
-    if (F.getAttributes().hasFnAttr("nvptx-libcall-callee")) {
+    if (F.getAttributes().hasFnAttr("rvgpu-libcall-callee")) {
       emitDeclaration(&F, O);
       continue;
     }

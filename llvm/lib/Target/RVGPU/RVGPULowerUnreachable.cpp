@@ -102,7 +102,7 @@ private:
 
 char RVGPULowerUnreachable::ID = 1;
 
-INITIALIZE_PASS(RVGPULowerUnreachable, "nvptx-lower-unreachable",
+INITIALIZE_PASS(RVGPULowerUnreachable, "rvgpu-lower-unreachable",
                 "Lower Unreachable", false, false)
 
 StringRef RVGPULowerUnreachable::getPassName() const {
