@@ -47,15 +47,9 @@ foreach i = 0...31 in {
 //===----------------------------------------------------------------------===//
 def Int1Regs : RVGPURegClass<[i1], 32, (add PREG)>;
 
-def Int16Regs : RVGPURegClass<[i16, f16, bf16], 32, (add (sequence "R%u", 0, 127))>;
-def Int32Regs : RVGPURegClass<[i32, v2f16, v2bf16, v2i16, v4i8], 32, (add (sequence "R%u", 0, 127))>;
-def Int64Regs : RVGPURegClass<[i64], 64, (add (sequence "R%u", 0, 127, 2))>;
-def Float32Regs : RVGPURegClass<[f32], 32, (add (sequence "R%u", 0, 127))>;
-def Float64Regs : RVGPURegClass<[f64], 64, (add (sequence "R%u", 0, 127, 2))>;
-def Int32ArgRegs : RVGPURegClass<[i32], 32, (add (sequence "R%u", 0, 127))>;
-def Int64ArgRegs : RVGPURegClass<[i64], 64, (add (sequence "R%u", 0, 127, 2))>;
-def Float32ArgRegs : RVGPURegClass<[f32], 32, (add (sequence "R%u", 0, 127))>;
-def Float64ArgRegs : RVGPURegClass<[f64], 64, (add (sequence "R%u", 0, 127, 2))>;
+def GPR16: RVGPURegClass<[i16, f16, bf16], 32, (add (sequence "R%u", 0, 127))>;
+def GPR32: RVGPURegClass<[i32, f32, v2f16, v2bf16, v2i16, v4i8], 32, (add (sequence "R%u", 0, 127))>;
+def GPR64: RVGPURegClass<[i64, f64], 64, (add (sequence "R%u", 0, 127, 2))>;
 
 // Read RVGPURegisterInfo.cpp to see how VRFrame and VRDepot are used.
 def SpecialRegs : RVGPURegClass<[i32], 32, (add (sequence "ENVREG%u", 0, 31))>;
