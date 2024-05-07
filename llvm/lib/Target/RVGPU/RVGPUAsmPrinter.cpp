@@ -303,16 +303,12 @@ unsigned RVGPUAsmPrinter::encodeVirtualRegister(unsigned Reg) {
     unsigned Ret = 0;
     if (RC == &RVGPU::Int1RegsRegClass) {
       Ret = (1 << 28);
-    } else if (RC == &RVGPU::Int16RegsRegClass) {
+    } else if (RC == &RVGPU::GPR16RegClass) {
       Ret = (2 << 28);
-    } else if (RC == &RVGPU::Int32RegsRegClass) {
+    } else if (RC == &RVGPU::GPR32RegClass) {
       Ret = (3 << 28);
-    } else if (RC == &RVGPU::Int64RegsRegClass) {
+    } else if (RC == &RVGPU::GPR64RegClass) {
       Ret = (4 << 28);
-    } else if (RC == &RVGPU::Float32RegsRegClass) {
-      Ret = (5 << 28);
-    } else if (RC == &RVGPU::Float64RegsRegClass) {
-      Ret = (6 << 28);
     } else {
       report_fatal_error("Bad register class");
     }

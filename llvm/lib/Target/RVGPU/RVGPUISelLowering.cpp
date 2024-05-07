@@ -471,17 +471,17 @@ RVGPUTargetLowering::RVGPUTargetLowering(const RVGPUTargetMachine &TM,
   };
 
   addRegisterClass(MVT::i1, &RVGPU::Int1RegsRegClass);
-  addRegisterClass(MVT::i16, &RVGPU::Int16RegsRegClass);
-  addRegisterClass(MVT::v2i16, &RVGPU::Int32RegsRegClass);
-  addRegisterClass(MVT::v4i8, &RVGPU::Int32RegsRegClass);
-  addRegisterClass(MVT::i32, &RVGPU::Int32RegsRegClass);
-  addRegisterClass(MVT::i64, &RVGPU::Int64RegsRegClass);
-  addRegisterClass(MVT::f32, &RVGPU::Float32RegsRegClass);
-  addRegisterClass(MVT::f64, &RVGPU::Float64RegsRegClass);
-  addRegisterClass(MVT::f16, &RVGPU::Int16RegsRegClass);
-  addRegisterClass(MVT::v2f16, &RVGPU::Int32RegsRegClass);
-  addRegisterClass(MVT::bf16, &RVGPU::Int16RegsRegClass);
-  addRegisterClass(MVT::v2bf16, &RVGPU::Int32RegsRegClass);
+  addRegisterClass(MVT::i16, &RVGPU::GPR16RegClass);
+  addRegisterClass(MVT::v2i16, &RVGPU::GPR32RegClass);
+  addRegisterClass(MVT::v4i8, &RVGPU::GPR32RegClass);
+  addRegisterClass(MVT::i32, &RVGPU::GPR32RegClass);
+  addRegisterClass(MVT::i64, &RVGPU::GPR64RegClass);
+  addRegisterClass(MVT::f32, &RVGPU::GPR32RegClass);
+  addRegisterClass(MVT::f64, &RVGPU::GPR64RegClass);
+  addRegisterClass(MVT::f16, &RVGPU::GPR16RegClass);
+  addRegisterClass(MVT::v2f16, &RVGPU::GPR32RegClass);
+  addRegisterClass(MVT::bf16, &RVGPU::GPR16RegClass);
+  addRegisterClass(MVT::v2bf16, &RVGPU::GPR32RegClass);
 
   // Conversion to/from FP16/FP16x2 is always legal.
   setOperationAction(ISD::BUILD_VECTOR, MVT::v2f16, Custom);
@@ -5007,18 +5007,18 @@ RVGPUTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
     case 'b':
       return std::make_pair(0U, &RVGPU::Int1RegsRegClass);
     case 'c':
-      return std::make_pair(0U, &RVGPU::Int16RegsRegClass);
+      return std::make_pair(0U, &RVGPU::GPR16RegClass);
     case 'h':
-      return std::make_pair(0U, &RVGPU::Int16RegsRegClass);
+      return std::make_pair(0U, &RVGPU::GPR16RegClass);
     case 'r':
-      return std::make_pair(0U, &RVGPU::Int32RegsRegClass);
+      return std::make_pair(0U, &RVGPU::GPR32RegClass);
     case 'l':
     case 'N':
-      return std::make_pair(0U, &RVGPU::Int64RegsRegClass);
+      return std::make_pair(0U, &RVGPU::GPR64RegClass);
     case 'f':
-      return std::make_pair(0U, &RVGPU::Float32RegsRegClass);
+      return std::make_pair(0U, &RVGPU::GPR32RegClass);
     case 'd':
-      return std::make_pair(0U, &RVGPU::Float64RegsRegClass);
+      return std::make_pair(0U, &RVGPU::GPR64RegClass);
     }
   }
   return TargetLowering::getRegForInlineAsmConstraint(TRI, Constraint, VT);

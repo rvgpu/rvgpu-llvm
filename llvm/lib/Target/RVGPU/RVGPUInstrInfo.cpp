@@ -43,20 +43,14 @@ void RVGPUInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   unsigned Op;
   if (DestRC == &RVGPU::Int1RegsRegClass) {
     Op = RVGPU::IMOV1rr;
-  } else if (DestRC == &RVGPU::Int16RegsRegClass) {
+  } else if (DestRC == &RVGPU::GPR16RegClass) {
     Op = RVGPU::IMOV16rr;
-  } else if (DestRC == &RVGPU::Int32RegsRegClass) {
-    Op = (SrcRC == &RVGPU::Int32RegsRegClass ? RVGPU::IMOV32rr
-                                             : RVGPU::BITCONVERT_32_F2I);
-  } else if (DestRC == &RVGPU::Int64RegsRegClass) {
-    Op = (SrcRC == &RVGPU::Int64RegsRegClass ? RVGPU::IMOV64rr
-                                             : RVGPU::BITCONVERT_64_F2I);
-  } else if (DestRC == &RVGPU::Float32RegsRegClass) {
-    Op = (SrcRC == &RVGPU::Float32RegsRegClass ? RVGPU::FMOV32rr
-                                               : RVGPU::BITCONVERT_32_I2F);
-  } else if (DestRC == &RVGPU::Float64RegsRegClass) {
-    Op = (SrcRC == &RVGPU::Float64RegsRegClass ? RVGPU::FMOV64rr
-                                               : RVGPU::BITCONVERT_64_I2F);
+  } else if (DestRC == &RVGPU::GPR32RegClass) {
+    Op = (SrcRC == &RVGPU::GPR32RegClass ? RVGPU::IMOV32rr
+                                         : RVGPU::BITCONVERT_32_F2I);
+  } else if (DestRC == &RVGPU::GPR64RegClass) {
+    Op = (SrcRC == &RVGPU::GPR64RegClass ? RVGPU::IMOV64rr
+                                         : RVGPU::BITCONVERT_64_F2I);
   } else {
     llvm_unreachable("Bad register copy");
   }
