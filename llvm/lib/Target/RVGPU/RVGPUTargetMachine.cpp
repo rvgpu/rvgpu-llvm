@@ -85,8 +85,7 @@ void initializeRVGPUExternalAAWrapperPass(PassRegistry &);
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTarget() {
   // Register the target.
-  RegisterTargetMachine<RVGPUTargetMachine32> X(getTheRVGPUTarget32());
-  RegisterTargetMachine<RVGPUTargetMachine64> Y(getTheRVGPUTarget64());
+  RegisterTargetMachine<RVGPUTargetMachine64> X(getTheRVGPUTarget64());
 
   PassRegistry &PR = *PassRegistry::getPassRegistry();
   // FIXME: This pass is really intended to be invoked during IR optimization,

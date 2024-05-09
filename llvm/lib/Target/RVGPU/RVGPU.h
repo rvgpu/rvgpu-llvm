@@ -40,7 +40,7 @@ FunctionPass *createRVGPUISelDag(RVGPUTargetMachine &TM,
 ModulePass *createRVGPUAssignValidGlobalNamesPass();
 ModulePass *createGenericToNVVMLegacyPass();
 ModulePass *createRVGPUCtorDtorLoweringLegacyPass();
-FunctionPass *createNVVMIntrRangePass(unsigned int SmVersion);
+FunctionPass *createNVVMIntrRangePass();
 FunctionPass *createNVVMReflectPass(unsigned int SmVersion);
 MachineFunctionPass *createRVGPUPrologEpilogPass();
 MachineFunctionPass *createRVGPUReplaceImageHandlesPass();

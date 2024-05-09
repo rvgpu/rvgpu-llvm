@@ -109,7 +109,8 @@ static MCStreamer *createMCStreamer(const Triple &T, MCContext &Context,
 }
 // Force static initialization.
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTargetMC() {
-  for (Target *T : {&getTheRVGPUTarget32(), &getTheRVGPUTarget64()}) {
+  //for (Target *T : {&getTheRVGPUTarget64()}) {
+  Target *T = &getTheRVGPUTarget64();
     // Register the MC asm info.
     RegisterMCAsmInfo<RVGPUMCAsmInfo> X(*T);
 
@@ -144,5 +145,4 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTargetMC() {
     // Register the MCTargetStreamer.
     TargetRegistry::RegisterNullTargetStreamer(*T, createNullTargetStreamer);
 #endif     
-  }
 }

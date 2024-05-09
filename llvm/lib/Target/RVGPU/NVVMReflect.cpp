@@ -65,18 +65,12 @@ FunctionPass *llvm::createNVVMReflectPass(unsigned int SmVersion) {
   return new NVVMReflect(SmVersion);
 }
 
-static cl::opt<bool>
-NVVMReflectEnabled("nvvm-reflect-enable", cl::init(true), cl::Hidden,
-                   cl::desc("NVVM reflection, enabled by default"));
-
 char NVVMReflect::ID = 0;
 INITIALIZE_PASS(NVVMReflect, "nvvm-reflect",
                 "Replace occurrences of __nvvm_reflect() calls with 0/1", false,
                 false)
 
 static bool runNVVMReflect(Function &F, unsigned SmVersion) {
-  if (!NVVMReflectEnabled)
-    return false;
 
   if (F.getName() == NVVM_REFLECT_FUNCTION ||
       F.getName() == NVVM_REFLECT_OCL_FUNCTION) {

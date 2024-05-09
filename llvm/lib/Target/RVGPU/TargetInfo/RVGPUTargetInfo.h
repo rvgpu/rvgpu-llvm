@@ -13,7 +13,6 @@ namespace llvm {
 
 class Target;
 
-Target &getTheRVGPUTarget32();
 Target &getTheRVGPUTarget64();
 
 } // namespace llvm

@@ -72,6 +72,7 @@ def INT_BARRIERN : RVGPUInst<(outs), (ins GPR32:$src1),
       [(int_rvgpu_barrier_n GPR32:$src1)]>;
 def INT_BARRIER : RVGPUInst<(outs), (ins GPR32:$src1, GPR32:$src2),
                   "bar.sync \t$src1, $src2;",
+let isCodeGenOnly = 1 in {
       [(int_rvgpu_barrier GPR32:$src1, GPR32:$src2)]>;
 def INT_BARRIER0_POPC : RVGPUInst<(outs GPR32:$dst), (ins GPR32:$pred),
   !strconcat("{{ \n\t",
@@ -98,6 +99,7 @@ def INT_BARRIER0_OR : RVGPUInst<(outs GPR32:$dst), (ins GPR32:$pred),
              "selp.u32 \t$dst, 1, 0, %p2; \n\t",
              "}}"),
       [(set GPR32:$dst, (int_rvgpu_barrier0_or GPR32:$pred))]>;
+}
 
 def INT_BAR_SYNC : RVGPUInst<(outs), (ins i32imm:$i), "bar.sync \t$i;",
                              [(int_rvgpu_bar_sync imm:$i)]>;
@@ -1301,6 +1303,7 @@ def CVT_tf32_f32 :
 def INT_NVVM_LOHI_I2D : F_MATH_2<"mov.b64 \t$dst, {{$src0, $src1}};",
   GPR64, GPR32, GPR32, int_rvgpu_lohi_i2d>;
 
+let isCodeGenOnly = 1 in {
 def INT_NVVM_D2I_LO : F_MATH_1<
   !strconcat("{{\n\t",
              ".reg .b32 %temp; \n\t",
@@ -1610,6 +1613,7 @@ def atomic_load_sub_64_s: ATOMIC_SHARED_CHK<(ops node:$a, node:$b),
 def atomic_load_sub_64_gen: ATOMIC_GENERIC_CHK<(ops node:$a, node:$b),
   (atomic_load_sub_64 node:$a, node:$b)>;
 
+let isCodeGenOnly = 1 in {
 defm INT_PTX_ATOM_SUB_G_32 : F_ATOMIC_2_NEG<i32, GPR32, ".global", "32", ".add",
   atomic_load_sub_32_g>;
 defm INT_PTX_ATOM_SUB_G_64 : F_ATOMIC_2_NEG<i64, GPR64, ".global", "64", ".add",
@@ -1626,7 +1630,7 @@ defm INT_PTX_ATOM_SUB_GEN_64 : F_ATOMIC_2_NEG<i64, GPR64, "", "64", ".add",
   atomic_load_sub_64_gen>;
 defm INT_PTX_ATOM_SUB_GEN_64_USE_G : F_ATOMIC_2_NEG<i64, GPR64, ".global", "64",
   ".add", atomic_load_sub_64_gen>;
-
+}
 // atom_swap
 
 def atomic_swap_32_g: ATOMIC_GLOBAL_CHK<(ops node:$a, node:$b),
@@ -2565,7 +2569,7 @@ def : Pat<(int_rvgpu_rotate_b32 GPR32:$src, GPR32:$amt),
           (ROTL32reg_sw GPR32:$src, GPR32:$amt)>,
       Requires<[noHWROT32]> ;
 
-let hasSideEffects = false in {
+let hasSideEffects = false, isCodeGenOnly = 1 in {
   def GET_LO_INT64 : RVGPUInst<(outs GPR32:$dst), (ins GPR64:$src),
     !strconcat("{{\n\t",
                ".reg .b32 %dummy;\n\t",

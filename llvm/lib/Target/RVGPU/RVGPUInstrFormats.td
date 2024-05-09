@@ -17,6 +17,11 @@ class VecInstTypeEnum<bits<4> val> {
 }
 def VecNOP : VecInstTypeEnum<0>;
 
+class Enc64 {
+  field bits<64> Inst;
+  int Size = 8;
+}
+
 // Generic RVGPU Format
 
 class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
@@ -68,6 +73,49 @@ class RVGPUInstR<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmst
   let Inst{23-16} = rs2;
   let Inst{15-8}  = rs1;
   let Inst{7-0}   = rd;
+}
+
+class CMP<bits<8> opcode, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> rd = 0;
+  bits<8> rs1 = 0;
+  bits<8> rs2 = 0;
+
+  let Inst{63-56} = 0b11000000;
+  let Inst{55-53} = 0b000;
+  let Inst{52-45} = opcode;
+  let Inst{23-16} = rs2;
+  let Inst{15-8}  = rs1;
+  let Inst{7-0}   = rd;
+}
+
+class RVGPULDrr<bits<8> op1, bits<3> type, bits<8> op2,
+      dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> dst = 0;
+  bits<8> addr = 0;
+
+  let Inst{63-56} = op1;
+  let Inst{55-53} = type;
+  let Inst{52-45} = op2;
+  let Inst{31-24} = dst;
+  let Inst{23-16} = addr;
+  let Inst{15-0} = 0;
+}
+
+class RVGPULDri<bits<8> op1, bits<3> type, bits<8> op2,
+      dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> dst = 0;
+  bits<8> addr = 0;
+  bits<16> offset = 0;
+
+  let Inst{63-56} = op1;
+  let Inst{55-53} = type;
+  let Inst{52-45} = op2;
+  let Inst{31-24} = dst;
+  let Inst{23-16} = addr;
+  let Inst{15-0}  = offset;
 }
 
 class RVGPUInstI<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmstr, list<dag> pattern>

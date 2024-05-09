@@ -2243,6 +2243,5 @@ void RVGPUAsmPrinter::printMemOperand(const MachineInstr *MI, unsigned OpNum,
 
 // Force static initialization.
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUAsmPrinter() {
-  RegisterAsmPrinter<RVGPUAsmPrinter> X(getTheRVGPUTarget32());
-  RegisterAsmPrinter<RVGPUAsmPrinter> Y(getTheRVGPUTarget64());
+  RegisterAsmPrinter<RVGPUAsmPrinter> X(getTheRVGPUTarget64());
 }

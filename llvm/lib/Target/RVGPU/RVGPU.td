@@ -76,11 +76,18 @@ def : Proc<"r1000", [SM90a, PTX80]>;
 
 def RVGPUInstrInfo : InstrInfo {
 }
+
+def RVGPUAsmParser : AsmParser {
+  let ShouldEmitMatchRegisterAltName = 0;
+  bit HasMnemonicFirst = 0;
+//  let AllowDuplicateRegisterNames = 1;
+}
 def RVGPUAsmWriter : AsmWriter {
   int PassSubtarget = 1;
 }
 
 def RVGPU : Target {
   let InstructionSet = RVGPUInstrInfo;
+  let AssemblyParsers = [RVGPUAsmParser];
   let AssemblyWriters = [RVGPUAsmWriter];
 }

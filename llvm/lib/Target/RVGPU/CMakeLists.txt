@@ -2,7 +2,7 @@ add_llvm_component_group(RVGPU)
 
 set(LLVM_TARGET_DEFINITIONS RVGPU.td)
 
-#tablegen(LLVM RVGPUGenAsmMatcher.inc -gen-asm-matcher)
+tablegen(LLVM RVGPUGenAsmMatcher.inc -gen-asm-matcher)
 tablegen(LLVM RVGPUGenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM RVGPUGenDAGISel.inc -gen-dag-isel)
 tablegen(LLVM RVGPUGenInstrInfo.inc -gen-instr-info)
@@ -73,3 +73,4 @@ add_llvm_target(RVGPUCodeGen
 add_subdirectory(MCTargetDesc)
 add_subdirectory(TargetInfo)
 add_subdirectory(Disassembler)
+add_subdirectory(AsmParser)

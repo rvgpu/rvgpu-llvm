@@ -17,6 +17,90 @@ let OperandType = "OPERAND_IMMEDIATE" in {
   def bf16imm : Operand<bf16>;
 
 }
+class RVPat<dag pattern, dag result> : Pat<pattern, result>{
+
+}
+
+class SIMCInstr <string pseudo, int subtarget> {
+  string PseudoInstr = pseudo;
+  int Subtarget = subtarget;
+}
+// Returns the register class to use for the destination of VOP[123C]
+// instructions for the given VT.
+class getVALUDstForVT<ValueType VT, bit IsTrue16 = 0, bit IsVOP3Encoding = 0> {
+  defvar op16 = !if(IsTrue16, !if (IsVOP3Encoding, VOPDstOperand_t16,
+                                   VOPDstOperand_t16Lo128),
+                    VOPDstOperand<VGPR_32>);
+  RegisterOperand ret = !if(!eq(VT.Size, 32), VOPDstOperand<VGPR_32>,
+                          !if(!eq(VT.Size, 128), VOPDstOperand<VReg_128>,
+                            !if(!eq(VT.Size, 64), VOPDstOperand<VReg_64>,
+                              !if(!eq(VT.Size, 16), op16,
+                              VOPDstS64orS32)))); // else VT == i1
+}
+
+class getVALUDstForVT_fake16<ValueType VT> {
+  RegisterOperand ret = !if(!eq(VT.Size, 32), VOPDstOperand<VGPR_32>,
+                          !if(!eq(VT.Size, 128), VOPDstOperand<VReg_128>,
+                            !if(!eq(VT.Size, 64), VOPDstOperand<VReg_64>,
+                              !if(!eq(VT.Size, 16), VOPDstOperand<VGPR_32_Lo128>,
+                              VOPDstS64orS32)))); // else VT == i1
+}
+
+def VOP3Mods0 : ComplexPattern<untyped, 4, "SelectVOP3Mods0">;
+
+// Modifiers for floating point instructions.
+def VOP3Mods  : ComplexPattern<untyped, 2, "SelectVOP3Mods">;
+
+//===----------------------------------------------------------------------===//
+// PatLeafs for floating-point comparisons
+//===----------------------------------------------------------------------===//
+
+def COND_OEQ : PatFrags<(ops), [(OtherVT SETOEQ), (OtherVT SETEQ)]>;
+def COND_ONE : PatFrags<(ops), [(OtherVT SETONE), (OtherVT SETNE)]>;
+def COND_OGT : PatFrags<(ops), [(OtherVT SETOGT), (OtherVT SETGT)]>;
+def COND_OGE : PatFrags<(ops), [(OtherVT SETOGE), (OtherVT SETGE)]>;
+def COND_OLT : PatFrags<(ops), [(OtherVT SETOLT), (OtherVT SETLT)]>;
+def COND_OLE : PatFrags<(ops), [(OtherVT SETOLE), (OtherVT SETLE)]>;
+def COND_O   : PatFrags<(ops), [(OtherVT SETO)]>;
+def COND_UO  : PatFrags<(ops), [(OtherVT SETUO)]>;
+
+//===----------------------------------------------------------------------===//
+// PatLeafs for unsigned / unordered comparisons
+//===----------------------------------------------------------------------===//
+
+def COND_UEQ : PatFrag<(ops), (OtherVT SETUEQ)>;
+def COND_UNE : PatFrag<(ops), (OtherVT SETUNE)>;
+def COND_UGT : PatFrag<(ops), (OtherVT SETUGT)>;
+def COND_UGE : PatFrag<(ops), (OtherVT SETUGE)>;
+def COND_ULT : PatFrag<(ops), (OtherVT SETULT)>;
+def COND_ULE : PatFrag<(ops), (OtherVT SETULE)>;
+
+// XXX - For some reason R600 version is preferring to use unordered
+// for setne?
+def COND_UNE_NE  : PatFrags<(ops), [(OtherVT SETUNE), (OtherVT SETNE)]>;
+
+//===----------------------------------------------------------------------===//
+// PatLeafs for signed comparisons
+//===----------------------------------------------------------------------===//
+
+def COND_SGT : PatFrag<(ops), (OtherVT SETGT)>;
+def COND_SGE : PatFrag<(ops), (OtherVT SETGE)>;
+def COND_SLT : PatFrag<(ops), (OtherVT SETLT)>;
+def COND_SLE : PatFrag<(ops), (OtherVT SETLE)>;
+
+//===----------------------------------------------------------------------===//
+// PatLeafs for integer equality
+//===----------------------------------------------------------------------===//
+
+def COND_EQ : PatFrags<(ops), [(OtherVT SETEQ), (OtherVT SETUEQ)]>;
+def COND_NE : PatFrags<(ops), [(OtherVT SETNE), (OtherVT SETUNE)]>;
+
+// FIXME: Should not need code predicate
+//def COND_NULL : PatLeaf<(OtherVT null_frag)>;
+def COND_NULL : PatLeaf <
+  (cond),
+  [{(void)N; return false;}]
+>;
 
 // List of vector specific properties
 def isVecLD      : VecInstTypeEnum<1>;
@@ -199,6 +283,184 @@ class ValueToRegClass<ValueType T> {
 //===----------------------------------------------------------------------===//
 // Some Common Instruction Class Templates
 //===----------------------------------------------------------------------===//
+class VOPProfile <list<ValueType> _ArgVT, bit _EnableClamp = 0> {
+
+  field list<ValueType> ArgVT = _ArgVT;
+  field bit EnableClamp = _EnableClamp;
+  field bit IsTrue16 = 0;
+  field bit IsRealTrue16 = 0;
+
+  field ValueType DstVT = ArgVT[0];
+  field ValueType Src0VT = ArgVT[1];
+  field ValueType Src1VT = ArgVT[2];
+  field ValueType Src2VT = ArgVT[3];
+  field RegisterOperand DstRC = getVALUDstForVT<DstVT>.ret;
+  field RegisterOperand DstRCDPP = DstRC;
+  field RegisterOperand DstRC64 = DstRC;
+  field RegisterOperand DstRCVOP3DPP = DstRC64;
+  field RegisterOperand DstRCSDWA = getSDWADstForVT<DstVT>.ret;
+  field RegisterOperand Src0RC32 = getVOPSrc0ForVT<Src0VT, IsTrue16>.ret;
+  field RegisterOperand Src1RC32 = RegisterOperand<getVregSrcForVT<Src1VT>.ret>;
+  field RegisterOperand Src0RC64 = getVOP3SrcForVT<Src0VT>.ret;
+  field RegisterOperand Src1RC64 = getVOP3SrcForVT<Src1VT>.ret;
+  field RegisterOperand Src2RC64 = getVOP3SrcForVT<Src2VT>.ret;
+  field RegisterClass Src0DPP = getVregSrcForVT<Src0VT>.ret;
+  field RegisterClass Src1DPP = getVregSrcForVT<Src1VT>.ret;
+  field RegisterClass Src2DPP = getVregSrcForVT<Src2VT>.ret;
+  field RegisterOperand Src0VOP3DPP = VGPRSrc_32;
+  field RegisterOperand Src1VOP3DPP = getVOP3DPPSrcForVT<Src1VT>.ret;
+  field RegisterOperand Src2VOP3DPP = getVOP3DPPSrcForVT<Src2VT>.ret;
+  field RegisterOperand Src0SDWA = getSDWASrcForVT<Src0VT>.ret;
+  field RegisterOperand Src1SDWA = getSDWASrcForVT<Src0VT>.ret;
+  field Operand Src0Mod = getSrcMod<Src0VT>.ret;
+  field Operand Src1Mod = getSrcMod<Src1VT>.ret;
+  field Operand Src2Mod = getSrcMod<Src2VT>.ret;
+  field Operand Src0ModDPP = getSrcModDPP<Src0VT>.ret;
+  field Operand Src1ModDPP = getSrcModDPP<Src1VT>.ret;
+  field Operand Src2ModDPP = getSrcModDPP<Src2VT>.ret;
+  field Operand Src0ModVOP3DPP = getSrcModDPP<Src0VT>.ret;
+  field Operand Src1ModVOP3DPP = getSrcModDPP<Src1VT>.ret;
+  field Operand Src2ModVOP3DPP = getSrcModVOP3DPP<Src2VT>.ret;
+  field Operand Src0ModSDWA = getSrcModSDWA<Src0VT>.ret;
+  field Operand Src1ModSDWA = getSrcModSDWA<Src1VT>.ret;
+
+
+  field bit IsMAI = 0;
+  field bit IsVOP3P = 0;
+  field bit IsDOT = 0;
+  field bit IsSingle = 0;
+  field bit IsWMMA = 0;
+
+  field bit HasDst = !ne(DstVT.Value, untyped.Value);
+  field bit HasDst32 = HasDst;
+  field bit EmitDst = HasDst; // force dst encoding, see v_movreld_b32 special case
+  field bit EmitDstSel = EmitDst;
+  field int NumSrcArgs = getNumSrcArgs<Src0VT, Src1VT, Src2VT>.ret;
+  field bit HasSrc0 = !ne(Src0VT.Value, untyped.Value);
+  field bit HasSrc1 = !ne(Src1VT.Value, untyped.Value);
+  field bit HasSrc2 = !ne(Src2VT.Value, untyped.Value);
+
+  field bit HasSrc0FloatMods = isFloatType<Src0VT>.ret;
+  field bit HasSrc1FloatMods = isFloatType<Src1VT>.ret;
+  field bit HasSrc2FloatMods = isFloatType<Src2VT>.ret;
+
+  field bit HasSrc0IntMods = isIntType<Src0VT>.ret;
+  field bit HasSrc1IntMods = isIntType<Src1VT>.ret;
+  field bit HasSrc2IntMods = isIntType<Src2VT>.ret;
+
+  field bit HasClamp = !or(isModifierType<Src0VT>.ret, EnableClamp);
+  field bit HasSDWAClamp = EmitDst;
+  field bit HasFPClamp = !and(isFloatType<DstVT>.ret, HasClamp);
+  field bit HasIntClamp = !if(isFloatType<DstVT>.ret, 0, HasClamp);
+  field bit HasClampLo = HasClamp;
+  field bit HasClampHi = !and(isPackedType<DstVT>.ret, HasClamp);
+  field bit HasHigh = 0;
+
+  field bit IsPacked = isPackedType<Src0VT>.ret;
+  field bit HasOpSel = IsPacked;
+  field bit HasOMod = !if(IsVOP3P, 0, isFloatType<DstVT>.ret);
+  field bit HasSDWAOMod = isFloatType<DstVT>.ret;
+
+  field bit HasModifiers = !or(isModifierType<Src0VT>.ret,
+                               isModifierType<Src1VT>.ret,
+                               isModifierType<Src2VT>.ret,
+                               HasOMod);
+
+  field bit HasSrc0Mods = HasModifiers;
+  field bit HasSrc1Mods = !if(HasModifiers, !or(HasSrc1FloatMods, HasSrc1IntMods), 0);
+  field bit HasSrc2Mods = !if(HasModifiers, !or(HasSrc2FloatMods, HasSrc2IntMods), 0);
+
+  field bit HasExt = getHasExt<NumSrcArgs, DstVT, Src0VT, Src1VT>.ret;
+  field bit HasExtVOP3DPP = getHasVOP3DPP<DstVT, Src0VT, Src1VT, Src2VT>.ret;
+  field bit HasExtDPP = !or(getHasDPP<NumSrcArgs>.ret, HasExtVOP3DPP);
+  field bit HasExt32BitDPP = getHasExt32BitDPP<NumSrcArgs, DstVT, Src0VT, Src1VT>.ret;
+  field bit HasExt64BitDPP = getHasExt64BitDPP<NumSrcArgs, DstVT, Src0VT, Src1VT>.ret;
+  field bit HasExtSDWA = getHasSDWA<NumSrcArgs, DstVT, Src0VT, Src1VT>.ret;
+  field bit HasExtSDWA9 = HasExtSDWA;
+  field int NeedPatGen = PatGenMode.NoPattern;
+
+  field Operand Src0PackedMod = !if(HasSrc0FloatMods, PackedF16InputMods, PackedI16InputMods);
+  field Operand Src1PackedMod = !if(HasSrc1FloatMods, PackedF16InputMods, PackedI16InputMods);
+  field Operand Src2PackedMod = !if(HasSrc2FloatMods, PackedF16InputMods, PackedI16InputMods);
+
+  field dag Outs = !if(HasDst,(outs DstRC:$vdst),(outs));
+
+  // VOP3b instructions are a special case with a second explicit
+  // output. This is manually overridden for them.
+  field dag Outs32 = Outs;
+  field dag Outs64 = !if(HasDst,(outs DstRC64:$vdst),(outs));
+  field dag OutsDPP = getOutsDPP<HasDst, DstVT, DstRCDPP>.ret;
+  field dag OutsDPP8 = OutsDPP;
+  field dag OutsVOP3DPP = getOutsDPP<HasDst, DstVT, DstRCVOP3DPP>.ret;
+  field dag OutsVOP3DPP8 = OutsVOP3DPP;
+  field dag OutsSDWA = getOutsSDWA<HasDst, DstVT, DstRCSDWA>.ret;
+
+  field dag Ins32 = getIns32<Src0RC32, Src1RC32, NumSrcArgs>.ret;
+  field dag Ins64 = getIns64<Src0RC64, Src1RC64, Src2RC64, NumSrcArgs,
+                             HasIntClamp, HasModifiers, HasSrc2Mods,
+                             HasOMod, Src0Mod, Src1Mod, Src2Mod>.ret;
+  field dag InsVOP3P = getInsVOP3P<Src0RC64, Src1RC64, Src2RC64,
+                                   NumSrcArgs, HasClamp, HasOpSel,
+                                   Src0PackedMod, Src1PackedMod, Src2PackedMod>.ret;
+  field dag InsVOP3OpSel = getInsVOP3OpSel<Src0RC64, Src1RC64, Src2RC64,
+                                NumSrcArgs, HasClamp, HasOMod,
+                                getOpSelMod<Src0VT>.ret,
+                                getOpSelMod<Src1VT>.ret,
+                                getOpSelMod<Src2VT>.ret>.ret;
+  field dag InsDPP = !if(HasExtDPP,
+                         getInsDPP<DstRCDPP, Src0DPP, Src1DPP, Src2DPP, NumSrcArgs,
+                                   HasModifiers, Src0ModDPP, Src1ModDPP, Src2ModDPP>.ret,
+                         (ins));
+  field dag InsDPP16 = getInsDPP16<DstRCDPP, Src0DPP, Src1DPP, Src2DPP, NumSrcArgs,
+                                   HasModifiers, Src0ModDPP, Src1ModDPP, Src2ModDPP>.ret;
+  field dag InsDPP8 = getInsDPP8<DstRCDPP, Src0DPP, Src1DPP, Src2DPP,
+                                 NumSrcArgs, HasModifiers,
+                                 Src0ModDPP, Src1ModDPP, Src2ModDPP>.ret;
+  field dag InsVOP3Base = getInsVOP3Base<Src0VOP3DPP, Src1VOP3DPP,
+                  Src2VOP3DPP, NumSrcArgs, HasClamp, HasModifiers, HasSrc2Mods, HasOMod,
+                  Src0ModVOP3DPP, Src1ModVOP3DPP, Src2ModVOP3DPP, HasOpSel, IsVOP3P>.ret;
+  field dag InsVOP3DPP = getInsVOP3DPP<InsVOP3Base, DstRCVOP3DPP, NumSrcArgs>.ret;
+  field dag InsVOP3DPP16 = getInsVOP3DPP16<InsVOP3Base, DstRCVOP3DPP, NumSrcArgs>.ret;
+  field dag InsVOP3DPP8 = getInsVOP3DPP8<InsVOP3Base, DstRCVOP3DPP, NumSrcArgs>.ret;
+  field dag InsSDWA = getInsSDWA<Src0SDWA, Src1SDWA, NumSrcArgs,
+                                 HasSDWAOMod, Src0ModSDWA, Src1ModSDWA,
+                                 DstVT>.ret;
+  field dag InsVOPDX = (ins Src0RC32:$src0X, Src1RC32:$vsrc1X);
+  // It is a slight misnomer to use the deferred f32 operand type for non-float
+  // operands, but this operand type will only be used if the other dual
+  // component is FMAAK or FMAMK
+  field dag InsVOPDXDeferred = (ins !if(!eq(Src0VT.Size, 32), VSrc_f32_Deferred, VSrc_f16_Deferred):$src0X, VGPR_32:$vsrc1X);
+  field dag InsVOPDY = (ins Src0RC32:$src0Y, Src1RC32:$vsrc1Y);
+  field dag InsVOPDYDeferred = (ins !if(!eq(Src1VT.Size, 32), VSrc_f32_Deferred, VSrc_f16_Deferred):$src0Y, VGPR_32:$vsrc1Y);
+
+
+  field string Asm32 = getAsm32<HasDst, NumSrcArgs, DstVT>.ret;
+  field string AsmDPP = !if(HasExtDPP,
+                            getAsmDPP<HasDst, NumSrcArgs, HasModifiers, DstVT>.ret, "");
+  field string AsmDPP16 = getAsmDPP16<HasDst, NumSrcArgs, HasModifiers, DstVT>.ret;
+  // DPP8 encoding has no fields for modifiers, and it is enforced by setting
+  // the asm operand name via this HasModifiers flag
+  field string AsmDPP8 = getAsmDPP8<HasDst, NumSrcArgs, 0 /*HasModifiers*/, DstVT>.ret;
+  field string AsmVOP3Base = getAsmVOP3Base<NumSrcArgs, HasDst, HasClamp,
+   HasOpSel, HasOMod, IsVOP3P, HasModifiers, HasModifiers, HasModifiers,
+   HasModifiers, DstVT>.ret;
+  field string Asm64 = AsmVOP3Base;
+  field string AsmVOP3P = getAsmVOP3P<NumSrcArgs, HasModifiers, HasClamp, HasOpSel>.ret;
+  field string AsmVOP3OpSel = getAsmVOP3OpSel<NumSrcArgs,
+                                              HasClamp,
+                                              HasOMod,
+                                              HasSrc0FloatMods,
+                                              HasSrc1FloatMods,
+                                              HasSrc2FloatMods>.ret;
+  field string AsmVOP3DPP = getAsmVOP3DPP<AsmVOP3Base>.ret;
+  field string AsmVOP3DPP16 = getAsmVOP3DPP16<AsmVOP3Base>.ret;
+  field string AsmVOP3DPP8 = getAsmVOP3DPP8<AsmVOP3Base>.ret;
+  field string AsmSDWA = getAsmSDWA<HasDst, NumSrcArgs, DstVT>.ret;
+  field string AsmSDWA9 = getAsmSDWA9<HasDst, HasSDWAOMod, NumSrcArgs, DstVT>.ret;
+  field string AsmVOPDX = getAsmVOPDPart<NumSrcArgs, "X">.ret;
+  field string AsmVOPDY = getAsmVOPDPart<NumSrcArgs, "Y">.ret;
+  field string TieRegDPP = "$old";
+}
 
 // Template for instructions which take three int64, int32, or int16 args.
 // The instructions are named "<OpcStr><Width>" (e.g. "add.s64").
@@ -597,7 +859,7 @@ multiclass F2_Support_Half<string OpcStr, SDNode OpNode> {
 // Type Conversion
 //-----------------------------------
 
-let hasSideEffects = false in {
+let hasSideEffects = false, isCodeGenOnly = 1 in {
   // Generate a cvt to the given type from all possible types.  Each instance
   // takes a CvtMode immediate that defines the conversion mode to use.  It can
   // be CvtNONE to omit a conversion mode.
@@ -1659,6 +1921,7 @@ def ROTR32reg_hw :
            Requires<[hasHWROT32]>;
 
 // 32-bit software rotate by immediate.  $amt2 should equal 32 - $amt1.
+let isCodeGenOnly = 1 in {
 def ROT32imm_sw :
   RVGPUInst<(outs GPR32:$dst),
             (ins GPR32:$src, i32imm:$amt1, i32imm:$amt2),
@@ -1670,7 +1933,7 @@ def ROT32imm_sw :
             "add.u32 \t$dst, %lhs, %rhs;\n\t"
             "}}",
             []>;
-
+}
 def SUB_FRM_32 : SDNodeXForm<imm, [{
   return CurDAG->getTargetConstant(32 - N->getZExtValue(), SDLoc(N), MVT::i32);
 }]>;
@@ -1683,6 +1946,7 @@ def : Pat<(rotr (i32 GPR32:$src), (i32 imm:$amt)),
       Requires<[noHWROT32]>;
 
 // 32-bit software rotate left by register.
+let isCodeGenOnly = 1 in {
 def ROTL32reg_sw :
   RVGPUInst<(outs GPR32:$dst), (ins GPR32:$src, GPR32:$amt),
             "{{\n\t"
@@ -1724,7 +1988,7 @@ def ROT64imm_sw :
             "add.u64 \t$dst, %lhs, %rhs;\n\t"
             "}}",
             []>;
-
+}
 def SUB_FRM_64 : SDNodeXForm<imm, [{
     return CurDAG->getTargetConstant(64-N->getZExtValue(), SDLoc(N), MVT::i32);
 }]>;
@@ -1735,6 +1999,7 @@ def : Pat<(rotr GPR64:$src, (i32 imm:$amt)),
           (ROT64imm_sw GPR64:$src, (SUB_FRM_64 node:$amt), imm:$amt)>;
 
 // 64-bit software rotate left by register.
+let isCodeGenOnly = 1 in {
 def ROTL64reg_sw :
   RVGPUInst<(outs GPR64:$dst), (ins GPR64:$src, GPR32:$amt),
             "{{\n\t"
@@ -1760,7 +2025,7 @@ def ROTR64reg_sw :
             "add.u64 \t$dst, %lhs, %rhs;\n\t"
             "}}",
             [(set GPR64:$dst, (rotr GPR64:$src, (i32 GPR32:$amt)))]>;
-
+}
 //
 // Funnnel shift in clamp mode
 //
@@ -1928,8 +2193,7 @@ def : Pat<(i16 (sext_inreg (trunc (srl (i64 GPR64:$s),  (i32 imm:$o))), i8)),
 
 // FIXME: This doesn't cover versions of set and setp that combine with a
 // boolean predicate, e.g. setp.eq.and.b16.
-
-let hasSideEffects = false in {
+let hasSideEffects = false, let isCodeGenOnly = 1 in {
   multiclass SETP<string TypeStr, RegisterClass RC, Operand ImmCls> {
     def rr :
       RVGPUInst<(outs Int1Regs:$dst), (ins RC:$a, RC:$b, CmpMode:$cmp),
@@ -1957,6 +2221,7 @@ defm SETP_s64 : SETP<"s64", GPR64, i64imm>;
 defm SETP_u64 : SETP<"u64", GPR64, i64imm>;
 defm SETP_f32 : SETP<"f32", GPR32, f32imm>;
 defm SETP_f64 : SETP<"f64", GPR64, f64imm>;
+
 def SETP_f16rr :
       RVGPUInst<(outs Int1Regs:$dst),
                 (ins GPR16:$a, GPR16:$b, CmpMode:$cmp),
@@ -2001,6 +2266,7 @@ let hasSideEffects = false in {
   }
 }
 
+
 defm SET_b16 : SET<"b16", GPR16, i16imm>;
 defm SET_s16 : SET<"s16", GPR16, i16imm>;
 defm SET_u16 : SET<"u16", GPR16, i16imm>;
@@ -2014,6 +2280,7 @@ defm SET_f16 : SET<"f16", GPR16, f16imm>;
 defm SET_bf16 : SET<"bf16", GPR16, bf16imm>, Requires<[hasPTX<78>, hasSM<90>]>;
 defm SET_f32 : SET<"f32", GPR32, f32imm>;
 defm SET_f64 : SET<"f64", GPR64, f64imm>;
+
 
 //-----------------------------------
 // Data Movement (Load / Store, Move)
@@ -2128,13 +2395,14 @@ def : Pat<(i32 (Wrapper texternalsym:$dst)), (IMOV32ri texternalsym:$dst)>;
 def : Pat<(i64 (Wrapper texternalsym:$dst)), (IMOV64ri texternalsym:$dst)>;
 
 //---- Copy Frame Index ----
+let isCodeGenOnly = 1 in {
 def LEA_ADDRi :   RVGPUInst<(outs GPR32:$dst), (ins MEMri:$addr),
                             "add.u32 \t$dst, ${addr:add};",
                             [(set GPR32:$dst, ADDRri:$addr)]>;
 def LEA_ADDRi64 : RVGPUInst<(outs GPR64:$dst), (ins MEMri64:$addr),
                             "add.u64 \t$dst, ${addr:add};",
                             [(set GPR64:$dst, ADDRri64:$addr)]>;
-
+}
 //-----------------------------------
 // Comparison and Selection
 //-----------------------------------
@@ -2849,7 +3117,7 @@ foreach vt = [f16, bf16] in {
 foreach vt = [v2f16, v2bf16, v2i16, v4i8] in {
   def: Pat<(vt (ProxyReg  vt:$src)), (ProxyRegI32 GPR32:$src)>;
 }
-
+/*
 //
 // Load / Store Handling
 //
@@ -2891,7 +3159,28 @@ multiclass LD<RVGPURegClass regclass> {
     "ld${isVol:volatile}${addsp:addsp}${Vec:vec}.${Sign:sign}$fromWidth "
     "\t$dst, [$addr+$offset];", []>;
 }
+*/
+//
+// Load / Store Handling
+//
+multiclass LD<string OpcStr, bits<8> op, bits<3> type, bits<8> mode, RVGPURegClass regclass> {
+  def _avar : RVGPULDrr<op, type, mode,
+    (outs regclass:$dst), (ins imem:$addr),
+    !strconcat(OpcStr, " \t$dst, [$addr];"), []>;
+  def _areg_64 : RVGPULDrr<op, type, mode,
+    (outs regclass:$dst), (ins GPR64:$addr),
+    !strconcat(OpcStr, " \t$dst, [$addr];"), []>;
+  def _ari_64 : RVGPULDri<op, type, mode,
+    (outs regclass:$dst), (ins GPR64:$addr, i32imm:$offset),
+    !strconcat(OpcStr, " \t$dst, [$addr+$offset];"), []>;
+  def _asi : RVGPULDri<op, type, mode,
+    (outs regclass:$dst), (ins imem:$addr, i32imm:$offset),
+    !strconcat(OpcStr, " \t$dst, [$addr+$offset];"), []>;
+}
 
+multiclass LD_G<string OpcStr, bits<8>op, RVGPURegClass regclass>
+: LD<OpcStr, 0b11000100, 0b000, op, regclass>;
+/*
 let mayLoad=1, hasSideEffects=0 in {
   defm LD_i8  : LD<GPR16>;
   defm LD_i16 : LD<GPR16>;
@@ -2899,6 +3188,16 @@ let mayLoad=1, hasSideEffects=0 in {
   defm LD_i64 : LD<GPR64>;
   defm LD_f32 : LD<GPR32>;
   defm LD_f64 : LD<GPR64>;
+}
+*/
+
+let mayLoad=1, hasSideEffects=0 in {
+  defm LD_i8  : LD_G<"ld_i8",  0b00000000, GPR16>;
+  defm LD_i16 : LD_G<"ld_i16", 0b00000001, GPR16>;
+  defm LD_i32 : LD_G<"ld_i32", 0b00000010, GPR32>;
+  defm LD_i64 : LD_G<"ld_i64", 0b00000011, GPR64>;
+  defm LD_f32 : LD_G<"ld_f32", 0b00000100, GPR32>;
+  defm LD_f64 : LD_G<"ld_f64", 0b00000101, GPR64>;
 }
 
 multiclass ST<RVGPURegClass regclass> {
@@ -2948,7 +3247,7 @@ let mayStore=1, hasSideEffects=0 in {
   defm ST_f32 : ST<GPR32>;
   defm ST_f64 : ST<GPR64>;
 }
-
+/*
 // The following is used only in and after vector elementizations.  Vector
 // elementization happens at the machine instruction level, so the following
 // instructions never appear in the DAG.
@@ -2983,7 +3282,7 @@ multiclass LD_VEC<RVGPURegClass regclass> {
          i32imm:$fromWidth, GPR64:$addr, i32imm:$offset),
     "ld${isVol:volatile}${addsp:addsp}${Vec:vec}.${Sign:sign}$fromWidth "
     "\t{{$dst1, $dst2}}, [$addr+$offset];", []>;
-  def _v2_asi : RVGPUInst<
+  def _v2_asi : RVGPUInst<_v4_avar
     (outs regclass:$dst1, regclass:$dst2),
     (ins LdStCode:$isVol, LdStCode:$addsp, LdStCode:$Vec, LdStCode:$Sign,
          i32imm:$fromWidth, imem:$addr, i32imm:$offset),
@@ -3020,19 +3319,57 @@ multiclass LD_VEC<RVGPURegClass regclass> {
     "ld${isVol:volatile}${addsp:addsp}${Vec:vec}.${Sign:sign}$fromWidth "
     "\t{{$dst1, $dst2, $dst3, $dst4}}, [$addr+$offset];", []>;
   def _v4_asi : RVGPUInst<
-    (outs regclass:$dst1, regclass:$dst2, regclass:$dst3, regclass:$dst4),
+    (outs regclass:$dst1, regclass:$dst2, regclass:$dst3, regclass:$d_v4_avarst4),
     (ins LdStCode:$isVol, LdStCode:$addsp, LdStCode:$Vec, LdStCode:$Sign,
          i32imm:$fromWidth, imem:$addr, i32imm:$offset),
     "ld${isVol:volatile}${addsp:addsp}${Vec:vec}.${Sign:sign}$fromWidth "
     "\t{{$dst1, $dst2, $dst3, $dst4}}, [$addr+$offset];", []>;
+}*/
+// The following is used only in and after vector elementizations.  Vector
+// elementization happens at the machine instruction level, so the following
+// instructions never appear in the DAG.
+multiclass LD_VEC<RVGPURegClass regclass> {
+  def _v2_avar : RVGPUInst<
+    (outs regclass:$dst), (ins imem:$addr),
+    "ld \t$dst, [$addr];", []>;
+  def _v2_areg_64 : RVGPUInst<
+    (outs regclass:$dst),(ins GPR64:$addr),
+    "ld \tdst, [$addr];", []>;
+  def _v2_ari_64 : RVGPUInst<
+    (outs regclass:$dst), (ins GPR64:$addr, i32imm:$offset),
+    "ld \t$dst, [$addr+$offset];", []>;
+  def _v2_asi : RVGPUInst<
+    (outs regclass:$dst), (ins imem:$addr, i32imm:$offset),
+    "ld\t$dst, [$addr+$offset];", []>;
+  def _v4_avar : RVGPUInst<
+    (outs regclass:$dst), (ins imem:$addr),
+    "ld \t$dst, [$addr];", []>;
+  def _v4_areg_64 : RVGPUInst<
+    (outs regclass:$dst), (ins GPR64:$addr),
+    "ld\t$dst, [$addr];", []>;
+  def _v4_ari_64 : RVGPUInst<
+    (outs regclass:$dst), (ins GPR64:$addr, i32imm:$offset),
+    "ld\t$dst, [$addr+$offset];", []>;
+  def _v4_asi : RVGPUInst<
+    (outs regclass:$dst), (ins imem:$addr, i32imm:$offset),
+    "ld\t$dst, [$addr+$offset];", []>;
 }
+
 let mayLoad=1, hasSideEffects=0 in {
-  defm LDV_i8  : LD_VEC<GPR16>;
-  defm LDV_i16 : LD_VEC<GPR16>;
-  defm LDV_i32 : LD_VEC<GPR32>;
-  defm LDV_i64 : LD_VEC<GPR64>;
-  defm LDV_f32 : LD_VEC<GPR32>;
-  defm LDV_f64 : LD_VEC<GPR64>;
+
+  defm LDV_v2_i8  : LD_G<"ldv_v2_i8",  0b00000110, GPR16>;
+  defm LDV_v2_i16 : LD_G<"ldv_v2_i16", 0b00000111, GPR16>;
+  defm LDV_v2_i32 : LD_G<"ldv_v2_i32", 0b00001000, GPR32>;
+  defm LDV_v2_i64 : LD_G<"ldv_v2_i64", 0b00001001, GPR64>;
+  defm LDV_v2_f32 : LD_G<"ldv_v2_f32", 0b00001010, GPR32>;
+  defm LDV_v2_f64 : LD_G<"ldv_v2_f64", 0b00001011, GPR64>;
+
+  defm LDV_v4_i8  : LD_G<"ldv_v4_i8",  0b00001100, GPR16>;
+  defm LDV_v4_i16 : LD_G<"ldv_v4_i16", 0b00001101, GPR16>;
+  defm LDV_v4_i32 : LD_G<"ldv_v4_i32", 0b00001110, GPR32>;
+  defm LDV_v4_i64 : LD_G<"ldv_v4_i64", 0b00001111, GPR64>;
+  defm LDV_v4_f32 : LD_G<"ldv_v4_f32", 0b00010000, GPR32>;
+  defm LDV_v4_f64 : LD_G<"ldv_v4_f64", 0b00010001, GPR64>;
 }
 
 multiclass ST_VEC<RVGPURegClass regclass> {
@@ -3722,6 +4059,7 @@ def : Pat<(call texternalsym:$dst), (CALL texternalsym:$dst)>;
 class Pseudo<dag outs, dag ins, string asmstr, list<dag> pattern>
    : RVGPUInst<outs, ins, asmstr, pattern>;
 
+let isCodeGenOnly =1 in {
 def Callseq_Start :
   RVGPUInst<(outs), (ins i32imm:$amt1, i32imm:$amt2),
             "\\{ // callseq $amt1, $amt2\n"
@@ -3731,7 +4069,7 @@ def Callseq_End :
   RVGPUInst<(outs), (ins i32imm:$amt1, i32imm:$amt2),
             "\\} // callseq $amt1",
             [(callseq_end timm:$amt1, timm:$amt2)]>;
-
+}
 // trap instruction
 // Emit an `exit` as well to convey to ptxas that `trap` exits the CFG.
 // This won't be necessary in a future version of ptxas.
@@ -3749,9 +4087,9 @@ def CALL_PROTOTYPE :
   RVGPUInst<(outs), (ins ProtoIdent:$ident),
             "$ident", [(CallPrototype (i32 texternalsym:$ident))]>;
 
-
 include "RVGPUIntrinsics.td"
 
+include "VOPInstructions.td"
 
 //-----------------------------------
 // Notes

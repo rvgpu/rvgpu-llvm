@@ -10,10 +10,6 @@
 #include "llvm/MC/TargetRegistry.h"
 using namespace llvm;
 
-Target &llvm::getTheRVGPUTarget32() {
-  static Target TheRVGPUTarget32;
-  return TheRVGPUTarget32;
-}
 Target &llvm::getTheRVGPUTarget64() {
   static Target TheRVGPUTarget64;
   return TheRVGPUTarget64;

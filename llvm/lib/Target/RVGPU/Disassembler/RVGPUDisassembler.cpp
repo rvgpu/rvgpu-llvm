@@ -55,8 +55,6 @@ static MCDisassembler *createRVGPUDisassembler(const Target &T,
 
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUDisassembler() {
   // Register the disassembler for each target.
-  TargetRegistry::RegisterMCDisassembler(getTheRVGPUTarget32(),
-                                         createRVGPUDisassembler);
   TargetRegistry::RegisterMCDisassembler(getTheRVGPUTarget64(),
                                          createRVGPUDisassembler);
 }
