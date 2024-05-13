@@ -3021,6 +3021,18 @@ SDValue RVGPUTargetLowering::getParamSymbol(SelectionDAG &DAG, int idx,
   return DAG.getTargetExternalSymbol(SavedStr.data(), v);
 }
 
+static const MCPhysReg ArgGPRs[] = {
+  RVGPU::R0,
+  RVGPU::R2,
+  RVGPU::R4,
+  RVGPU::R6,
+  RVGPU::R8,
+  RVGPU::R10, 
+  RVGPU::R12, 
+  RVGPU::R14,
+  RVGPU::R16
+};
+
 SDValue RVGPUTargetLowering::LowerFormalArguments(
     SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     const SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &dl,
@@ -3030,181 +3042,47 @@ SDValue RVGPUTargetLowering::LowerFormalArguments(
   auto PtrVT = getPointerTy(DAG.getDataLayout());
 
   const Function *F = &MF.getFunction();
-  const AttributeList &PAL = F->getAttributes();
+  // FunctionType *FType = F->getFunctionType();
+  // const AttributeList &PAL = F->getAttributes();
   const TargetLowering *TLI = STI.getTargetLowering();
 
-  SDValue Root = DAG.getRoot();
-  std::vector<SDValue> OutChains;
+  // Assign locations to all of the incoming arguments.
+  SmallVector<CCValAssign, 16> ArgLocs;
+  CCState CCInfo(CallConv, isVarArg, MF, ArgLocs, *DAG.getContext());
 
-  bool isABI = (STI.getSmVersion() >= 20);
-  assert(isABI && "Non-ABI compilation is not supported");
-  if (!isABI)
-    return Chain;
+  // AnalyzeInputArgs
+  for (unsigned i=0; i != Ins.size(); ++i) {
+    MVT argVT = Ins[i].VT;
+    // ISD::ArgFlagsTy ArgFlags = Ins[i].Flags;
 
-  std::vector<Type *> argTypes;
-  std::vector<const Argument *> theArgs;
-  for (const Argument &I : F->args()) {
-    theArgs.push_back(&I);
-    argTypes.push_back(I.getType());
-  }
-  // argTypes.size() (or theArgs.size()) and Ins.size() need not match.
-  // Ins.size() will be larger
-  //   * if there is an aggregate argument with multiple fields (each field
-  //     showing up separately in Ins)
-  //   * if there is a vector argument with more than typical vector-length
-  //     elements (generally if more than 4) where each vector element is
-  //     individually present in Ins.
-  // So a different index should be used for indexing into Ins.
-  // See similar issue in LowerCall.
-  unsigned InsIdx = 0;
+    // Type *ArgTy = nullptr;
+    // ArgTy = FType->getParamType(Ins[i].getOrigArgIndex());
 
-  int idx = 0;
-  for (unsigned i = 0, e = theArgs.size(); i != e; ++i, ++idx, ++InsIdx) {
-    Type *Ty = argTypes[i];
+    // SmallVectorImpl<CCValAssign> &PendingLocs = CCInfo.getPendingLocs();
+    // SmallVector<ISD::ArgFlagsTy> &PendingArgFlags = CCInfo.getPendingArgFlags();
 
-    if (theArgs[i]->use_empty()) {
-      // argument is dead
-      if (IsTypePassedAsArray(Ty) && !Ty->isVectorTy()) {
-        SmallVector<EVT, 16> vtparts;
+    Register Reg;
+    Reg = CCInfo.AllocateReg(ArgGPRs);
 
-        ComputePTXValueVTs(*this, DAG.getDataLayout(), Ty, vtparts);
-        if (vtparts.empty())
-          report_fatal_error("Empty parameter types are not supported");
-
-        for (unsigned parti = 0, parte = vtparts.size(); parti != parte;
-             ++parti) {
-          InVals.push_back(DAG.getNode(ISD::UNDEF, dl, Ins[InsIdx].VT));
-          ++InsIdx;
-        }
-        if (vtparts.size() > 0)
-          --InsIdx;
-        continue;
-      }
-      if (Ty->isVectorTy()) {
-        EVT ObjectVT = getValueType(DL, Ty);
-        unsigned NumRegs = TLI->getNumRegisters(F->getContext(), ObjectVT);
-        for (unsigned parti = 0; parti < NumRegs; ++parti) {
-          InVals.push_back(DAG.getNode(ISD::UNDEF, dl, Ins[InsIdx].VT));
-          ++InsIdx;
-        }
-        if (NumRegs > 0)
-          --InsIdx;
-        continue;
-      }
-      InVals.push_back(DAG.getNode(ISD::UNDEF, dl, Ins[InsIdx].VT));
-      continue;
+    if (Reg) {
+      CCInfo.addLoc(CCValAssign::getReg(i, argVT, Reg, argVT, CCValAssign::Full));
     }
-
-    // In the following cases, assign a node order of "idx+1"
-    // to newly created nodes. The SDNodes for params have to
-    // appear in the same order as their order of appearance
-    // in the original function. "idx+1" holds that order.
-    if (!PAL.hasParamAttr(i, Attribute::ByVal)) {
-      bool aggregateIsPacked = false;
-      if (StructType *STy = dyn_cast<StructType>(Ty))
-        aggregateIsPacked = STy->isPacked();
-
-      SmallVector<EVT, 16> VTs;
-      SmallVector<uint64_t, 16> Offsets;
-      ComputePTXValueVTs(*this, DL, Ty, VTs, &Offsets, 0);
-      if (VTs.empty())
-        report_fatal_error("Empty parameter types are not supported");
-
-      auto VectorInfo =
-          VectorizePTXValueVTs(VTs, Offsets, DL.getABITypeAlign(Ty));
-
-      SDValue Arg = getParamSymbol(DAG, idx, PtrVT);
-      int VecIdx = -1; // Index of the first element of the current vector.
-      for (unsigned parti = 0, parte = VTs.size(); parti != parte; ++parti) {
-        if (VectorInfo[parti] & PVF_FIRST) {
-          assert(VecIdx == -1 && "Orphaned vector.");
-          VecIdx = parti;
-        }
-
-        // That's the last element of this store op.
-        if (VectorInfo[parti] & PVF_LAST) {
-          unsigned NumElts = parti - VecIdx + 1;
-          EVT EltVT = VTs[parti];
-          // i1 is loaded/stored as i8.
-          EVT LoadVT = EltVT;
-          if (EltVT == MVT::i1)
-            LoadVT = MVT::i8;
-          else if (Isv2x16VT(EltVT) || EltVT == MVT::v4i8)
-            // getLoad needs a vector type, but it can't handle
-            // vectors which contain v2f16 or v2bf16 elements. So we must load
-            // using i32 here and then bitcast back.
-            LoadVT = MVT::i32;
-
-          EVT VecVT = EVT::getVectorVT(F->getContext(), LoadVT, NumElts);
-          SDValue VecAddr =
-              DAG.getNode(ISD::ADD, dl, PtrVT, Arg,
-                          DAG.getConstant(Offsets[VecIdx], dl, PtrVT));
-          Value *srcValue = Constant::getNullValue(PointerType::get(
-              EltVT.getTypeForEVT(F->getContext()), ADDRESS_SPACE_PARAM));
-          SDValue P = DAG.getLoad(VecVT, dl, Root, VecAddr,
-                                  MachinePointerInfo(srcValue),
-                                  MaybeAlign(aggregateIsPacked ? 1 : 0),
-                                  MachineMemOperand::MODereferenceable |
-                                      MachineMemOperand::MOInvariant);
-          if (P.getNode())
-            P.getNode()->setIROrder(idx + 1);
-          for (unsigned j = 0; j < NumElts; ++j) {
-            SDValue Elt = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, LoadVT, P,
-                                      DAG.getIntPtrConstant(j, dl));
-            // We've loaded i1 as an i8 and now must truncate it back to i1
-            if (EltVT == MVT::i1)
-              Elt = DAG.getNode(ISD::TRUNCATE, dl, MVT::i1, Elt);
-            // v2f16 was loaded as an i32. Now we must bitcast it back.
-            else if (EltVT != LoadVT)
-              Elt = DAG.getNode(ISD::BITCAST, dl, EltVT, Elt);
-
-            // If a promoted integer type is used, truncate down to the original
-            MVT PromotedVT;
-            if (PromoteScalarIntegerPTX(EltVT, &PromotedVT)) {
-              Elt = DAG.getNode(ISD::TRUNCATE, dl, EltVT, Elt);
-            }
-
-            // Extend the element if necessary (e.g. an i8 is loaded
-            // into an i16 register)
-            if (Ins[InsIdx].VT.isInteger() &&
-                Ins[InsIdx].VT.getFixedSizeInBits() >
-                    LoadVT.getFixedSizeInBits()) {
-              unsigned Extend = Ins[InsIdx].Flags.isSExt() ? ISD::SIGN_EXTEND
-                                                           : ISD::ZERO_EXTEND;
-              Elt = DAG.getNode(Extend, dl, Ins[InsIdx].VT, Elt);
-            }
-            InVals.push_back(Elt);
-          }
-
-          // Reset vector tracking state.
-          VecIdx = -1;
-        }
-        ++InsIdx;
-      }
-      if (VTs.size() > 0)
-        --InsIdx;
-      continue;
-    }
-
-    // Param has ByVal attribute
-    // Return MoveParam(param symbol).
-    // Ideally, the param symbol can be returned directly,
-    // but when SDNode builder decides to use it in a CopyToReg(),
-    // machine instruction fails because TargetExternalSymbol
-    // (not lowered) is target dependent, and CopyToReg assumes
-    // the source is lowered.
-    EVT ObjectVT = getValueType(DL, Ty);
-    assert(ObjectVT == Ins[InsIdx].VT &&
-           "Ins type did not match function type");
-    SDValue Arg = getParamSymbol(DAG, idx, PtrVT);
-    SDValue p = DAG.getNode(RVGPUISD::MoveParam, dl, ObjectVT, Arg);
-    if (p.getNode())
-      p.getNode()->setIROrder(idx + 1);
-    InVals.push_back(p);
   }
 
-  if (!OutChains.empty())
-    DAG.setRoot(DAG.getNode(ISD::TokenFactor, dl, MVT::Other, OutChains));
+  for (unsigned i=0, e=ArgLocs.size(); i!=e; ++i) {
+    CCValAssign &VA = ArgLocs[i];
+    SDValue ArgValue;
+
+    MachineRegisterInfo &RegInfo = MF.getRegInfo();
+    EVT LocVT = VA.getLocVT();
+
+    const TargetRegisterClass *RC = TLI->getRegClassFor(LocVT.getSimpleVT());
+    Register VReg = RegInfo.createVirtualRegister(RC);
+    RegInfo.addLiveIn(VA.getLocReg(), VReg);
+    ArgValue = DAG.getCopyFromReg(Chain, dl, VReg, LocVT);
+
+    InVals.push_back(ArgValue);
+  }
 
   return Chain;
 }

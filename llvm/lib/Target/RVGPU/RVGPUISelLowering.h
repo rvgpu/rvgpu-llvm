@@ -15,6 +15,7 @@
 #define LLVM_LIB_TARGET_RVGPU_RVGPUISELLOWERING_H
 
 #include "RVGPU.h"
+#include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/TargetLowering.h"
 
