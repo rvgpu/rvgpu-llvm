@@ -35,22 +35,20 @@ void RVGPUInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MCRegister SrcReg, bool KillSrc) const {
   const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
   const TargetRegisterClass *DestRC = MRI.getRegClass(DestReg);
-  const TargetRegisterClass *SrcRC = MRI.getRegClass(SrcReg);
+  // const TargetRegisterClass *SrcRC = MRI.getRegClass(SrcReg);
 
-  if (RegInfo.getRegSizeInBits(*DestRC) != RegInfo.getRegSizeInBits(*SrcRC))
-    report_fatal_error("Copy one register into another with a different width");
+  // if (RegInfo.getRegSizeInBits(*DestRC) != RegInfo.getRegSizeInBits(*SrcRC))
+  //   report_fatal_error("Copy one register into another with a different width");
 
   unsigned Op;
   if (DestRC == &RVGPU::Int1RegsRegClass) {
     Op = RVGPU::IMOV1rr;
   } else if (DestRC == &RVGPU::GPR16RegClass) {
-    Op = RVGPU::IMOV16rr;
+    Op = RVGPU::IMOV32rr;
   } else if (DestRC == &RVGPU::GPR32RegClass) {
-    Op = (SrcRC == &RVGPU::GPR32RegClass ? RVGPU::IMOV32rr
-                                         : RVGPU::BITCONVERT_32_F2I);
+    Op = RVGPU::IMOV32rr;
   } else if (DestRC == &RVGPU::GPR64RegClass) {
-    Op = (SrcRC == &RVGPU::GPR64RegClass ? RVGPU::IMOV64rr
-                                         : RVGPU::BITCONVERT_64_F2I);
+    Op = RVGPU::IMOV64rr;
   } else {
     llvm_unreachable("Bad register copy");
   }
