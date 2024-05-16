@@ -3023,15 +3023,15 @@ SDValue RVGPUTargetLowering::getParamSymbol(SelectionDAG &DAG, int idx,
 }
 
 static const MCPhysReg ArgGPRs[] = {
-  RVGPU::GPR_0,
-  RVGPU::GPR_2,
-  RVGPU::GPR_4,
-  RVGPU::GPR_6,
-  RVGPU::GPR_8,
-  RVGPU::GPR_10, 
-  RVGPU::GPR_12, 
-  RVGPU::GPR_14,
-  RVGPU::GPR_16
+  RVGPU::GPR_0_GPR_1,
+  RVGPU::GPR_2_GPR_3,
+  RVGPU::GPR_4_GPR_5,
+  RVGPU::GPR_6_GPR_7,
+  RVGPU::GPR_8_GPR_9,
+  RVGPU::GPR_10_GPR_11, 
+  RVGPU::GPR_12_GPR_13, 
+  RVGPU::GPR_14_GPR_15,
+  RVGPU::GPR_16_GPR_17
 };
 
 SDValue RVGPUTargetLowering::LowerFormalArguments(
@@ -3066,7 +3066,13 @@ SDValue RVGPUTargetLowering::LowerFormalArguments(
     Reg = CCInfo.AllocateReg(ArgGPRs);
 
     if (Reg) {
-      CCInfo.addLoc(CCValAssign::getReg(i, argVT, Reg, argVT, CCValAssign::Full));
+      const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
+      if (argVT.getSizeInBits() == 32) {
+        MCPhysReg SubReg = TRI->getSubReg(Reg, RVGPU::sub0);
+        CCInfo.addLoc(CCValAssign::getReg(i, argVT, SubReg, argVT, CCValAssign::Full));
+      } else {
+        CCInfo.addLoc(CCValAssign::getReg(i, argVT, Reg, argVT, CCValAssign::Full));
+      }
     }
   }
 
