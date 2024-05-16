@@ -18,6 +18,7 @@
 #include "RVGPUTargetMachine.h"
 #include "RVGPUTargetObjectFile.h"
 #include "RVGPUUtilities.h"
+#include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"

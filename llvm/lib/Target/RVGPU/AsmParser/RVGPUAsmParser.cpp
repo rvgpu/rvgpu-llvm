@@ -1,4 +1,4 @@
-//===-- RVGPUAsmParser.cpp - Parse RISC-V assembly to MCInst instructions -===//
+//===- RVGPUAsmParser.cpp - Parse SI asm to MCInst instructions ----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,1690 +6,3317 @@
 //
 //===----------------------------------------------------------------------===//
 
-//#include "MCTargetDesc/RVGPUAsmBackend.h"
-//#include "MCTargetDesc/RVGPUBaseInfo.h"
-#include "MCTargetDesc/RVGPUInstPrinter.h"
-//#include "MCTargetDesc/RVGPUMCExpr.h"
+#include "RVKernelCodeT.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
-//#include "MCTargetDesc/RVGPUMatInt.h"
 #include "MCTargetDesc/RVGPUTargetStreamer.h"
+#include "RVDefines.h"
+#include "RVGPUInstrInfo.h"
+#include "RVGPURegisterInfo.h"
 #include "TargetInfo/RVGPUTargetInfo.h"
-#include "llvm/ADT/STLExtras.h"
+/*
+#include "Utils/RVGPUAsmUtils.h"
+#include "Utils/RVGPUBaseInfo.h"
+#include "Utils/AMDKernelCodeTUtils.h"
+*/
+#include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/SmallBitVector.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/MC/MCAssembler.h"
+#include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/ELF.h"
+#include "llvm/CodeGen/MachineValueType.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/MC/MCInstBuilder.h"
-#include "llvm/MC/MCInstrInfo.h"
-#include "llvm/MC/MCObjectFileInfo.h"
+#include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
+#include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
-#include "llvm/MC/MCRegisterInfo.h"
-#include "llvm/MC/MCStreamer.h"
-#include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/MC/MCValue.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/TargetRegistry.h"
+//#include "llvm/Support/RVGPUMetadata.h"
+//#include "llvm/Support/AMDHSAKernelDescriptor.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MathExtras.h"
-//#include "llvm/Support/RVGPUAttributes.h"
-//#include "llvm/Support/RVGPUISAInfo.h"
-
-#include <limits>
+#include "llvm/TargetParser/TargetParser.h"
+#include <optional>
 
 using namespace llvm;
-
-#define DEBUG_TYPE "rvgpu-asm-parser"
-
-STATISTIC(RVGPUNumInstrsCompressed,
-          "Number of RVGPU Compressed instructions emitted");
-
-static cl::opt<bool> AddBuildAttributes("riscv-add-build-attributes",
-                                        cl::init(false));
-
-namespace llvm {
-extern const SubtargetFeatureKV RVGPUFeatureKV[RVGPU::NumSubtargetFeatures];
-} // namespace llvm
+using namespace llvm::RVGPU;
+//using namespace llvm::amdhsa;
 
 namespace {
-struct RVGPUOperand;
 
-struct ParserOptionsSet {
-  bool IsPicEnabled;
-};
+class RVGPUAsmParser;
 
-class RVGPUAsmParser : public MCTargetAsmParser {
-  // This tracks the parsing of the 4 operands that make up the vtype portion
-  // of vset(i)vli instructions which are separated by commas. The state names
-  // represent the next expected operand with Done meaning no other operands are
-  // expected.
-  enum VTypeState {
-    VTypeState_SEW,
-    VTypeState_LMUL,
-    VTypeState_TailPolicy,
-    VTypeState_MaskPolicy,
-    VTypeState_Done,
-  };
+enum RegisterKind { IS_UNKNOWN, IS_VGPR, IS_SPECIAL };
 
-  SmallVector<FeatureBitset, 4> FeatureBitStack;
+//===----------------------------------------------------------------------===//
+// Operand
+//===----------------------------------------------------------------------===//
 
-  SmallVector<ParserOptionsSet, 4> ParserOptionsStack;
-  ParserOptionsSet ParserOptions;
-
-  SMLoc getLoc() const { return getParser().getTok().getLoc(); }
-  bool isRV64() const { return true; }
-  bool isRVE() const { return false; }
-
-  RVGPUTargetStreamer &getTargetStreamer() {
-    assert(getParser().getStreamer().getTargetStreamer() &&
-           "do not have a target streamer");
-    MCTargetStreamer &TS = *getParser().getStreamer().getTargetStreamer();
-    return static_cast<RVGPUTargetStreamer &>(TS);
-  }
-
-  unsigned validateTargetOperandClass(MCParsedAsmOperand &Op,
-                                      unsigned Kind) override;
-  unsigned checkTargetMatchPredicate(MCInst &Inst) override;
-
-  bool generateImmOutOfRangeError(OperandVector &Operands, uint64_t ErrorInfo,
-                                  int64_t Lower, int64_t Upper,
-                                  const Twine &Msg);
-  bool generateImmOutOfRangeError(SMLoc ErrorLoc, int64_t Lower, int64_t Upper,
-                                  const Twine &Msg);
-
-  bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
-                               OperandVector &Operands, MCStreamer &Out,
-                               uint64_t &ErrorInfo,
-                               bool MatchingInlineAsm) override;
-
-  bool parseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
-  ParseStatus tryParseRegister(MCRegister &Reg, SMLoc &StartLoc,
-                               SMLoc &EndLoc) override;
-
-  bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
-                        SMLoc NameLoc, OperandVector &Operands) override;
-
-  ParseStatus parseDirective(AsmToken DirectiveID) override;
-
-  bool generateVTypeError(SMLoc ErrorLoc);
-
-  // Helper to actually emit an instruction to the MCStreamer. Also, when
-  // possible, compression of the instruction is performed.
-  void emitToStreamer(MCStreamer &S, const MCInst &Inst);
-
-  // Check instruction constraints.
-  bool validateInstruction(MCInst &Inst, OperandVector &Operands);
-
-  /// Helper for processing MC instructions that have been successfully matched
-  /// by MatchAndEmitInstruction. Modifications to the emitted instructions,
-  /// like the expansion of pseudo instructions (e.g., "li"), can be performed
-  /// in this method.
-  bool processInstruction(MCInst &Inst, SMLoc IDLoc, OperandVector &Operands,
-                          MCStreamer &Out);
-
-// Auto-generated instruction matching functions
-#define GET_ASSEMBLER_HEADER
-#include "RVGPUGenAsmMatcher.inc"
-  ParseStatus parseFPImm(OperandVector &Operands);
-  ParseStatus parseImmediate(OperandVector &Operands);
-  ParseStatus parseRegister(OperandVector &Operands, bool AllowParens = false);
-  ParseStatus parseMemOpBaseReg(OperandVector &Operands);
-  ParseStatus parseOperandWithModifier(OperandVector &Operands);
-  ParseStatus parseBareSymbol(OperandVector &Operands);
-  ParseStatus parseCallSymbol(OperandVector &Operands);
-  bool parseOperand(OperandVector &Operands, StringRef Mnemonic);
-
-public:
-  enum RVGPUMatchResultTy {
-    Match_Dummy = FIRST_TARGET_MATCH_RESULT_TY,
-    Match_RequiresEvenGPRs,
-#define GET_OPERAND_DIAGNOSTIC_TYPES
-#include "RVGPUGenAsmMatcher.inc"
-#undef GET_OPERAND_DIAGNOSTIC_TYPES
-  };
-
-  static bool classifySymbolRef(const MCExpr *Expr,
-                                RVGPUMCExpr::VariantKind &Kind);
-  static bool isSymbolDiff(const MCExpr *Expr);
-
-  RVGPUAsmParser(const MCSubtargetInfo &STI, MCAsmParser &Parser,
-                 const MCInstrInfo &MII, const MCTargetOptions &Options)
-      : MCTargetAsmParser(Options, STI, MII) {
-    MCAsmParserExtension::Initialize(Parser);
-
-    Parser.addAliasForDirective(".half", ".2byte");
-    Parser.addAliasForDirective(".hword", ".2byte");
-    Parser.addAliasForDirective(".word", ".4byte");
-    Parser.addAliasForDirective(".dword", ".8byte");
-    setAvailableFeatures(ComputeAvailableFeatures(STI.getFeatureBits()));
-
-    auto ABIName = StringRef(Options.ABIName);
-    if (ABIName.ends_with("f") && !getSTI().hasFeature(RVGPU::FeatureStdExtF)) {
-      errs() << "Hard-float 'f' ABI can't be used for a target that "
-                "doesn't support the F instruction set extension (ignoring "
-                "target-abi)\n";
-    } else if (ABIName.ends_with("d") &&
-               !getSTI().hasFeature(RVGPU::FeatureStdExtD)) {
-      errs() << "Hard-float 'd' ABI can't be used for a target that "
-                "doesn't support the D instruction set extension (ignoring "
-                "target-abi)\n";
-    }
-
-    // Use computeTargetABI to check if ABIName is valid. If invalid, output
-    // error message.
-    RVGPUABI::computeTargetABI(STI.getTargetTriple(), STI.getFeatureBits(),
-                               ABIName);
-
-    const MCObjectFileInfo *MOFI = Parser.getContext().getObjectFileInfo();
-    ParserOptions.IsPicEnabled = MOFI->isPositionIndependent();
-
-    if (AddBuildAttributes)
-      getTargetStreamer().emitTargetAttributes(STI, /*EmitStackAlign*/ false);
-  }
-};
-
-/// RVGPUOperand - Instances of this class represent a parsed machine
-/// instruction
-struct RVGPUOperand final : public MCParsedAsmOperand {
-
-  enum class KindTy {
+class RVGPUOperand : public MCParsedAsmOperand {
+  enum KindTy {
     Token,
-    Register,
     Immediate,
-    FPImmediate,
-    SystemRegister,
-    VType,
-    FRM,
-    Fence,
-    Rlist,
-    Spimm,
-    RegReg,
+    Register,
+    Expression
   } Kind;
 
-  struct RegOp {
-    MCRegister RegNum;
-    bool IsGPRAsFPR;
+  SMLoc StartLoc, EndLoc;
+  const RVGPUAsmParser *AsmParser;
+
+public:
+  RVGPUOperand(KindTy Kind_, const RVGPUAsmParser *AsmParser_)
+      : Kind(Kind_), AsmParser(AsmParser_) {}
+
+  using Ptr = std::unique_ptr<RVGPUOperand>;
+
+  struct Modifiers {
+    bool Abs = false;
+    bool Neg = false;
+    bool Sext = false;
+    bool Lit = false;
+
+    bool hasFPModifiers() const { return Abs || Neg; }
+    bool hasIntModifiers() const { return Sext; }
+    bool hasModifiers() const { return hasFPModifiers() || hasIntModifiers(); }
+
+    int64_t getFPModifiersOperand() const {
+      int64_t Operand = 0;
+      Operand |= Abs ? SISrcMods::ABS : 0u;
+      Operand |= Neg ? SISrcMods::NEG : 0u;
+      return Operand;
+    }
+
+    int64_t getIntModifiersOperand() const {
+      int64_t Operand = 0;
+      Operand |= Sext ? SISrcMods::SEXT : 0u;
+      return Operand;
+    }
+
+    int64_t getModifiersOperand() const {
+      assert(!(hasFPModifiers() && hasIntModifiers())
+           && "fp and int modifiers should not be used simultaneously");
+      if (hasFPModifiers()) {
+        return getFPModifiersOperand();
+      } else if (hasIntModifiers()) {
+        return getIntModifiersOperand();
+      } else {
+        return 0;
+      }
+    }
+
+    friend raw_ostream &operator <<(raw_ostream &OS, RVGPUOperand::Modifiers Mods);
+  };
+
+  enum ImmTy {
+    ImmTyNone,
+    ImmTyGDS,
+    ImmTyLDS,
+    ImmTyOffen,
+    ImmTyIdxen,
+    ImmTyAddr64,
+    ImmTyOffset,
+    ImmTyInstOffset,
+    ImmTyOffset0,
+    ImmTyOffset1,
+    ImmTySMEMOffsetMod,
+    ImmTyCPol,
+    ImmTyTFE,
+    ImmTyD16,
+    ImmTyClampSI,
+    ImmTyOModSI,
+    ImmTyDMask,
+    ImmTyDim,
+    ImmTyUNorm,
+    ImmTyDA,
+    ImmTyR128A16,
+    ImmTyA16,
+    ImmTyLWE,
+    ImmTyExpTgt,
+    ImmTyExpCompr,
+    ImmTyExpVM,
+    ImmTyFORMAT,
+    ImmTyHwreg,
+    ImmTyOff,
+    ImmTySendMsg,
+    ImmTyInterpSlot,
+    ImmTyInterpAttr,
+    ImmTyInterpAttrChan,
+    ImmTyOpSel,
+    ImmTyOpSelHi,
+    ImmTyNegLo,
+    ImmTyNegHi,
+    ImmTyDPP8,
+    ImmTyDppCtrl,
+    ImmTyDppRowMask,
+    ImmTyDppBankMask,
+    ImmTyDppBoundCtrl,
+    ImmTyDppFI,
+    ImmTySwizzle,
+    ImmTyGprIdxMode,
+    ImmTyHigh,
+    ImmTyBLGP,
+    ImmTyCBSZ,
+    ImmTyABID,
+    ImmTyEndpgm,
+    ImmTyWaitVDST,
+    ImmTyWaitEXP,
+  };
+
+  // Immediate operand kind.
+  // It helps to identify the location of an offending operand after an error.
+  // Note that regular literals and mandatory literals (KImm) must be handled
+  // differently. When looking for an offending operand, we should usually
+  // ignore mandatory literals because they are part of the instruction and
+  // cannot be changed. Report location of mandatory operands only for VOPD,
+  // when both OpX and OpY have a KImm and there are no other literals.
+  enum ImmKindTy {
+    ImmKindTyNone,
+    ImmKindTyLiteral,
+    ImmKindTyMandatoryLiteral,
+    ImmKindTyConst,
+  };
+
+private:
+  struct TokOp {
+    const char *Data;
+    unsigned Length;
   };
 
   struct ImmOp {
-    const MCExpr *Val;
-    bool IsRV64;
+    int64_t Val;
+    ImmTy Type;
+    bool IsFPImm;
+    mutable ImmKindTy Kind;
+    Modifiers Mods;
   };
 
-  struct FPImmOp {
-    uint64_t Val;
+  struct RegOp {
+    unsigned RegNo;
+    Modifiers Mods;
   };
 
-  struct SysRegOp {
-    const char *Data;
-    unsigned Length;
-    unsigned Encoding;
-    // FIXME: Add the Encoding parsed fields as needed for checks,
-    // e.g.: read/write or user/supervisor/machine privileges.
-  };
-
-  struct VTypeOp {
-    unsigned Val;
-  };
-
-  struct FRMOp {
-    RVGPUFPRndMode::RoundingMode FRM;
-  };
-
-  struct FenceOp {
-    unsigned Val;
-  };
-
-  struct RlistOp {
-    unsigned Val;
-  };
-
-  struct SpimmOp {
-    unsigned Val;
-  };
-
-  struct RegRegOp {
-    MCRegister Reg1;
-    MCRegister Reg2;
-  };
-
-  SMLoc StartLoc, EndLoc;
   union {
-    StringRef Tok;
-    RegOp Reg;
+    TokOp Tok;
     ImmOp Imm;
-    FPImmOp FPImm;
-    struct SysRegOp SysReg;
-    struct VTypeOp VType;
-    struct FRMOp FRM;
-    struct FenceOp Fence;
-    struct RlistOp Rlist;
-    struct SpimmOp Spimm;
-    struct RegRegOp RegReg;
+    RegOp Reg;
+    const MCExpr *Expr;
   };
-
-  RVGPUOperand(KindTy K) : Kind(K) {}
 
 public:
-  RVGPUOperand(const RVGPUOperand &o) : MCParsedAsmOperand() {
-    Kind = o.Kind;
-    StartLoc = o.StartLoc;
-    EndLoc = o.EndLoc;
-    switch (Kind) {
-    case KindTy::Register:
-      Reg = o.Reg;
-      break;
-    case KindTy::Immediate:
-      Imm = o.Imm;
-      break;
-    case KindTy::FPImmediate:
-      FPImm = o.FPImm;
-      break;
-    case KindTy::Token:
-      Tok = o.Tok;
-      break;
-    case KindTy::SystemRegister:
-      SysReg = o.SysReg;
-      break;
-    case KindTy::VType:
-      VType = o.VType;
-      break;
-    case KindTy::FRM:
-      FRM = o.FRM;
-      break;
-    case KindTy::Fence:
-      Fence = o.Fence;
-      break;
-    case KindTy::Rlist:
-      Rlist = o.Rlist;
-      break;
-    case KindTy::Spimm:
-      Spimm = o.Spimm;
-      break;
-    case KindTy::RegReg:
-      RegReg = o.RegReg;
-      break;
-    }
+  bool isToken() const override { return Kind == Token; }
+
+  bool isSymbolRefExpr() const {
+    return isExpr() && Expr && isa<MCSymbolRefExpr>(Expr);
   }
 
-  bool isToken() const override { return Kind == KindTy::Token; }
-  bool isReg() const override { return Kind == KindTy::Register; }
-  bool isImm() const override { return Kind == KindTy::Immediate; }
-  bool isMem() const override { return false; }
-  bool isSystemRegister() const { return Kind == KindTy::SystemRegister; }
-  bool isRegReg() const { return Kind == KindTy::RegReg; }
-  bool isRlist() const { return Kind == KindTy::Rlist; }
-  bool isSpimm() const { return Kind == KindTy::Spimm; }
+  bool isImm() const override {
+    return Kind == Immediate;
+  }
 
-  bool isGPR() const {
-    return Kind == KindTy::Register &&
-           RVGPUMCRegisterClasses[RVGPU::GPRRegClassID].contains(Reg.RegNum);
+  void setImmKindNone() const {
+    assert(isImm());
+    Imm.Kind = ImmKindTyNone;
+  }
+
+  void setImmKindLiteral() const {
+    assert(isImm());
+    Imm.Kind = ImmKindTyLiteral;
+  }
+
+  void setImmKindMandatoryLiteral() const {
+    assert(isImm());
+    Imm.Kind = ImmKindTyMandatoryLiteral;
+  }
+
+  void setImmKindConst() const {
+    assert(isImm());
+    Imm.Kind = ImmKindTyConst;
+  }
+
+  bool IsImmKindLiteral() const {
+    return isImm() && Imm.Kind == ImmKindTyLiteral;
+  }
+
+  bool IsImmKindMandatoryLiteral() const {
+    return isImm() && Imm.Kind == ImmKindTyMandatoryLiteral;
+  }
+
+  bool isImmKindConst() const {
+    return isImm() && Imm.Kind == ImmKindTyConst;
+  }
+
+  bool isLiteralImm(MVT type) const;
+
+  bool isRegKind() const {
+    return Kind == Register;
+  }
+
+  bool isReg() const override {
+    return isRegKind() && !hasModifiers();
+  }
+
+  bool isRegOrInline(unsigned RCID, MVT type) const {
+    return isRegClass(RCID);
+  }
+
+  bool isRegOrImmWithInputMods(unsigned RCID, MVT type) const {
+    return isRegOrInline(RCID, type) || isLiteralImm(type);
+  }
+
+  bool isRegOrImmWithInt16InputMods() const {
+    return isRegOrImmWithInputMods(RVGPU::VS_32RegClassID, MVT::i16);
+  }
+
+  bool isRegOrImmWithIntT16InputMods() const {
+    return isRegOrImmWithInputMods(RVGPU::VS_16RegClassID, MVT::i16);
+  }
+
+  bool isRegOrImmWithInt32InputMods() const {
+    return isRegOrImmWithInputMods(RVGPU::VS_32RegClassID, MVT::i32);
+  }
+
+  bool isRegOrInlineImmWithInt16InputMods() const {
+    return isRegOrInline(RVGPU::VS_32RegClassID, MVT::i16);
+  }
+
+  bool isRegOrInlineImmWithInt32InputMods() const {
+    return isRegOrInline(RVGPU::VS_32RegClassID, MVT::i32);
+  }
+
+  bool isRegOrImmWithInt64InputMods() const {
+    return isRegOrImmWithInputMods(RVGPU::VS_64RegClassID, MVT::i64);
+  }
+
+  bool isRegOrImmWithFP16InputMods() const {
+    return isRegOrImmWithInputMods(RVGPU::VS_32RegClassID, MVT::f16);
+  }
+
+  bool isRegOrImmWithFPT16InputMods() const {
+    return isRegOrImmWithInputMods(RVGPU::VS_16RegClassID, MVT::f16);
+  }
+
+  bool isRegOrImmWithFP32InputMods() const {
+    return isRegOrImmWithInputMods(RVGPU::VS_32RegClassID, MVT::f32);
+  }
+
+  bool isRegOrImmWithFP64InputMods() const {
+    return isRegOrImmWithInputMods(RVGPU::VS_64RegClassID, MVT::f64);
+  }
+
+  bool isRegOrInlineImmWithFP16InputMods() const {
+    return isRegOrInline(RVGPU::VS_32RegClassID, MVT::f16);
+  }
+
+  bool isRegOrInlineImmWithFP32InputMods() const {
+    return isRegOrInline(RVGPU::VS_32RegClassID, MVT::f32);
   }
 
 
-  static bool evaluateConstantImm(const MCExpr *Expr, int64_t &Imm,
-                                  RVGPUMCExpr::VariantKind &VK) {
-    if (auto *RE = dyn_cast<RVGPUMCExpr>(Expr)) {
-      VK = RE->getKind();
-      return RE->evaluateAsConstant(Imm);
-    }
-
-    if (auto CE = dyn_cast<MCConstantExpr>(Expr)) {
-      VK = RVGPUMCExpr::VK_RVGPU_None;
-      Imm = CE->getValue();
-      return true;
-    }
-
-    return false;
+  bool isVReg() const {
+    return isRegClass(RVGPU::GPR32RegClassID) ||
+           isRegClass(RVGPU::GPR64RegClassID) ||
+           isRegClass(RVGPU::GPR96RegClassID) ||
+           isRegClass(RVGPU::GPR128RegClassID) ||
+           isRegClass(RVGPU::GPR160RegClassID) ||
+           isRegClass(RVGPU::GPR192RegClassID) ||
+           isRegClass(RVGPU::GPR256RegClassID) ||
+           isRegClass(RVGPU::GPR512RegClassID) ||
+           isRegClass(RVGPU::GPR1024RegClassID);
   }
 
-  // True if operand is a symbol with no modifiers, or a constant with no
-  // modifiers and isShiftedInt<N-1, 1>(Op).
-  template <int N> bool isBareSimmNLsb0() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    if (!isImm())
+  bool isVReg32() const {
+    return isRegClass(RVGPU::GPR32RegClassID);
+  }
+
+  bool isVReg32OrOff() const {
+    return isOff() || isVReg32();
+  }
+
+  bool isT16VRegWithInputMods() const;
+
+  bool isImmTy(ImmTy ImmT) const {
+    return isImm() && Imm.Type == ImmT;
+  }
+
+  template <ImmTy Ty> bool isImmTy() const { return isImmTy(Ty); }
+
+  bool isImmLiteral() const { return isImmTy(ImmTyNone); }
+
+  bool isImmModifier() const {
+    return isImm() && Imm.Type != ImmTyNone;
+  }
+
+  bool isOModSI() const { return isImmTy(ImmTyOModSI); }
+  bool isDMask() const { return isImmTy(ImmTyDMask); }
+  bool isDim() const { return isImmTy(ImmTyDim); }
+  bool isR128A16() const { return isImmTy(ImmTyR128A16); }
+  bool isOff() const { return isImmTy(ImmTyOff); }
+  bool isExpTgt() const { return isImmTy(ImmTyExpTgt); }
+  bool isOffen() const { return isImmTy(ImmTyOffen); }
+  bool isIdxen() const { return isImmTy(ImmTyIdxen); }
+  bool isAddr64() const { return isImmTy(ImmTyAddr64); }
+  bool isOffset() const { return isImmTy(ImmTyOffset); }
+  bool isOffset0() const { return isImmTy(ImmTyOffset0) && isUInt<8>(getImm()); }
+  bool isOffset1() const { return isImmTy(ImmTyOffset1) && isUInt<8>(getImm()); }
+  bool isSMEMOffsetMod() const { return isImmTy(ImmTySMEMOffsetMod); }
+  bool isFlatOffset() const { return isImmTy(ImmTyOffset) || isImmTy(ImmTyInstOffset); }
+  bool isGDS() const { return isImmTy(ImmTyGDS); }
+  bool isLDS() const { return isImmTy(ImmTyLDS); }
+  bool isCPol() const { return isImmTy(ImmTyCPol); }
+  bool isTFE() const { return isImmTy(ImmTyTFE); }
+  bool isFORMAT() const { return isImmTy(ImmTyFORMAT) && isUInt<7>(getImm()); }
+  bool isDppBankMask() const { return isImmTy(ImmTyDppBankMask); }
+  bool isDppRowMask() const { return isImmTy(ImmTyDppRowMask); }
+  bool isDppBoundCtrl() const { return isImmTy(ImmTyDppBoundCtrl); }
+  bool isDppFI() const { return isImmTy(ImmTyDppFI); }
+  bool isInterpSlot() const { return isImmTy(ImmTyInterpSlot); }
+  bool isInterpAttr() const { return isImmTy(ImmTyInterpAttr); }
+  bool isInterpAttrChan() const { return isImmTy(ImmTyInterpAttrChan); }
+  bool isOpSel() const { return isImmTy(ImmTyOpSel); }
+  bool isOpSelHi() const { return isImmTy(ImmTyOpSelHi); }
+  bool isNegLo() const { return isImmTy(ImmTyNegLo); }
+  bool isNegHi() const { return isImmTy(ImmTyNegHi); }
+
+  bool isRegOrImm() const {
+    return isReg() || isImm();
+  }
+
+  bool isRegClass(unsigned RCID) const;
+
+  bool isRegOrInlineNoMods(unsigned RCID, MVT type) const {
+    return isRegOrInline(RCID, type) && !hasModifiers();
+  }
+
+  bool isVCSrcB32() const {
+      return isRegOrInlineNoMods(RVGPU::VS_32RegClassID, MVT::i32);
+  }
+
+  bool isVCSrcB64() const {
+      return isRegOrInlineNoMods(RVGPU::VS_64RegClassID, MVT::i64);
+  }
+
+  bool isVCSrcTB16() const {
+      return isRegOrInlineNoMods(RVGPU::VS_16RegClassID, MVT::i16);
+  }
+
+  bool isVCSrcTB16_Lo128() const {
+      return isRegOrInlineNoMods(RVGPU::VS_16_Lo128RegClassID, MVT::i16);
+  }
+
+  bool isVCSrcFake16B16_Lo128() const {
+      return isRegOrInlineNoMods(RVGPU::VS_32_Lo128RegClassID, MVT::i16);
+  }
+
+  bool isVCSrcB16() const {
+      return isRegOrInlineNoMods(RVGPU::VS_32RegClassID, MVT::i16);
+  }
+
+  bool isVCSrcV2B16() const {
+      return isVCSrcB16();
+  }
+
+  bool isVCSrcF32() const {
+      return isRegOrInlineNoMods(RVGPU::VS_32RegClassID, MVT::f32);
+  }
+
+  bool isVCSrcF64() const {
+      return isRegOrInlineNoMods(RVGPU::VS_64RegClassID, MVT::f64);
+  }
+
+  bool isVCSrcTF16() const {
+      return isRegOrInlineNoMods(RVGPU::VS_16RegClassID, MVT::f16);
+  }
+
+  bool isVCSrcTF16_Lo128() const {
+      return isRegOrInlineNoMods(RVGPU::VS_16_Lo128RegClassID, MVT::f16);
+  }
+
+  bool isVCSrcFake16F16_Lo128() const {
+      return isRegOrInlineNoMods(RVGPU::VS_32_Lo128RegClassID, MVT::f16);
+  }
+
+  bool isVCSrcF16() const {
+      return isRegOrInlineNoMods(RVGPU::VS_32RegClassID, MVT::f16);
+  }
+
+  bool isVCSrcV2F16() const {
+      return isVCSrcF16();
+  }
+
+  bool isVSrcB32() const {
+      return isVCSrcF32() || isLiteralImm(MVT::i32) || isExpr();
+  }
+
+  bool isVSrcB64() const {
+      return isVCSrcF64() || isLiteralImm(MVT::i64);
+  }
+
+  bool isVSrcTB16() const { return isVCSrcTB16() || isLiteralImm(MVT::i16); }
+
+  bool isVSrcTB16_Lo128() const {
+      return isVCSrcTB16_Lo128() || isLiteralImm(MVT::i16);
+  }
+
+  bool isVSrcFake16B16_Lo128() const {
+      return isVCSrcFake16B16_Lo128() || isLiteralImm(MVT::i16);
+  }
+
+  bool isVSrcB16() const {
+      return isVCSrcB16() || isLiteralImm(MVT::i16);
+  }
+
+  bool isVSrcV2B16() const {
+      return isVSrcB16() || isLiteralImm(MVT::v2i16);
+  }
+
+  bool isVCSrcV2FP32() const {
+      return isVCSrcF64();
+  }
+
+  bool isVSrcV2FP32() const {
+      return isVSrcF64() || isLiteralImm(MVT::v2f32);
+  }
+
+  bool isVCSrcV2INT32() const {
+      return isVCSrcB64();
+  }
+
+  bool isVSrcV2INT32() const {
+      return isVSrcB64() || isLiteralImm(MVT::v2i32);
+  }
+
+  bool isVSrcF32() const {
+      return isVCSrcF32() || isLiteralImm(MVT::f32) || isExpr();
+  }
+
+  bool isVSrcF64() const {
+      return isVCSrcF64() || isLiteralImm(MVT::f64);
+  }
+
+  bool isVSrcTF16() const { return isVCSrcTF16() || isLiteralImm(MVT::f16); }
+
+  bool isVSrcTF16_Lo128() const {
+      return isVCSrcTF16_Lo128() || isLiteralImm(MVT::f16);
+  }
+
+  bool isVSrcFake16F16_Lo128() const {
+      return isVCSrcFake16F16_Lo128() || isLiteralImm(MVT::f16);
+  }
+
+  bool isVSrcF16() const {
+      return isVCSrcF16() || isLiteralImm(MVT::f16);
+  }
+
+  bool isVSrcV2F16() const {
+      return isVSrcF16() || isLiteralImm(MVT::v2f16);
+  }
+
+  bool isVISrcB32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR32RegClassID, MVT::i32);
+  }
+
+  bool isVISrcB16() const {
+      return isRegOrInlineNoMods(RVGPU::GPR32RegClassID, MVT::i16);
+  }
+
+  bool isVISrcV2B16() const {
+      return isVISrcB16();
+  }
+
+  bool isVISrcF32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR32RegClassID, MVT::f32);
+  }
+
+  bool isVISrcF16() const {
+      return isRegOrInlineNoMods(RVGPU::GPR32RegClassID, MVT::f16);
+  }
+
+  bool isVISrcV2F16() const {
+      return isVISrcF16() || isVISrcB32();
+  }
+
+  bool isVISrc_64B64() const {
+      return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::i64);
+  }
+
+  bool isVISrc_64F64() const {
+      return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::f64);
+  }
+
+  bool isVISrc_64V2FP32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::f32);
+  }
+
+  bool isVISrc_64V2INT32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::i32);
+  }
+
+  bool isVISrc_256B64() const {
+      return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::i64);
+  }
+
+  bool isVISrc_256F64() const {
+      return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::f64);
+  }
+
+  bool isVISrc_128B16() const {
+      return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::i16);
+  }
+
+  bool isVISrc_128V2B16() const {
+      return isVISrc_128B16();
+  }
+
+  bool isVISrc_128B32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::i32);
+  }
+
+  bool isVISrc_128F32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::f32);
+  }
+
+  bool isVISrc_256V2FP32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::f32);
+  }
+
+  bool isVISrc_256V2INT32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::i32);
+  }
+
+  bool isVISrc_512B32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::i32);
+  }
+
+  bool isVISrc_512B16() const {
+      return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::i16);
+  }
+
+  bool isVISrc_512V2B16() const {
+      return isVISrc_512B16();
+  }
+
+  bool isVISrc_512F32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::f32);
+  }
+
+  bool isVISrc_512F16() const {
+      return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::f16);
+  }
+
+  bool isVISrc_512V2F16() const {
+      return isVISrc_512F16() || isVISrc_512B32();
+  }
+
+  bool isVISrc_1024B32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::i32);
+  }
+
+  bool isVISrc_1024B16() const {
+      return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::i16);
+  }
+
+  bool isVISrc_1024V2B16() const {
+      return isVISrc_1024B16();
+  }
+
+  bool isVISrc_1024F32() const {
+      return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::f32);
+  }
+
+  bool isVISrc_1024F16() const {
+      return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::f16);
+  }
+
+  bool isVISrc_1024V2F16() const {
+      return isVISrc_1024F16() || isVISrc_1024B32();
+  }
+
+  bool isVISrc_128F16() const {
+      return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::f16);
+  }
+
+  bool isVISrc_128V2F16() const {
+      return isVISrc_128F16() || isVISrc_128B32();
+  }
+
+  bool isKImmFP32() const {
+      return isLiteralImm(MVT::f32);
+  }
+
+  bool isKImmFP16() const {
+      return isLiteralImm(MVT::f16);
+  }
+
+  bool isMem() const override {
       return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    bool IsValid;
-    if (!IsConstantImm)
-      IsValid = RVGPUAsmParser::classifySymbolRef(getImm(), VK);
-    else
-      IsValid = isShiftedInt<N - 1, 1>(Imm);
-    return IsValid && VK == RVGPUMCExpr::VK_RVGPU_None;
   }
 
-  // Predicate methods for AsmOperands defined in RVGPUInstrInfo.td
-
-  bool isBareSymbol() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    // Must be of 'immediate' type but not a constant.
-    if (!isImm() || evaluateConstantImm(getImm(), Imm, VK))
-      return false;
-    return RVGPUAsmParser::classifySymbolRef(getImm(), VK) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
+  bool isExpr() const {
+      return Kind == Expression;
   }
 
-  bool isCallSymbol() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    // Must be of 'immediate' type but not a constant.
-    if (!isImm() || evaluateConstantImm(getImm(), Imm, VK))
-      return false;
-    return RVGPUAsmParser::classifySymbolRef(getImm(), VK) &&
-           (VK == RVGPUMCExpr::VK_RVGPU_CALL ||
-            VK == RVGPUMCExpr::VK_RVGPU_CALL_PLT);
-  }
 
-  bool isPseudoJumpSymbol() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    // Must be of 'immediate' type but not a constant.
-    if (!isImm() || evaluateConstantImm(getImm(), Imm, VK))
-      return false;
-    return RVGPUAsmParser::classifySymbolRef(getImm(), VK) &&
-           VK == RVGPUMCExpr::VK_RVGPU_CALL;
-  }
+  bool isSwizzle() const;
+  bool isGPRIdxMode() const;
+  bool isS16Imm() const;
+  bool isU16Imm() const;
 
-  bool isTPRelAddSymbol() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    // Must be of 'immediate' type but not a constant.
-    if (!isImm() || evaluateConstantImm(getImm(), Imm, VK))
-      return false;
-    return RVGPUAsmParser::classifySymbolRef(getImm(), VK) &&
-           VK == RVGPUMCExpr::VK_RVGPU_TPREL_ADD;
-  }
-
-  bool isCSRSystemRegister() const { return isSystemRegister(); }
-
-  bool isVTypeImm(unsigned N) const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isUIntN(N, Imm) && VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  template <unsigned N> bool IsUImm() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isUInt<N>(Imm) && VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isUImm1() const { return IsUImm<1>(); }
-  bool isUImm2() const { return IsUImm<2>(); }
-  bool isUImm3() const { return IsUImm<3>(); }
-  bool isUImm4() const { return IsUImm<4>(); }
-  bool isUImm5() const { return IsUImm<5>(); }
-  bool isUImm6() const { return IsUImm<6>(); }
-  bool isUImm7() const { return IsUImm<7>(); }
-  bool isUImm8() const { return IsUImm<8>(); }
-  bool isUImm20() const { return IsUImm<20>(); }
-
-  bool isUImm8GE32() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isUInt<8>(Imm) && Imm >= 32 &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isRnumArg() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && Imm >= INT64_C(0) && Imm <= INT64_C(10) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isRnumArg_0_7() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && Imm >= INT64_C(0) && Imm <= INT64_C(7) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isRnumArg_1_10() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && Imm >= INT64_C(1) && Imm <= INT64_C(10) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isRnumArg_2_14() const {
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && Imm >= INT64_C(2) && Imm <= INT64_C(14) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isSImm5() const {
-    if (!isImm())
-      return false;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    int64_t Imm;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isInt<5>(fixImmediateForRV32(Imm, isRV64Imm())) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isSImm6() const {
-    if (!isImm())
-      return false;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    int64_t Imm;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isInt<6>(fixImmediateForRV32(Imm, isRV64Imm())) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isSImm6NonZero() const {
-    if (!isImm())
-      return false;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    int64_t Imm;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && Imm != 0 &&
-           isInt<6>(fixImmediateForRV32(Imm, isRV64Imm())) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isCLUIImm() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && (Imm != 0) &&
-           (isUInt<5>(Imm) || (Imm >= 0xfffe0 && Imm <= 0xfffff)) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isUImm2Lsb0() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isShiftedUInt<1, 1>(Imm) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isUImm7Lsb00() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isShiftedUInt<5, 2>(Imm) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isUImm8Lsb00() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isShiftedUInt<6, 2>(Imm) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isUImm8Lsb000() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isShiftedUInt<5, 3>(Imm) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isSImm9Lsb0() const { return isBareSimmNLsb0<9>(); }
-
-  bool isUImm9Lsb000() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isShiftedUInt<6, 3>(Imm) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isUImm10Lsb00NonZero() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isShiftedUInt<8, 2>(Imm) && (Imm != 0) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  // If this a RV32 and the immediate is a uimm32, sign extend it to 32 bits.
-  // This allows writing 'addi a0, a0, 0xffffffff'.
-  static int64_t fixImmediateForRV32(int64_t Imm, bool IsRV64Imm) {
-    if (IsRV64Imm || !isUInt<32>(Imm))
-      return Imm;
-    return SignExtend64<32>(Imm);
-  }
-
-  bool isSImm12() const {
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    int64_t Imm;
-    bool IsValid;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    if (!IsConstantImm)
-      IsValid = RVGPUAsmParser::classifySymbolRef(getImm(), VK);
-    else
-      IsValid = isInt<12>(fixImmediateForRV32(Imm, isRV64Imm()));
-    return IsValid && ((IsConstantImm && VK == RVGPUMCExpr::VK_RVGPU_None) ||
-                       VK == RVGPUMCExpr::VK_RVGPU_LO ||
-                       VK == RVGPUMCExpr::VK_RVGPU_PCREL_LO ||
-                       VK == RVGPUMCExpr::VK_RVGPU_TPREL_LO);
-  }
-
-  bool isSImm12Lsb0() const { return isBareSimmNLsb0<12>(); }
-
-  bool isSImm12Lsb00000() const {
-    if (!isImm())
-      return false;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    int64_t Imm;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && isShiftedInt<7, 5>(Imm) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isSImm13Lsb0() const { return isBareSimmNLsb0<13>(); }
-
-  bool isSImm10Lsb0000NonZero() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && (Imm != 0) && isShiftedInt<6, 4>(Imm) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isUImm20LUI() const {
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    int64_t Imm;
-    bool IsValid;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    if (!IsConstantImm) {
-      IsValid = RVGPUAsmParser::classifySymbolRef(getImm(), VK);
-      return IsValid && (VK == RVGPUMCExpr::VK_RVGPU_HI ||
-                         VK == RVGPUMCExpr::VK_RVGPU_TPREL_HI);
-    } else {
-      return isUInt<20>(Imm) && (VK == RVGPUMCExpr::VK_RVGPU_None ||
-                                 VK == RVGPUMCExpr::VK_RVGPU_HI ||
-                                 VK == RVGPUMCExpr::VK_RVGPU_TPREL_HI);
-    }
-  }
-
-  bool isUImm20AUIPC() const {
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    int64_t Imm;
-    bool IsValid;
-    if (!isImm())
-      return false;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    if (!IsConstantImm) {
-      IsValid = RVGPUAsmParser::classifySymbolRef(getImm(), VK);
-      return IsValid && (VK == RVGPUMCExpr::VK_RVGPU_PCREL_HI ||
-                         VK == RVGPUMCExpr::VK_RVGPU_GOT_HI ||
-                         VK == RVGPUMCExpr::VK_RVGPU_TLS_GOT_HI ||
-                         VK == RVGPUMCExpr::VK_RVGPU_TLS_GD_HI);
-    } else {
-      return isUInt<20>(Imm) && (VK == RVGPUMCExpr::VK_RVGPU_None ||
-                                 VK == RVGPUMCExpr::VK_RVGPU_PCREL_HI ||
-                                 VK == RVGPUMCExpr::VK_RVGPU_GOT_HI ||
-                                 VK == RVGPUMCExpr::VK_RVGPU_TLS_GOT_HI ||
-                                 VK == RVGPUMCExpr::VK_RVGPU_TLS_GD_HI);
-    }
-  }
-
-  bool isSImm21Lsb0JAL() const { return isBareSimmNLsb0<21>(); }
-
-  bool isImmZero() const {
-    if (!isImm())
-      return false;
-    int64_t Imm;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm && (Imm == 0) && VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  bool isSImm5Plus1() const {
-    if (!isImm())
-      return false;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    int64_t Imm;
-    bool IsConstantImm = evaluateConstantImm(getImm(), Imm, VK);
-    return IsConstantImm &&
-           isInt<5>(fixImmediateForRV32(Imm, isRV64Imm()) - 1) &&
-           VK == RVGPUMCExpr::VK_RVGPU_None;
-  }
-
-  /// getStartLoc - Gets location of the first token of this operand
-  SMLoc getStartLoc() const override { return StartLoc; }
-  /// getEndLoc - Gets location of the last token of this operand
-  SMLoc getEndLoc() const override { return EndLoc; }
-  /// True if this operand is for an RV64 instruction
-  bool isRV64Imm() const {
-    assert(Kind == KindTy::Immediate && "Invalid type access!");
-    return Imm.IsRV64;
-  }
-
-  unsigned getReg() const override {
-    assert(Kind == KindTy::Register && "Invalid type access!");
-    return Reg.RegNum.id();
-  }
-
-  StringRef getSysReg() const {
-    assert(Kind == KindTy::SystemRegister && "Invalid type access!");
-    return StringRef(SysReg.Data, SysReg.Length);
-  }
-
-  const MCExpr *getImm() const {
-    assert(Kind == KindTy::Immediate && "Invalid type access!");
-    return Imm.Val;
-  }
-
-  uint64_t getFPConst() const {
-    assert(Kind == KindTy::FPImmediate && "Invalid type access!");
-    return FPImm.Val;
+  auto getPredicate(std::function<bool(const RVGPUOperand &Op)> P) const {
+      return std::bind(P, *this);
   }
 
   StringRef getToken() const {
-    assert(Kind == KindTy::Token && "Invalid type access!");
-    return Tok;
+      assert(isToken());
+      return StringRef(Tok.Data, Tok.Length);
   }
 
-  unsigned getVType() const {
-    assert(Kind == KindTy::VType && "Invalid type access!");
-    return VType.Val;
+  int64_t getImm() const {
+      assert(isImm());
+      return Imm.Val;
   }
 
-  RVGPUFPRndMode::RoundingMode getFRM() const {
-    assert(Kind == KindTy::FRM && "Invalid type access!");
-    return FRM.FRM;
+  void setImm(int64_t Val) {
+      assert(isImm());
+      Imm.Val = Val;
   }
 
-  unsigned getFence() const {
-    assert(Kind == KindTy::Fence && "Invalid type access!");
-    return Fence.Val;
+  ImmTy getImmTy() const {
+      assert(isImm());
+      return Imm.Type;
+  }
+
+  unsigned getReg() const override {
+      assert(isRegKind());
+      return Reg.RegNo;
+  }
+
+  SMLoc getStartLoc() const override {
+      return StartLoc;
+  }
+
+  SMLoc getEndLoc() const override {
+      return EndLoc;
+  }
+
+  SMRange getLocRange() const {
+      return SMRange(StartLoc, EndLoc);
+  }
+
+  Modifiers getModifiers() const {
+      assert(isRegKind() || isImmTy(ImmTyNone));
+      return isRegKind() ? Reg.Mods : Imm.Mods;
+  }
+
+  void setModifiers(Modifiers Mods) {
+      assert(isRegKind() || isImmTy(ImmTyNone));
+      if (isRegKind())
+          Reg.Mods = Mods;
+      else
+          Imm.Mods = Mods;
+  }
+
+  bool hasModifiers() const {
+      return getModifiers().hasModifiers();
+  }
+
+  bool hasFPModifiers() const {
+      return getModifiers().hasFPModifiers();
+  }
+
+  bool hasIntModifiers() const {
+      return getModifiers().hasIntModifiers();
+  }
+
+  uint64_t applyInputFPModifiers(uint64_t Val, unsigned Size) const;
+
+  void addImmOperands(MCInst &Inst, unsigned N, bool ApplyModifiers = true) const;
+
+  void addLiteralImmOperand(MCInst &Inst, int64_t Val, bool ApplyModifiers) const;
+
+  void addRegOperands(MCInst &Inst, unsigned N) const;
+
+  void addRegOrImmOperands(MCInst &Inst, unsigned N) const {
+      if (isRegKind())
+          addRegOperands(Inst, N);
+      else
+          addImmOperands(Inst, N);
+  }
+
+  void addRegOrImmWithInputModsOperands(MCInst &Inst, unsigned N) const {
+      Modifiers Mods = getModifiers();
+      Inst.addOperand(MCOperand::createImm(Mods.getModifiersOperand()));
+      if (isRegKind()) {
+          addRegOperands(Inst, N);
+      } else {
+          addImmOperands(Inst, N, false);
+      }
+  }
+
+  void addRegOrImmWithFPInputModsOperands(MCInst &Inst, unsigned N) const {
+      assert(!hasIntModifiers());
+      addRegOrImmWithInputModsOperands(Inst, N);
+  }
+
+  void addRegOrImmWithIntInputModsOperands(MCInst &Inst, unsigned N) const {
+      assert(!hasFPModifiers());
+      addRegOrImmWithInputModsOperands(Inst, N);
+  }
+
+  void addRegWithInputModsOperands(MCInst &Inst, unsigned N) const {
+      Modifiers Mods = getModifiers();
+      Inst.addOperand(MCOperand::createImm(Mods.getModifiersOperand()));
+      assert(isRegKind());
+      addRegOperands(Inst, N);
+  }
+
+  void addRegWithFPInputModsOperands(MCInst &Inst, unsigned N) const {
+      assert(!hasIntModifiers());
+      addRegWithInputModsOperands(Inst, N);
+  }
+
+  void addRegWithIntInputModsOperands(MCInst &Inst, unsigned N) const {
+      assert(!hasFPModifiers());
+      addRegWithInputModsOperands(Inst, N);
+  }
+
+  static void printImmTy(raw_ostream& OS, ImmTy Type) {
+      switch (Type) {
+          case ImmTyNone: OS << "None"; break;
+          case ImmTyGDS: OS << "GDS"; break;
+          case ImmTyLDS: OS << "LDS"; break;
+          case ImmTyOffen: OS << "Offen"; break;
+          case ImmTyIdxen: OS << "Idxen"; break;
+          case ImmTyAddr64: OS << "Addr64"; break;
+          case ImmTyOffset: OS << "Offset"; break;
+          case ImmTyInstOffset: OS << "InstOffset"; break;
+          case ImmTyOffset0: OS << "Offset0"; break;
+          case ImmTyOffset1: OS << "Offset1"; break;
+          case ImmTySMEMOffsetMod: OS << "SMEMOffsetMod"; break;
+          case ImmTyCPol: OS << "CPol"; break;
+          case ImmTyTFE: OS << "TFE"; break;
+          case ImmTyD16: OS << "D16"; break;
+          case ImmTyFORMAT: OS << "FORMAT"; break;
+          case ImmTyClampSI: OS << "ClampSI"; break;
+          case ImmTyOModSI: OS << "OModSI"; break;
+          case ImmTyDPP8: OS << "DPP8"; break;
+          case ImmTyDppCtrl: OS << "DppCtrl"; break;
+          case ImmTyDppRowMask: OS << "DppRowMask"; break;
+          case ImmTyDppBankMask: OS << "DppBankMask"; break;
+          case ImmTyDppBoundCtrl: OS << "DppBoundCtrl"; break;
+          case ImmTyDppFI: OS << "DppFI"; break;
+          case ImmTyDMask: OS << "DMask"; break;
+          case ImmTyDim: OS << "Dim"; break;
+          case ImmTyUNorm: OS << "UNorm"; break;
+          case ImmTyDA: OS << "DA"; break;
+          case ImmTyR128A16: OS << "R128A16"; break;
+          case ImmTyA16: OS << "A16"; break;
+          case ImmTyLWE: OS << "LWE"; break;
+          case ImmTyOff: OS << "Off"; break;
+          case ImmTyExpTgt: OS << "ExpTgt"; break;
+          case ImmTyExpCompr: OS << "ExpCompr"; break;
+          case ImmTyExpVM: OS << "ExpVM"; break;
+          case ImmTyHwreg: OS << "Hwreg"; break;
+          case ImmTySendMsg: OS << "SendMsg"; break;
+          case ImmTyInterpSlot: OS << "InterpSlot"; break;
+          case ImmTyInterpAttr: OS << "InterpAttr"; break;
+          case ImmTyInterpAttrChan: OS << "InterpAttrChan"; break;
+          case ImmTyOpSel: OS << "OpSel"; break;
+          case ImmTyOpSelHi: OS << "OpSelHi"; break;
+          case ImmTyNegLo: OS << "NegLo"; break;
+          case ImmTyNegHi: OS << "NegHi"; break;
+          case ImmTySwizzle: OS << "Swizzle"; break;
+          case ImmTyGprIdxMode: OS << "GprIdxMode"; break;
+          case ImmTyHigh: OS << "High"; break;
+          case ImmTyBLGP: OS << "BLGP"; break;
+          case ImmTyCBSZ: OS << "CBSZ"; break;
+          case ImmTyABID: OS << "ABID"; break;
+          case ImmTyEndpgm: OS << "Endpgm"; break;
+          case ImmTyWaitVDST: OS << "WaitVDST"; break;
+          case ImmTyWaitEXP: OS << "WaitEXP"; break;
+      }
   }
 
   void print(raw_ostream &OS) const override {
-    auto RegName = [](MCRegister Reg) {
-      if (Reg)
-        return RVGPUInstPrinter::getRegisterName(Reg);
-      else
-        return "noreg";
+      switch (Kind) {
+          case Register:
+              OS << "<register " << getReg() << " mods: " << Reg.Mods << '>';
+              break;
+          case Immediate:
+              OS << '<' << getImm();
+              if (getImmTy() != ImmTyNone) {
+                  OS << " type: "; printImmTy(OS, getImmTy());
+              }
+              OS << " mods: " << Imm.Mods << '>';
+              break;
+          case Token:
+              OS << '\'' << getToken() << '\'';
+              break;
+          case Expression:
+              OS << "<expr " << *Expr << '>';
+              break;
+      }
+  }
+
+  static RVGPUOperand::Ptr CreateImm(const RVGPUAsmParser *AsmParser,
+          int64_t Val, SMLoc Loc,
+          ImmTy Type = ImmTyNone,
+          bool IsFPImm = false) {
+      auto Op = std::make_unique<RVGPUOperand>(Immediate, AsmParser);
+      Op->Imm.Val = Val;
+      Op->Imm.IsFPImm = IsFPImm;
+      Op->Imm.Kind = ImmKindTyNone;
+      Op->Imm.Type = Type;
+      Op->Imm.Mods = Modifiers();
+      Op->StartLoc = Loc;
+      Op->EndLoc = Loc;
+      return Op;
+  }
+
+  static RVGPUOperand::Ptr CreateToken(const RVGPUAsmParser *AsmParser,
+          StringRef Str, SMLoc Loc,
+          bool HasExplicitEncodingSize = true) {
+      auto Res = std::make_unique<RVGPUOperand>(Token, AsmParser);
+      Res->Tok.Data = Str.data();
+      Res->Tok.Length = Str.size();
+      Res->StartLoc = Loc;
+      Res->EndLoc = Loc;
+      return Res;
+  }
+
+  static RVGPUOperand::Ptr CreateReg(const RVGPUAsmParser *AsmParser,
+          unsigned RegNo, SMLoc S,
+          SMLoc E) {
+      auto Op = std::make_unique<RVGPUOperand>(Register, AsmParser);
+      Op->Reg.RegNo = RegNo;
+      Op->Reg.Mods = Modifiers();
+      Op->StartLoc = S;
+      Op->EndLoc = E;
+      return Op;
+  }
+
+  static RVGPUOperand::Ptr CreateExpr(const RVGPUAsmParser *AsmParser,
+          const class MCExpr *Expr, SMLoc S) {
+      auto Op = std::make_unique<RVGPUOperand>(Expression, AsmParser);
+      Op->Expr = Expr;
+      Op->StartLoc = S;
+      Op->EndLoc = S;
+      return Op;
+  }
+};
+
+raw_ostream &operator <<(raw_ostream &OS, RVGPUOperand::Modifiers Mods) {
+    OS << "abs:" << Mods.Abs << " neg: " << Mods.Neg << " sext:" << Mods.Sext;
+    return OS;
+}
+
+//===----------------------------------------------------------------------===//
+// AsmParser
+//===----------------------------------------------------------------------===//
+
+// Holds info related to the current kernel, e.g. count of SGPRs used.
+// Kernel scope begins at .amdgpu_hsa_kernel directive, ends at next
+// .amdgpu_hsa_kernel or at EOF.
+class KernelScopeInfo {
+    int SgprIndexUnusedMin = -1;
+    int VgprIndexUnusedMin = -1;
+    int AgprIndexUnusedMin = -1;
+    MCContext *Ctx = nullptr;
+    MCSubtargetInfo const *MSTI = nullptr;
+
+    void usesVgprAt(int i) {
+        if (i >= VgprIndexUnusedMin) {
+            VgprIndexUnusedMin = ++i;
+            if (Ctx) {
+                MCSymbol* const Sym =
+                    Ctx->getOrCreateSymbol(Twine(".kernel.vgpr_count"));
+                int totalVGPR = std::max(AgprIndexUnusedMin,
+                        VgprIndexUnusedMin);
+                Sym->setVariableValue(MCConstantExpr::create(totalVGPR, *Ctx));
+            }
+        }
+    }
+
+
+    public:
+    KernelScopeInfo() = default;
+
+    void initialize(MCContext &Context) {
+        Ctx = &Context;
+        MSTI = Ctx->getSubtargetInfo();
+
+        usesVgprAt(VgprIndexUnusedMin = -1);
+    }
+
+    void usesRegister(RegisterKind RegKind, unsigned DwordRegIndex,
+            unsigned RegWidth) {
+        switch (RegKind) {
+            case IS_VGPR:
+                usesVgprAt(DwordRegIndex + divideCeil(RegWidth, 32) - 1);
+                break;
+            default:
+                break;
+        }
+    }
+};
+
+class RVGPUAsmParser : public MCTargetAsmParser {
+    MCAsmParser &Parser;
+
+    unsigned ForcedEncodingSize = 0;
+    bool ForcedDPP = false;
+    KernelScopeInfo KernelScope;
+
+    /// @name Auto-generated Match Functions
+    /// {
+
+#define GET_ASSEMBLER_HEADER
+#include "RVGPUGenAsmMatcher.inc"
+
+    /// }
+
+    private:
+    bool OutOfRangeError(SMRange Range);
+    
+    /// Common code to parse out a block of text (typically YAML) between start and
+    /// end directives.
+    bool ParseToEndDirective(const char *AssemblerDirectiveBegin,
+            const char *AssemblerDirectiveEnd,
+            std::string &CollectString);
+
+    bool AddNextRegisterToList(unsigned& Reg, unsigned& RegWidth,
+            RegisterKind RegKind, unsigned Reg1, SMLoc Loc);
+    bool ParseRVGPURegister(RegisterKind &RegKind, unsigned &Reg,
+            unsigned &RegNum, unsigned &RegWidth,
+            bool RestoreOnFailure = false);
+    bool ParseRVGPURegister(RegisterKind &RegKind, unsigned &Reg,
+            unsigned &RegNum, unsigned &RegWidth,
+            SmallVectorImpl<AsmToken> &Tokens);
+    unsigned ParseRegularReg(RegisterKind &RegKind, unsigned &RegNum,
+            unsigned &RegWidth,
+            SmallVectorImpl<AsmToken> &Tokens);
+    unsigned ParseSpecialReg(RegisterKind &RegKind, unsigned &RegNum,
+            unsigned &RegWidth,
+            SmallVectorImpl<AsmToken> &Tokens);
+    unsigned ParseRegList(RegisterKind &RegKind, unsigned &RegNum,
+            unsigned &RegWidth, SmallVectorImpl<AsmToken> &Tokens);
+    bool ParseRegRange(unsigned& Num, unsigned& Width);
+    unsigned getRegularReg(RegisterKind RegKind,
+            unsigned RegNum,
+            unsigned RegWidth,
+            SMLoc Loc);
+
+    bool isRegister();
+    bool isRegister(const AsmToken &Token, const AsmToken &NextToken) const;
+    std::optional<StringRef> getGprCountSymbolName(RegisterKind RegKind);
+    void initializeGprCountSymbol(RegisterKind RegKind);
+    bool updateGprCountSymbols(RegisterKind RegKind, unsigned DwordRegIndex,
+            unsigned RegWidth);
+
+    public:
+    enum RVGPUMatchResultTy {
+        Match_PreferE32 = FIRST_TARGET_MATCH_RESULT_TY
+    };
+    enum OperandMode {
+        OperandMode_Default,
+        OperandMode_NSA,
     };
 
-    switch (Kind) {
-    case KindTy::Immediate:
-      OS << *getImm();
-      break;
-    case KindTy::FPImmediate:
-      break;
-    case KindTy::Register:
-      OS << "<register " << RegName(getReg()) << ">";
-      break;
-    case KindTy::Token:
-      OS << "'" << getToken() << "'";
-      break;
-    case KindTy::SystemRegister:
-      OS << "<sysreg: " << getSysReg() << '>';
-      break;
-    case KindTy::VType:
-      OS << "<vtype: ";
-      RVGPUVType::printVType(getVType(), OS);
-      OS << '>';
-      break;
-    case KindTy::FRM:
-      OS << "<frm: ";
-      roundingModeToString(getFRM());
-      OS << '>';
-      break;
-    case KindTy::Fence:
-      OS << "<fence: ";
-      OS << getFence();
-      OS << '>';
-      break;
-    case KindTy::Rlist:
-      OS << "<rlist: ";
-      RVGPUZC::printRlist(Rlist.Val, OS);
-      OS << '>';
-      break;
-    case KindTy::Spimm:
-      OS << "<Spimm: ";
-      RVGPUZC::printSpimm(Spimm.Val, OS);
-      OS << '>';
-      break;
-    case KindTy::RegReg:
-      OS << "<RegReg:  Reg1 " << RegName(RegReg.Reg1);
-      OS << " Reg2 " << RegName(RegReg.Reg2);
-      break;
+    using OptionalImmIndexMap = std::map<RVGPUOperand::ImmTy, unsigned>;
+
+    RVGPUAsmParser(const MCSubtargetInfo &STI, MCAsmParser &_Parser,
+            const MCInstrInfo &MII,
+            const MCTargetOptions &Options)
+        : MCTargetAsmParser(Options, STI, MII), Parser(_Parser) {
+            MCAsmParserExtension::Initialize(Parser);
+
+            if (getFeatureBits().none()) {
+                // Set default features.
+                copySTI().ToggleFeature("southern-islands");
+            }
+
+            setAvailableFeatures(ComputeAvailableFeatures(getFeatureBits()));
+
+            {
+                // TODO: make those pre-defined variables read-only.
+                // Currently there is none suitable machinery in the core llvm-mc for this.
+                // MCSymbol::isRedefinable is intended for another purpose, and
+                // AsmParser::parseDirectiveSet() cannot be specialized for specific target.
+                #if 0
+                MCContext &Ctx = getContext();
+                MCSymbol *Sym =
+                    Ctx.getOrCreateSymbol(Twine(".amdgcn.gfx_generation_number"));
+                Sym->setVariableValue(MCConstantExpr::create(ISA.Major, Ctx));
+                Sym = Ctx.getOrCreateSymbol(Twine(".amdgcn.gfx_generation_minor"));
+                Sym->setVariableValue(MCConstantExpr::create(ISA.Minor, Ctx));
+                Sym = Ctx.getOrCreateSymbol(Twine(".amdgcn.gfx_generation_stepping"));
+                Sym->setVariableValue(MCConstantExpr::create(ISA.Stepping, Ctx));
+                #endif 
+                initializeGprCountSymbol(IS_VGPR);
+            }
+        }
+
+
+    RVGPUTargetStreamer &getTargetStreamer() {
+        MCTargetStreamer &TS = *getParser().getStreamer().getTargetStreamer();
+        return static_cast<RVGPUTargetStreamer &>(TS);
     }
+
+    const MCRegisterInfo *getMRI() const {
+        // We need this const_cast because for some reason getContext() is not const
+        // in MCAsmParser.
+        return const_cast<RVGPUAsmParser*>(this)->getContext().getRegisterInfo();
+    }
+
+    const MCInstrInfo *getMII() const {
+        return &MII;
+    }
+
+    const FeatureBitset &getFeatureBits() const {
+        return getSTI().getFeatureBits();
+    }
+
+    bool isForcedDPP() const { return ForcedDPP; }
+    ArrayRef<unsigned> getMatchedVariants() const;
+    StringRef getMatchedVariantName() const;
+
+    std::unique_ptr<RVGPUOperand> parseRegister(bool RestoreOnFailure = false);
+    bool ParseRegister(MCRegister &RegNo, SMLoc &StartLoc, SMLoc &EndLoc,
+            bool RestoreOnFailure);
+    bool parseRegister(MCRegister &Reg, SMLoc &StartLoc, SMLoc &EndLoc) override;
+    ParseStatus tryParseRegister(MCRegister &Reg, SMLoc &StartLoc,
+            SMLoc &EndLoc) override;
+    unsigned validateTargetOperandClass(MCParsedAsmOperand &Op,
+            unsigned Kind) override;
+    bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
+            OperandVector &Operands, MCStreamer &Out,
+            uint64_t &ErrorInfo,
+            bool MatchingInlineAsm) override;
+    bool ParseDirective(AsmToken DirectiveID) override;
+    ParseStatus parseOperand(OperandVector &Operands, StringRef Mnemonic,
+            OperandMode Mode = OperandMode_Default);
+    StringRef parseMnemonicSuffix(StringRef Name);
+    bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
+            SMLoc NameLoc, OperandVector &Operands) override;
+    //bool ProcessInstruction(MCInst &Inst);
+
+    ParseStatus parseTokenOp(StringRef Name, OperandVector &Operands);
+
+    ParseStatus parseIntWithPrefix(const char *Prefix, int64_t &Int);
+
+    ParseStatus
+        parseIntWithPrefix(const char *Prefix, OperandVector &Operands,
+                RVGPUOperand::ImmTy ImmTy = RVGPUOperand::ImmTyNone,
+                std::function<bool(int64_t &)> ConvertResult = nullptr);
+
+    ParseStatus parseOperandArrayWithPrefix(
+            const char *Prefix, OperandVector &Operands,
+            RVGPUOperand::ImmTy ImmTy = RVGPUOperand::ImmTyNone,
+            bool (*ConvertResult)(int64_t &) = nullptr);
+
+    ParseStatus
+        parseNamedBit(StringRef Name, OperandVector &Operands,
+                RVGPUOperand::ImmTy ImmTy = RVGPUOperand::ImmTyNone);
+    unsigned getCPolKind(StringRef Id, StringRef Mnemo, bool &Disabling) const;
+    ParseStatus parseCPol(OperandVector &Operands);
+    ParseStatus parseScope(OperandVector &Operands, int64_t &Scope);
+    ParseStatus parseTH(OperandVector &Operands, int64_t &TH);
+    ParseStatus parseStringWithPrefix(StringRef Prefix, StringRef &Value,
+            SMLoc &StringLoc);
+
+    bool isModifier();
+    bool isOperandModifier(const AsmToken &Token, const AsmToken &NextToken) const;
+    bool isRegOrOperandModifier(const AsmToken &Token, const AsmToken &NextToken) const;
+    bool isNamedOperandModifier(const AsmToken &Token, const AsmToken &NextToken) const;
+    bool isOpcodeModifierWithVal(const AsmToken &Token, const AsmToken &NextToken) const;
+    bool parseSP3NegModifier();
+    ParseStatus parseImm(OperandVector &Operands, bool HasSP3AbsModifier = false,
+            bool HasLit = false);
+    ParseStatus parseReg(OperandVector &Operands);
+    ParseStatus parseRegOrImm(OperandVector &Operands, bool HasSP3AbsMod = false,
+            bool HasLit = false);
+    ParseStatus parseRegOrImmWithFPInputMods(OperandVector &Operands,
+            bool AllowImm = true);
+    ParseStatus parseRegOrImmWithIntInputMods(OperandVector &Operands,
+            bool AllowImm = true);
+    ParseStatus parseRegWithFPInputMods(OperandVector &Operands);
+    ParseStatus parseRegWithIntInputMods(OperandVector &Operands);
+    ParseStatus parseVReg32OrOff(OperandVector &Operands);
+    ParseStatus parseDfmtNfmt(int64_t &Format);
+    ParseStatus parseUfmt(int64_t &Format);
+    ParseStatus parseSymbolicSplitFormat(StringRef FormatStr, SMLoc Loc,
+            int64_t &Format);
+    ParseStatus parseSymbolicUnifiedFormat(StringRef FormatStr, SMLoc Loc,
+            int64_t &Format);
+    ParseStatus parseFORMAT(OperandVector &Operands);
+    ParseStatus parseSymbolicOrNumericFormat(int64_t &Format);
+    ParseStatus parseNumericFormat(int64_t &Format);
+    ParseStatus parseFlatOffset(OperandVector &Operands);
+    ParseStatus parseR128A16(OperandVector &Operands);
+    ParseStatus parseBLGP(OperandVector &Operands);
+    bool tryParseFmt(const char *Pref, int64_t MaxVal, int64_t &Val);
+    bool matchDfmtNfmt(int64_t &Dfmt, int64_t &Nfmt, StringRef FormatStr, SMLoc Loc);
+
+    void cvtExp(MCInst &Inst, const OperandVector &Operands);
+
+    bool parseCnt(int64_t &IntVal);
+    ParseStatus parseSWaitCnt(OperandVector &Operands);
+
+    bool parseDepCtr(int64_t &IntVal, unsigned &Mask);
+    void depCtrError(SMLoc Loc, int ErrorId, StringRef DepCtrName);
+    ParseStatus parseDepCtr(OperandVector &Operands);
+
+    bool parseDelay(int64_t &Delay);
+    ParseStatus parseSDelayALU(OperandVector &Operands);
+
+    ParseStatus parseHwreg(OperandVector &Operands);
+
+    private:
+    struct OperandInfoTy {
+        SMLoc Loc;
+        int64_t Id;
+        bool IsSymbolic = false;
+        bool IsDefined = false;
+
+        OperandInfoTy(int64_t Id_) : Id(Id_) {}
+    };
+
+    bool parseSendMsgBody(OperandInfoTy &Msg, OperandInfoTy &Op, OperandInfoTy &Stream);
+    bool validateSendMsg(const OperandInfoTy &Msg,
+            const OperandInfoTy &Op,
+            const OperandInfoTy &Stream);
+
+    bool parseHwregBody(OperandInfoTy &HwReg,
+            OperandInfoTy &Offset,
+            OperandInfoTy &Width);
+    bool validateHwreg(const OperandInfoTy &HwReg,
+            const OperandInfoTy &Offset,
+            const OperandInfoTy &Width);
+
+    SMLoc getFlatOffsetLoc(const OperandVector &Operands) const;
+    SMLoc getSMEMOffsetLoc(const OperandVector &Operands) const;
+    SMLoc getBLGPLoc(const OperandVector &Operands) const;
+
+    SMLoc getOperandLoc(std::function<bool(const RVGPUOperand&)> Test,
+            const OperandVector &Operands) const;
+    SMLoc getImmLoc(RVGPUOperand::ImmTy Type, const OperandVector &Operands) const;
+    SMLoc getRegLoc(unsigned Reg, const OperandVector &Operands) const;
+    SMLoc getLitLoc(const OperandVector &Operands,
+            bool SearchMandatoryLiterals = false) const;
+    SMLoc getMandatoryLitLoc(const OperandVector &Operands) const;
+    SMLoc getConstLoc(const OperandVector &Operands) const;
+    SMLoc getInstLoc(const OperandVector &Operands) const;
+
+    bool validateInstruction(const MCInst &Inst, const SMLoc &IDLoc, const OperandVector &Operands);
+    bool validateOffset(const MCInst &Inst, const OperandVector &Operands);
+    bool validateFlatOffset(const MCInst &Inst, const OperandVector &Operands);
+    bool validateSMEMOffset(const MCInst &Inst, const OperandVector &Operands);
+    bool validateSOPLiteral(const MCInst &Inst) const;
+    bool validateConstantBusLimitations(const MCInst &Inst, const OperandVector &Operands);
+    bool validateVOPDRegBankConstraints(const MCInst &Inst,
+            const OperandVector &Operands);
+    bool validateIntClampSupported(const MCInst &Inst);
+    bool validateMIMGAtomicDMask(const MCInst &Inst);
+    bool validateMIMGGatherDMask(const MCInst &Inst);
+    bool validateMovrels(const MCInst &Inst, const OperandVector &Operands);
+    bool validateMIMGDataSize(const MCInst &Inst, const SMLoc &IDLoc);
+    bool validateMIMGAddrSize(const MCInst &Inst, const SMLoc &IDLoc);
+    bool validateMIMGD16(const MCInst &Inst);
+    bool validateMIMGMSAA(const MCInst &Inst);
+    bool validateOpSel(const MCInst &Inst);
+    bool validateDPP(const MCInst &Inst, const OperandVector &Operands);
+    bool validateVccOperand(unsigned Reg) const;
+    bool validateVOPLiteral(const MCInst &Inst, const OperandVector &Operands);
+    bool validateMAIAccWrite(const MCInst &Inst, const OperandVector &Operands);
+    bool validateMAISrc2(const MCInst &Inst, const OperandVector &Operands);
+    bool validateMFMA(const MCInst &Inst, const OperandVector &Operands);
+    bool validateAGPRLdSt(const MCInst &Inst) const;
+    bool validateVGPRAlign(const MCInst &Inst) const;
+    bool validateBLGP(const MCInst &Inst, const OperandVector &Operands);
+    bool validateDS(const MCInst &Inst, const OperandVector &Operands);
+    bool validateGWS(const MCInst &Inst, const OperandVector &Operands);
+    bool validateDivScale(const MCInst &Inst);
+    bool validateWaitCnt(const MCInst &Inst, const OperandVector &Operands);
+    bool validateCoherencyBits(const MCInst &Inst, const OperandVector &Operands,
+            const SMLoc &IDLoc);
+    bool validateTHAndScopeBits(const MCInst &Inst, const OperandVector &Operands,
+            const unsigned CPol);
+    bool validateExeczVcczOperands(const OperandVector &Operands);
+    bool validateTFE(const MCInst &Inst, const OperandVector &Operands);
+    std::optional<StringRef> validateLdsDirect(const MCInst &Inst);
+    unsigned findImplicitSGPRReadInVOP(const MCInst &Inst) const;
+
+    bool isSupportedMnemo(StringRef Mnemo,
+            const FeatureBitset &FBS);
+    bool isSupportedMnemo(StringRef Mnemo,
+            const FeatureBitset &FBS,
+            ArrayRef<unsigned> Variants);
+    bool checkUnsupportedInstruction(StringRef Name, const SMLoc &IDLoc);
+
+    bool isId(const StringRef Id) const;
+    bool isId(const AsmToken &Token, const StringRef Id) const;
+    bool isToken(const AsmToken::TokenKind Kind) const;
+    StringRef getId() const;
+    bool trySkipId(const StringRef Id);
+    bool trySkipId(const StringRef Pref, const StringRef Id);
+    bool trySkipId(const StringRef Id, const AsmToken::TokenKind Kind);
+    bool trySkipToken(const AsmToken::TokenKind Kind);
+    bool skipToken(const AsmToken::TokenKind Kind, const StringRef ErrMsg);
+    bool parseString(StringRef &Val, const StringRef ErrMsg = "expected a string");
+    bool parseId(StringRef &Val, const StringRef ErrMsg = "");
+
+    void peekTokens(MutableArrayRef<AsmToken> Tokens);
+    AsmToken::TokenKind getTokenKind() const;
+    bool parseExpr(int64_t &Imm, StringRef Expected = "");
+    bool parseExpr(OperandVector &Operands);
+    StringRef getTokenStr() const;
+    AsmToken peekToken(bool ShouldSkipSpace = true);
+    AsmToken getToken() const;
+    SMLoc getLoc() const;
+    void lex();
+
+    public:
+    void onBeginOfFile() override;
+
+//    ParseStatus parseCustomOperand(OperandVector &Operands, unsigned MCK);
+};
+
+} // end anonymous namespace
+
+// May be called with integer type with equivalent bitwidth.
+static const fltSemantics *getFltSemantics(unsigned Size) {
+    switch (Size) {
+        case 4:
+            return &APFloat::IEEEsingle();
+        case 8:
+            return &APFloat::IEEEdouble();
+        case 2:
+            return &APFloat::IEEEhalf();
+        default:
+            llvm_unreachable("unsupported fp type");
+    }
+}
+
+static const fltSemantics *getFltSemantics(MVT VT) {
+    return getFltSemantics(VT.getSizeInBits() / 8);
+}
+
+static const fltSemantics *getOpFltSemantics(uint8_t OperandType) {
+    switch (OperandType) {
+        case RVGPU::OPERAND_REG_IMM_INT32:
+        case RVGPU::OPERAND_REG_IMM_FP32:
+        case RVGPU::OPERAND_REG_IMM_FP32_DEFERRED:
+        case RVGPU::OPERAND_REG_INLINE_C_INT32:
+        case RVGPU::OPERAND_REG_INLINE_C_FP32:
+        case RVGPU::OPERAND_REG_INLINE_AC_INT32:
+        case RVGPU::OPERAND_REG_INLINE_AC_FP32:
+        case RVGPU::OPERAND_REG_INLINE_C_V2FP32:
+        case RVGPU::OPERAND_REG_IMM_V2FP32:
+        case RVGPU::OPERAND_REG_INLINE_C_V2INT32:
+        case RVGPU::OPERAND_REG_IMM_V2INT32:
+        case RVGPU::OPERAND_KIMM32:
+        case RVGPU::OPERAND_INLINE_SPLIT_BARRIER_INT32:
+            return &APFloat::IEEEsingle();
+        case RVGPU::OPERAND_REG_IMM_INT64:
+        case RVGPU::OPERAND_REG_IMM_FP64:
+        case RVGPU::OPERAND_REG_INLINE_C_INT64:
+        case RVGPU::OPERAND_REG_INLINE_C_FP64:
+        case RVGPU::OPERAND_REG_INLINE_AC_FP64:
+            return &APFloat::IEEEdouble();
+        case RVGPU::OPERAND_REG_IMM_INT16:
+        case RVGPU::OPERAND_REG_IMM_FP16:
+        case RVGPU::OPERAND_REG_IMM_FP16_DEFERRED:
+        case RVGPU::OPERAND_REG_INLINE_C_INT16:
+        case RVGPU::OPERAND_REG_INLINE_C_FP16:
+        case RVGPU::OPERAND_REG_INLINE_C_V2INT16:
+        case RVGPU::OPERAND_REG_INLINE_C_V2FP16:
+        case RVGPU::OPERAND_REG_INLINE_AC_INT16:
+        case RVGPU::OPERAND_REG_INLINE_AC_FP16:
+        case RVGPU::OPERAND_REG_INLINE_AC_V2INT16:
+        case RVGPU::OPERAND_REG_INLINE_AC_V2FP16:
+        case RVGPU::OPERAND_REG_IMM_V2INT16:
+        case RVGPU::OPERAND_REG_IMM_V2FP16:
+        case RVGPU::OPERAND_KIMM16:
+            return &APFloat::IEEEhalf();
+        default:
+            llvm_unreachable("unsupported fp type");
+    }
+}
+
+//===----------------------------------------------------------------------===//
+// Operand
+//===----------------------------------------------------------------------===//
+
+static bool canLosslesslyConvertToFPType(APFloat &FPLiteral, MVT VT) {
+    bool Lost;
+
+    // Convert literal to single precision
+    APFloat::opStatus Status = FPLiteral.convert(*getFltSemantics(VT),
+            APFloat::rmNearestTiesToEven,
+            &Lost);
+    // We allow precision lost but not overflow or underflow
+    if (Status != APFloat::opOK &&
+            Lost &&
+            ((Status & APFloat::opOverflow)  != 0 ||
+             (Status & APFloat::opUnderflow) != 0)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool isSafeTruncation(int64_t Val, unsigned Size) {
+    return isUIntN(Size, Val) || isIntN(Size, Val);
+}
+
+bool RVGPUOperand::isLiteralImm(MVT type) const {
+    // Check that this immediate can be added as literal
+    if (!isImmTy(ImmTyNone)) {
+        return false;
+    }
+
+    if (!Imm.IsFPImm) {
+        // We got int literal token.
+
+        if (type == MVT::f64 && hasFPModifiers()) {
+            // Cannot apply fp modifiers to int literals preserving the same semantics
+            // for VOP1/2/C and VOP3 because of integer truncation. To avoid ambiguity,
+            // disable these cases.
+            return false;
+        }
+
+        unsigned Size = type.getSizeInBits();
+        if (Size == 64)
+            Size = 32;
+
+        // FIXME: 64-bit operands can zero extend, sign extend, or pad zeroes for FP
+        // types.
+        return isSafeTruncation(Imm.Val, Size);
+    }
+
+    // We got fp literal token
+    if (type == MVT::f64) { // Expected 64-bit fp operand
+                            // We would set low 64-bits of literal to zeroes but we accept this literals
+        return true;
+    }
+
+    if (type == MVT::i64) { // Expected 64-bit int operand
+                            // We don't allow fp literals in 64-bit integer instructions. It is
+                            // unclear how we should encode them.
+        return false;
+    }
+
+    // We allow fp literals with f16x2 operands assuming that the specified
+    // literal goes into the lower half and the upper half is zero. We also
+    // require that the literal may be losslessly converted to f16.
+    MVT ExpectedType = (type == MVT::v2f16)? MVT::f16 :
+        (type == MVT::v2i16)? MVT::i16 :
+        (type == MVT::v2f32)? MVT::f32 : type;
+
+    APFloat FPLiteral(APFloat::IEEEdouble(), APInt(64, Imm.Val));
+    return canLosslesslyConvertToFPType(FPLiteral, ExpectedType);
+}
+
+bool RVGPUOperand::isRegClass(unsigned RCID) const {
+    return isRegKind() && AsmParser->getMRI()->getRegClass(RCID).contains(getReg());
+}
+
+
+bool RVGPUOperand::isT16VRegWithInputMods() const {
+    return isRegClass(RVGPU::GPR32_Lo128RegClassID);
+}
+
+uint64_t RVGPUOperand::applyInputFPModifiers(uint64_t Val, unsigned Size) const
+{
+  assert(isImmTy(ImmTyNone) && Imm.Mods.hasFPModifiers());
+  assert(Size == 2 || Size == 4 || Size == 8);
+
+  const uint64_t FpSignMask = (1ULL << (Size * 8 - 1));
+
+  if (Imm.Mods.Abs) {
+    Val &= ~FpSignMask;
+  }
+  if (Imm.Mods.Neg) {
+    Val ^= FpSignMask;
   }
 
-  static std::unique_ptr<RVGPUOperand> createToken(StringRef Str, SMLoc S) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::Token);
-    Op->Tok = Str;
-    Op->StartLoc = S;
-    Op->EndLoc = S;
-    return Op;
+  return Val;
+}
+
+void RVGPUOperand::addImmOperands(MCInst &Inst, unsigned N, bool ApplyModifiers) const {
+  if (isExpr()) {
+    Inst.addOperand(MCOperand::createExpr(Expr));
+    return;
   }
 
-  static std::unique_ptr<RVGPUOperand>
-  createReg(unsigned RegNo, SMLoc S, SMLoc E, bool IsGPRAsFPR = false) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::Register);
-    Op->Reg.RegNum = RegNo;
-    Op->Reg.IsGPRAsFPR = IsGPRAsFPR;
-    Op->StartLoc = S;
-    Op->EndLoc = E;
-    return Op;
+  /*if (RVGPU::isSISrcOperand(AsmParser->getMII()->get(Inst.getOpcode()),
+                             Inst.getNumOperands())) {
+    addLiteralImmOperand(Inst, Imm.Val,
+                         ApplyModifiers &
+                         isImmTy(ImmTyNone) && Imm.Mods.hasFPModifiers());
+  } else */{
+    assert(!isImmTy(ImmTyNone) || !hasModifiers());
+    Inst.addOperand(MCOperand::createImm(Imm.Val));
+    setImmKindNone();
+  }
+}
+
+void RVGPUOperand::addLiteralImmOperand(MCInst &Inst, int64_t Val, bool ApplyModifiers) const {
+    return ;
+#if 0
+  const auto& InstDesc = AsmParser->getMII()->get(Inst.getOpcode());
+  auto OpNum = Inst.getNumOperands();
+  // Check that this operand accepts literals
+  assert(RVGPU::isSISrcOperand(InstDesc, OpNum));
+
+  if (ApplyModifiers) {
+    assert(RVGPU::isSISrcFPOperand(InstDesc, OpNum));
+    const unsigned Size = Imm.IsFPImm ? sizeof(double) : getOperandSize(InstDesc, OpNum);
+    Val = applyInputFPModifiers(Val, Size);
   }
 
-  static std::unique_ptr<RVGPUOperand> createImm(const MCExpr *Val, SMLoc S,
-                                                 SMLoc E, bool IsRV64) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::Immediate);
-    Op->Imm.Val = Val;
-    Op->Imm.IsRV64 = IsRV64;
-    Op->StartLoc = S;
-    Op->EndLoc = E;
-    return Op;
+  APInt Literal(64, Val);
+  uint8_t OpTy = InstDesc.operands()[OpNum].OperandType;
+
+  if (Imm.IsFPImm) { // We got fp literal token
+    switch (OpTy) {
+    case RVGPU::OPERAND_REG_IMM_INT64:
+    case RVGPU::OPERAND_REG_IMM_FP64:
+    case RVGPU::OPERAND_REG_INLINE_C_INT64:
+    case RVGPU::OPERAND_REG_INLINE_C_FP64:
+    case RVGPU::OPERAND_REG_INLINE_AC_FP64:
+      if (RVGPU::isInlinableLiteral64(Literal.getZExtValue(),
+                                       AsmParser->hasInv2PiInlineImm())) {
+        Inst.addOperand(MCOperand::createImm(Literal.getZExtValue()));
+        setImmKindConst();
+        return;
+      }
+
+      // Non-inlineable
+      if (RVGPU::isSISrcFPOperand(InstDesc, OpNum)) { // Expected 64-bit fp operand
+        // For fp operands we check if low 32 bits are zeros
+        if (Literal.getLoBits(32) != 0) {
+          const_cast<RVGPUAsmParser *>(AsmParser)->Warning(Inst.getLoc(),
+          "Can't encode literal as exact 64-bit floating-point operand. "
+          "Low 32-bits will be set to zero");
+          Val &= 0xffffffff00000000u;
+        }
+
+        Inst.addOperand(MCOperand::createImm(Val));
+        setImmKindLiteral();
+        return;
+      }
+
+      // We don't allow fp literals in 64-bit integer instructions. It is
+      // unclear how we should encode them. This case should be checked earlier
+      // in predicate methods (isLiteralImm())
+      llvm_unreachable("fp literal in 64-bit integer instruction.");
+
+    case RVGPU::OPERAND_REG_IMM_INT32:
+    case RVGPU::OPERAND_REG_IMM_FP32:
+    case RVGPU::OPERAND_REG_IMM_FP32_DEFERRED:
+    case RVGPU::OPERAND_REG_INLINE_C_INT32:
+    case RVGPU::OPERAND_REG_INLINE_C_FP32:
+    case RVGPU::OPERAND_REG_INLINE_AC_INT32:
+    case RVGPU::OPERAND_REG_INLINE_AC_FP32:
+    case RVGPU::OPERAND_REG_IMM_INT16:
+    case RVGPU::OPERAND_REG_IMM_FP16:
+    case RVGPU::OPERAND_REG_IMM_FP16_DEFERRED:
+    case RVGPU::OPERAND_REG_INLINE_C_INT16:
+    case RVGPU::OPERAND_REG_INLINE_C_FP16:
+    case RVGPU::OPERAND_REG_INLINE_C_V2INT16:
+    case RVGPU::OPERAND_REG_INLINE_C_V2FP16:
+    case RVGPU::OPERAND_REG_INLINE_AC_INT16:
+    case RVGPU::OPERAND_REG_INLINE_AC_FP16:
+    case RVGPU::OPERAND_REG_INLINE_AC_V2INT16:
+    case RVGPU::OPERAND_REG_INLINE_AC_V2FP16:
+    case RVGPU::OPERAND_REG_IMM_V2INT16:
+    case RVGPU::OPERAND_REG_IMM_V2FP16:
+    case RVGPU::OPERAND_REG_INLINE_C_V2FP32:
+    case RVGPU::OPERAND_REG_IMM_V2FP32:
+    case RVGPU::OPERAND_REG_INLINE_C_V2INT32:
+    case RVGPU::OPERAND_REG_IMM_V2INT32:
+    case RVGPU::OPERAND_KIMM32:
+    case RVGPU::OPERAND_KIMM16:
+    case RVGPU::OPERAND_INLINE_SPLIT_BARRIER_INT32: {
+      bool lost;
+      APFloat FPLiteral(APFloat::IEEEdouble(), Literal);
+      // Convert literal to single precision
+      FPLiteral.convert(*getOpFltSemantics(OpTy),
+                        APFloat::rmNearestTiesToEven, &lost);
+      // We allow precision lost but not overflow or underflow. This should be
+      // checked earlier in isLiteralImm()
+
+      uint64_t ImmVal = FPLiteral.bitcastToAPInt().getZExtValue();
+      Inst.addOperand(MCOperand::createImm(ImmVal));
+      if (OpTy == RVGPU::OPERAND_KIMM32 || OpTy == RVGPU::OPERAND_KIMM16) {
+        setImmKindMandatoryLiteral();
+      } else {
+        setImmKindLiteral();
+      }
+      return;
+    }
+    default:
+      llvm_unreachable("invalid operand size");
+    }
+
+    return;
   }
 
-  static std::unique_ptr<RVGPUOperand> createFPImm(uint64_t Val, SMLoc S) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::FPImmediate);
-    Op->FPImm.Val = Val;
-    Op->StartLoc = S;
-    Op->EndLoc = S;
-    return Op;
-  }
-
-  static std::unique_ptr<RVGPUOperand> createSysReg(StringRef Str, SMLoc S,
-                                                    unsigned Encoding) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::SystemRegister);
-    Op->SysReg.Data = Str.data();
-    Op->SysReg.Length = Str.size();
-    Op->SysReg.Encoding = Encoding;
-    Op->StartLoc = S;
-    Op->EndLoc = S;
-    return Op;
-  }
-
-  static std::unique_ptr<RVGPUOperand>
-  createFRMArg(RVGPUFPRndMode::RoundingMode FRM, SMLoc S) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::FRM);
-    Op->FRM.FRM = FRM;
-    Op->StartLoc = S;
-    Op->EndLoc = S;
-    return Op;
-  }
-
-  static std::unique_ptr<RVGPUOperand> createFenceArg(unsigned Val, SMLoc S) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::Fence);
-    Op->Fence.Val = Val;
-    Op->StartLoc = S;
-    Op->EndLoc = S;
-    return Op;
-  }
-
-  static std::unique_ptr<RVGPUOperand> createVType(unsigned VTypeI, SMLoc S) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::VType);
-    Op->VType.Val = VTypeI;
-    Op->StartLoc = S;
-    Op->EndLoc = S;
-    return Op;
-  }
-
-  static std::unique_ptr<RVGPUOperand> createRlist(unsigned RlistEncode,
-                                                   SMLoc S) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::Rlist);
-    Op->Rlist.Val = RlistEncode;
-    Op->StartLoc = S;
-    return Op;
-  }
-
-  static std::unique_ptr<RVGPUOperand> createRegReg(unsigned Reg1No,
-                                                    unsigned Reg2No, SMLoc S) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::RegReg);
-    Op->RegReg.Reg1 = Reg1No;
-    Op->RegReg.Reg2 = Reg2No;
-    Op->StartLoc = S;
-    Op->EndLoc = S;
-    return Op;
-  }
-
-  static std::unique_ptr<RVGPUOperand> createSpimm(unsigned Spimm, SMLoc S) {
-    auto Op = std::make_unique<RVGPUOperand>(KindTy::Spimm);
-    Op->Spimm.Val = Spimm;
-    Op->StartLoc = S;
-    return Op;
-  }
-
-  static void addExpr(MCInst &Inst, const MCExpr *Expr, bool IsRV64Imm) {
-    assert(Expr && "Expr shouldn't be null!");
-    int64_t Imm = 0;
-    RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::VK_RVGPU_None;
-    bool IsConstant = evaluateConstantImm(Expr, Imm, VK);
-
-    if (IsConstant)
-      Inst.addOperand(
-          MCOperand::createImm(fixImmediateForRV32(Imm, IsRV64Imm)));
-    else
-      Inst.addOperand(MCOperand::createExpr(Expr));
-  }
-
-  // Used by the TableGen Code
-  void addRegOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::createReg(getReg()));
-  }
-
-  void addImmOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    addExpr(Inst, getImm(), isRV64Imm());
-  }
-
-  void addFPImmOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    if (isImm()) {
-      addExpr(Inst, getImm(), isRV64Imm());
+  // We got int literal token.
+  // Only sign extend inline immediates.
+  switch (OpTy) {
+  case RVGPU::OPERAND_REG_IMM_INT32:
+  case RVGPU::OPERAND_REG_IMM_FP32:
+  case RVGPU::OPERAND_REG_IMM_FP32_DEFERRED:
+  case RVGPU::OPERAND_REG_INLINE_C_INT32:
+  case RVGPU::OPERAND_REG_INLINE_C_FP32:
+  case RVGPU::OPERAND_REG_INLINE_AC_INT32:
+  case RVGPU::OPERAND_REG_INLINE_AC_FP32:
+  case RVGPU::OPERAND_REG_IMM_V2INT16:
+  case RVGPU::OPERAND_REG_IMM_V2FP16:
+  case RVGPU::OPERAND_REG_IMM_V2FP32:
+  case RVGPU::OPERAND_REG_INLINE_C_V2FP32:
+  case RVGPU::OPERAND_REG_IMM_V2INT32:
+  case RVGPU::OPERAND_REG_INLINE_C_V2INT32:
+  case RVGPU::OPERAND_INLINE_SPLIT_BARRIER_INT32:
+    if (isSafeTruncation(Val, 32) &&
+        RVGPU::isInlinableLiteral32(static_cast<int32_t>(Val),
+                                     AsmParser->hasInv2PiInlineImm())) {
+      Inst.addOperand(MCOperand::createImm(Val));
+      setImmKindConst();
       return;
     }
 
-    int Imm = RVGPULoadFPImm::getLoadFPImm(
-        APFloat(APFloat::IEEEdouble(), APInt(64, getFPConst())));
-    Inst.addOperand(MCOperand::createImm(Imm));
-  }
+    Inst.addOperand(MCOperand::createImm(Val & 0xffffffff));
+    setImmKindLiteral();
+    return;
 
-  void addCSRSystemRegisterOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::createImm(SysReg.Encoding));
-  }
-
-  void addRlistOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::createImm(Rlist.Val));
-  }
-
-  void addRegRegOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::createReg(RegReg.Reg1));
-    Inst.addOperand(MCOperand::createReg(RegReg.Reg2));
-  }
-
-  void addSpimmOperands(MCInst &Inst, unsigned N) const {
-    assert(N == 1 && "Invalid number of operands!");
-    Inst.addOperand(MCOperand::createImm(Spimm.Val));
-  }
-
-};
-} // end anonymous namespace.
-
-#define GET_REGISTER_MATCHER
-#define GET_SUBTARGET_FEATURE_NAME
-#define GET_MATCHER_IMPLEMENTATION
-#define GET_MNEMONIC_SPELL_CHECKER
-#include "RVGPUGenAsmMatcher.inc"
-
-unsigned RVGPUAsmParser::validateTargetOperandClass(MCParsedAsmOperand &AsmOp,
-                                                    unsigned Kind) {
-  RVGPUOperand &Op = static_cast<RVGPUOperand &>(AsmOp);
-  if (!Op.isReg())
-    return Match_InvalidOperand;
-#if 0
-  MCRegister Reg = Op.getReg();
-  bool IsRegFPR64 =
-      RVGPUMCRegisterClasses[RVGPU::FPR64RegClassID].contains(Reg);
-  bool IsRegFPR64C =
-      RVGPUMCRegisterClasses[RVGPU::FPR64CRegClassID].contains(Reg);
-  bool IsRegVR = RVGPUMCRegisterClasses[RVGPU::VRRegClassID].contains(Reg);
-
-  // As the parser couldn't differentiate an FPR32 from an FPR64, coerce the
-  // register from FPR64 to FPR32 or FPR64C to FPR32C if necessary.
-  if ((IsRegFPR64 && Kind == MCK_FPR32) ||
-      (IsRegFPR64C && Kind == MCK_FPR32C)) {
-    Op.Reg.RegNum = convertFPR64ToFPR32(Reg);
-    return Match_Success;
-  }
-  // As the parser couldn't differentiate an FPR16 from an FPR64, coerce the
-  // register from FPR64 to FPR16 if necessary.
-  if (IsRegFPR64 && Kind == MCK_FPR16) {
-    Op.Reg.RegNum = convertFPR64ToFPR16(Reg);
-    return Match_Success;
-  }
-  // As the parser couldn't differentiate an VRM2/VRM4/VRM8 from an VR, coerce
-  // the register from VR to VRM2/VRM4/VRM8 if necessary.
-  if (IsRegVR && (Kind == MCK_VRM2 || Kind == MCK_VRM4 || Kind == MCK_VRM8)) {
-    Op.Reg.RegNum = convertVRToVRMx(*getContext().getRegisterInfo(), Reg, Kind);
-    if (Op.Reg.RegNum == 0)
-      return Match_InvalidOperand;
-    return Match_Success;
-  }
-  return Match_InvalidOperand;
-#endif 
-  return Match_Success;
-}
-
-unsigned RVGPUAsmParser::checkTargetMatchPredicate(MCInst &Inst) {
-  const MCInstrDesc &MCID = MII.get(Inst.getOpcode());
-
-  for (unsigned I = 0; I < MCID.NumOperands; ++I) {
-    if (MCID.operands()[I].RegClass == RVGPU::GPRPF64RegClassID) {
-      const auto &Op = Inst.getOperand(I);
-      assert(Op.isReg());
-
-      MCRegister Reg = Op.getReg();
-      if (((Reg.id() - RVGPU::X0) & 1) != 0)
-        return Match_RequiresEvenGPRs;
+  case RVGPU::OPERAND_REG_IMM_INT64:
+  case RVGPU::OPERAND_REG_IMM_FP64:
+  case RVGPU::OPERAND_REG_INLINE_C_INT64:
+  case RVGPU::OPERAND_REG_INLINE_C_FP64:
+  case RVGPU::OPERAND_REG_INLINE_AC_FP64:
+    if (RVGPU::isInlinableLiteral64(Val, AsmParser->hasInv2PiInlineImm())) {
+      Inst.addOperand(MCOperand::createImm(Val));
+      setImmKindConst();
+      return;
     }
+
+    Val = RVGPU::isSISrcFPOperand(InstDesc, OpNum) ? (uint64_t)Val << 32
+                                                    : Lo_32(Val);
+
+    Inst.addOperand(MCOperand::createImm(Val));
+    setImmKindLiteral();
+    return;
+
+  case RVGPU::OPERAND_REG_IMM_INT16:
+  case RVGPU::OPERAND_REG_IMM_FP16:
+  case RVGPU::OPERAND_REG_IMM_FP16_DEFERRED:
+  case RVGPU::OPERAND_REG_INLINE_C_INT16:
+  case RVGPU::OPERAND_REG_INLINE_C_FP16:
+  case RVGPU::OPERAND_REG_INLINE_AC_INT16:
+  case RVGPU::OPERAND_REG_INLINE_AC_FP16:
+    if (isSafeTruncation(Val, 16) &&
+        RVGPU::isInlinableLiteral16(static_cast<int16_t>(Val),
+                                     AsmParser->hasInv2PiInlineImm())) {
+      Inst.addOperand(MCOperand::createImm(Val));
+      setImmKindConst();
+      return;
+    }
+
+    Inst.addOperand(MCOperand::createImm(Val & 0xffff));
+    setImmKindLiteral();
+    return;
+
+  case RVGPU::OPERAND_REG_INLINE_C_V2INT16:
+  case RVGPU::OPERAND_REG_INLINE_C_V2FP16:
+  case RVGPU::OPERAND_REG_INLINE_AC_V2INT16:
+  case RVGPU::OPERAND_REG_INLINE_AC_V2FP16: {
+    assert(isSafeTruncation(Val, 16));
+    assert(RVGPU::isInlinableLiteral16(static_cast<int16_t>(Val),
+                                        AsmParser->hasInv2PiInlineImm()));
+
+    Inst.addOperand(MCOperand::createImm(Val));
+    return;
   }
-
-  return Match_Success;
-}
-
-bool RVGPUAsmParser::generateImmOutOfRangeError(
-    SMLoc ErrorLoc, int64_t Lower, int64_t Upper,
-    const Twine &Msg = "immediate must be an integer in the range") {
-  return Error(ErrorLoc, Msg + " [" + Twine(Lower) + ", " + Twine(Upper) + "]");
-}
-
-bool RVGPUAsmParser::generateImmOutOfRangeError(
-    OperandVector &Operands, uint64_t ErrorInfo, int64_t Lower, int64_t Upper,
-    const Twine &Msg = "immediate must be an integer in the range") {
-  SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-  return generateImmOutOfRangeError(ErrorLoc, Lower, Upper, Msg);
-}
-
-bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
-                                             OperandVector &Operands,
-                                             MCStreamer &Out,
-                                             uint64_t &ErrorInfo,
-                                             bool MatchingInlineAsm) {
-  MCInst Inst;
-  FeatureBitset MissingFeatures;
-
-  auto Result = MatchInstructionImpl(Operands, Inst, ErrorInfo, MissingFeatures,
-                                     MatchingInlineAsm);
-  switch (Result) {
+  case RVGPU::OPERAND_KIMM32:
+    Inst.addOperand(MCOperand::createImm(Literal.getLoBits(32).getZExtValue()));
+    setImmKindMandatoryLiteral();
+    return;
+  case RVGPU::OPERAND_KIMM16:
+    Inst.addOperand(MCOperand::createImm(Literal.getLoBits(16).getZExtValue()));
+    setImmKindMandatoryLiteral();
+    return;
   default:
-    break;
-  case Match_Success:
-    if (validateInstruction(Inst, Operands))
-      return true;
-    return processInstruction(Inst, IDLoc, Operands, Out);
-  case Match_MissingFeature: {
-    assert(MissingFeatures.any() && "Unknown missing features!");
-    bool FirstFeature = true;
-    std::string Msg = "instruction requires the following:";
-    for (unsigned i = 0, e = MissingFeatures.size(); i != e; ++i) {
-      if (MissingFeatures[i]) {
-        Msg += FirstFeature ? " " : ", ";
-        Msg += getSubtargetFeatureName(i);
-        FirstFeature = false;
-      }
-    }
-    return Error(IDLoc, Msg);
+    llvm_unreachable("invalid operand size");
   }
-  case Match_MnemonicFail: {
-    FeatureBitset FBS = ComputeAvailableFeatures(getSTI().getFeatureBits());
-    std::string Suggestion = RVGPUMnemonicSpellCheck(
-        ((RVGPUOperand &)*Operands[0]).getToken(), FBS, 0);
-    return Error(IDLoc, "unrecognized instruction mnemonic" + Suggestion);
-  }
-  case Match_InvalidOperand: {
-    SMLoc ErrorLoc = IDLoc;
-    if (ErrorInfo != ~0ULL) {
-      if (ErrorInfo >= Operands.size())
-        return Error(ErrorLoc, "too few operands for instruction");
-
-      ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-      if (ErrorLoc == SMLoc())
-        ErrorLoc = IDLoc;
-    }
-    return Error(ErrorLoc, "invalid operand for instruction");
-  }
-  }
-
-  // Handle the case when the error message is of specific type
-  // other than the generic Match_InvalidOperand, and the
-  // corresponding operand is missing.
-  if (Result > FIRST_TARGET_MATCH_RESULT_TY) {
-    SMLoc ErrorLoc = IDLoc;
-    if (ErrorInfo != ~0ULL && ErrorInfo >= Operands.size())
-      return Error(ErrorLoc, "too few operands for instruction");
-  }
-
-  switch (Result) {
-  default:
-    break;
-  case Match_RequiresEvenGPRs:
-    return Error(IDLoc,
-                 "double precision floating point operands must use even "
-                 "numbered X register");
-  case Match_InvalidImmXLenLI:
-      SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-      return Error(ErrorLoc, "operand must be a constant 64-bit integer");
-  case Match_InvalidImmXLenLI_Restricted:
-      SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-      return Error(ErrorLoc, "operand either must be a constant 64-bit integer "
-                             "or a bare symbol name");
-  case Match_InvalidImmZero: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "immediate must be zero");
-  }
-  case Match_InvalidUImmLog2XLen:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 6) - 1);
-  case Match_InvalidUImmLog2XLenNonZero:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 1, (1 << 6) - 1);
-  case Match_InvalidUImmLog2XLenHalf:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 5) - 1);
-  case Match_InvalidUImm1:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 1) - 1);
-  case Match_InvalidUImm2:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 2) - 1);
-  case Match_InvalidUImm2Lsb0:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, 2,
-                                      "immediate must be one of");
-  case Match_InvalidUImm3:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 3) - 1);
-  case Match_InvalidUImm4:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 4) - 1);
-  case Match_InvalidUImm5:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 5) - 1);
-  case Match_InvalidUImm6:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 6) - 1);
-  case Match_InvalidUImm7:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 7) - 1);
-  case Match_InvalidUImm8:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 8) - 1);
-  case Match_InvalidUImm8GE32:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 32, (1 << 8) - 1);
-  case Match_InvalidSImm5:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, -(1 << 4),
-                                      (1 << 4) - 1);
-  case Match_InvalidSImm6:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, -(1 << 5),
-                                      (1 << 5) - 1);
-  case Match_InvalidSImm6NonZero:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 5), (1 << 5) - 1,
-        "immediate must be non-zero in the range");
-  case Match_InvalidCLUIImm:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, 1, (1 << 5) - 1,
-        "immediate must be in [0xfffe0, 0xfffff] or");
-  case Match_InvalidUImm7Lsb00:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, 0, (1 << 7) - 4,
-        "immediate must be a multiple of 4 bytes in the range");
-  case Match_InvalidUImm8Lsb00:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, 0, (1 << 8) - 4,
-        "immediate must be a multiple of 4 bytes in the range");
-  case Match_InvalidUImm8Lsb000:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, 0, (1 << 8) - 8,
-        "immediate must be a multiple of 8 bytes in the range");
-  case Match_InvalidSImm9Lsb0:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 8), (1 << 8) - 2,
-        "immediate must be a multiple of 2 bytes in the range");
-  case Match_InvalidUImm9Lsb000:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, 0, (1 << 9) - 8,
-        "immediate must be a multiple of 8 bytes in the range");
-  case Match_InvalidUImm10Lsb00NonZero:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, 4, (1 << 10) - 4,
-        "immediate must be a multiple of 4 bytes in the range");
-  case Match_InvalidSImm10Lsb0000NonZero:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 9), (1 << 9) - 16,
-        "immediate must be a multiple of 16 bytes and non-zero in the range");
-  case Match_InvalidSImm12:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 11), (1 << 11) - 1,
-        "operand must be a symbol with %lo/%pcrel_lo/%tprel_lo modifier or an "
-        "integer in the range");
-  case Match_InvalidSImm12Lsb0:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 11), (1 << 11) - 2,
-        "immediate must be a multiple of 2 bytes in the range");
-  case Match_InvalidSImm12Lsb00000:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 11), (1 << 11) - 32,
-        "immediate must be a multiple of 32 bytes in the range");
-  case Match_InvalidSImm13Lsb0:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 12), (1 << 12) - 2,
-        "immediate must be a multiple of 2 bytes in the range");
-  case Match_InvalidUImm20LUI:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 20) - 1,
-                                      "operand must be a symbol with "
-                                      "%hi/%tprel_hi modifier or an integer in "
-                                      "the range");
-  case Match_InvalidUImm20:
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 20) - 1);
-  case Match_InvalidUImm20AUIPC:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, 0, (1 << 20) - 1,
-        "operand must be a symbol with a "
-        "%pcrel_hi/%got_pcrel_hi/%tls_ie_pcrel_hi/%tls_gd_pcrel_hi modifier or "
-        "an integer in the range");
-  case Match_InvalidSImm21Lsb0JAL:
-    return generateImmOutOfRangeError(
-        Operands, ErrorInfo, -(1 << 20), (1 << 20) - 2,
-        "immediate must be a multiple of 2 bytes in the range");
-  case Match_InvalidCSRSystemRegister: {
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, (1 << 12) - 1,
-                                      "operand must be a valid system register "
-                                      "name or an integer in the range");
-  }
-  case Match_InvalidLoadFPImm: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "operand must be a valid floating-point constant");
-  }
-  case Match_InvalidBareSymbol: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "operand must be a bare symbol name");
-  }
-  case Match_InvalidPseudoJumpSymbol: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "operand must be a valid jump target");
-  }
-  case Match_InvalidCallSymbol: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "operand must be a bare symbol name");
-  }
-  case Match_InvalidTPRelAddSymbol: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "operand must be a symbol with %tprel_add modifier");
-  }
-  case Match_InvalidRTZArg: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "operand must be 'rtz' floating-point rounding mode");
-  }
-  case Match_InvalidVTypeI: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return generateVTypeError(ErrorLoc);
-  }
-  case Match_InvalidVMaskRegister: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "operand must be v0.t");
-  }
-  case Match_InvalidSImm5Plus1: {
-    return generateImmOutOfRangeError(Operands, ErrorInfo, -(1 << 4) + 1,
-                                      (1 << 4),
-                                      "immediate must be in the range");
-  }
-  case Match_InvalidRlist: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(
-        ErrorLoc,
-        "operand must be {ra [, s0[-sN]]} or {x1 [, x8[-x9][, x18[-xN]]]}");
-  }
-  case Match_InvalidSpimm: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(
-        ErrorLoc,
-        "stack adjustment is invalid for this instruction and register list; "
-        "refer to Zc spec for a detailed range of stack adjustment");
-  }
-  case Match_InvalidRnumArg: {
-    return generateImmOutOfRangeError(Operands, ErrorInfo, 0, 10);
-  }
-  case Match_InvalidRegReg: {
-    SMLoc ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
-    return Error(ErrorLoc, "operands must be register and register");
-  }
-  }
-
-  llvm_unreachable("Unknown match type detected!");
+  #endif 
 }
 
-// Attempts to match Name as a register (either using the default name or
-// alternative ABI names), setting RegNo to the matching register. Upon
-// failure, returns a non-valid MCRegister. If IsRVE, then registers x16-x31
-// will be rejected.
-static MCRegister matchRegisterNameHelper(bool IsRVE, StringRef Name) {
-  MCRegister Reg = MatchRegisterName(Name);
-  // The 16-/32- and 64-bit FPRs have the same asm name. Check that the initial
-  // match always matches the 64-bit variant, and not the 16/32-bit one.
-  if (!Reg)
-    Reg = MatchRegisterAltName(Name);
-  return Reg;
+void RVGPUOperand::addRegOperands(MCInst &Inst, unsigned N) const {
+  //Inst.addOperand(MCOperand::createReg(RVGPU::getMCReg(getReg(), AsmParser->getSTI())));
+  Inst.addOperand(MCOperand::createReg(getReg()));
+}
+
+
+//===----------------------------------------------------------------------===//
+// AsmParser
+//===----------------------------------------------------------------------===//
+
+static int getRegClass(RegisterKind Is, unsigned RegWidth) {
+  if (Is == IS_VGPR) {
+    switch (RegWidth) {
+      default: return -1;
+      case 32:
+        return RVGPU::GPR32RegClassID;
+      case 64:
+        return RVGPU::GPR64RegClassID;
+      case 96:
+        return RVGPU::GPR96RegClassID;
+      case 128:
+        return RVGPU::GPR128RegClassID;
+      case 160:
+        return RVGPU::GPR160RegClassID;
+      case 192:
+        return RVGPU::GPR192RegClassID;
+      case 224:
+        return RVGPU::GPR224RegClassID;
+      case 256:
+        return RVGPU::GPR256RegClassID;
+      case 288:
+        return RVGPU::GPR288RegClassID;
+      case 320:
+        return RVGPU::GPR320RegClassID;
+      case 352:
+        return RVGPU::GPR352RegClassID;
+      case 384:
+        return RVGPU::GPR384RegClassID;
+      case 512:
+        return RVGPU::GPR512RegClassID;
+      case 1024:
+        return RVGPU::GPR1024RegClassID;
+    }
+  } 
+  return -1;
+}
+
+static unsigned getSpecialRegForName(StringRef RegName) {
+  return StringSwitch<unsigned>(RegName)
+    .Case("exec", RVGPU::EXEC)
+    .Case("vcc", RVGPU::VCC)
+    /*.Case("shared_base", RVGPU::SRC_SHARED_BASE)
+    .Case("src_shared_base", RVGPU::SRC_SHARED_BASE)
+    .Case("shared_limit", RVGPU::SRC_SHARED_LIMIT)
+    .Case("src_shared_limit", RVGPU::SRC_SHARED_LIMIT)
+    .Case("private_base", RVGPU::SRC_PRIVATE_BASE)
+    .Case("src_private_base", RVGPU::SRC_PRIVATE_BASE)
+    .Case("private_limit", RVGPU::SRC_PRIVATE_LIMIT)
+    .Case("src_private_limit", RVGPU::SRC_PRIVATE_LIMIT)
+    .Case("pops_exiting_wave_id", RVGPU::SRC_POPS_EXITING_WAVE_ID)
+    .Case("src_pops_exiting_wave_id", RVGPU::SRC_POPS_EXITING_WAVE_ID)
+    .Case("lds_direct", RVGPU::LDS_DIRECT)
+    .Case("src_lds_direct", RVGPU::LDS_DIRECT)
+    .Case("m0", RVGPU::M0)
+    .Case("vccz", RVGPU::SRC_VCCZ)
+    .Case("src_vccz", RVGPU::SRC_VCCZ)
+    .Case("execz", RVGPU::SRC_EXECZ)
+    .Case("src_execz", RVGPU::SRC_EXECZ)
+    .Case("scc", RVGPU::SRC_SCC)
+    .Case("src_scc", RVGPU::SRC_SCC)
+    .Case("tba", RVGPU::TBA)
+    .Case("tma", RVGPU::TMA)
+    .Case("flat_scratch_lo", RVGPU::FLAT_SCR_LO)
+    .Case("flat_scratch_hi", RVGPU::FLAT_SCR_HI)
+    .Case("xnack_mask_lo", RVGPU::XNACK_MASK_LO)
+    .Case("xnack_mask_hi", RVGPU::XNACK_MASK_HI)
+    .Case("vcc_lo", RVGPU::VCC_LO)
+    .Case("vcc_hi", RVGPU::VCC_HI)
+    .Case("exec_lo", RVGPU::EXEC_LO)
+    .Case("exec_hi", RVGPU::EXEC_HI)
+    .Case("tma_lo", RVGPU::TMA_LO)
+    .Case("tma_hi", RVGPU::TMA_HI)
+    .Case("tba_lo", RVGPU::TBA_LO)
+    .Case("tba_hi", RVGPU::TBA_HI)
+    .Case("pc", RVGPU::PC_REG)
+    .Case("null", RVGPU::SGPR_NULL)*/
+    .Default(RVGPU::NoRegister);
+}
+
+bool RVGPUAsmParser::ParseRegister(MCRegister &RegNo, SMLoc &StartLoc,
+                                    SMLoc &EndLoc, bool RestoreOnFailure) {
+  auto R = parseRegister();
+  if (!R) return true;
+  assert(R->isReg());
+  RegNo = R->getReg();
+  StartLoc = R->getStartLoc();
+  EndLoc = R->getEndLoc();
+  return false;
 }
 
 bool RVGPUAsmParser::parseRegister(MCRegister &Reg, SMLoc &StartLoc,
-                                   SMLoc &EndLoc) {
-  if (!tryParseRegister(Reg, StartLoc, EndLoc).isSuccess())
-    return Error(StartLoc, "invalid register name");
-  return false;
+                                    SMLoc &EndLoc) {
+  return ParseRegister(Reg, StartLoc, EndLoc, /*RestoreOnFailure=*/false);
 }
 
 ParseStatus RVGPUAsmParser::tryParseRegister(MCRegister &Reg, SMLoc &StartLoc,
-                                             SMLoc &EndLoc) {
-  const AsmToken &Tok = getParser().getTok();
-  StartLoc = Tok.getLoc();
-  EndLoc = Tok.getEndLoc();
-  StringRef Name = getLexer().getTok().getIdentifier();
-
-  Reg = matchRegisterNameHelper(isRVE(), Name);
-  if (!Reg)
+                                              SMLoc &EndLoc) {
+  bool Result = ParseRegister(Reg, StartLoc, EndLoc, /*RestoreOnFailure=*/true);
+  bool PendingErrors = getParser().hasPendingError();
+  getParser().clearPendingErrors();
+  if (PendingErrors)
+    return ParseStatus::Failure;
+  if (Result)
     return ParseStatus::NoMatch;
-
-  getParser().Lex(); // Eat identifier token.
   return ParseStatus::Success;
 }
 
-ParseStatus RVGPUAsmParser::parseRegister(OperandVector &Operands,
-                                          bool AllowParens) {
-  SMLoc FirstS = getLoc();
-  bool HadParens = false;
-  AsmToken LParen;
-
-  // If this is an LParen and a parenthesised register name is allowed, parse it
-  // atomically.
-  if (AllowParens && getLexer().is(AsmToken::LParen)) {
-    AsmToken Buf[2];
-    size_t ReadCount = getLexer().peekTokens(Buf);
-    if (ReadCount == 2 && Buf[1].getKind() == AsmToken::RParen) {
-      HadParens = true;
-      LParen = getParser().getTok();
-      getParser().Lex(); // Eat '('
+bool RVGPUAsmParser::AddNextRegisterToList(unsigned &Reg, unsigned &RegWidth,
+                                            RegisterKind RegKind, unsigned Reg1,
+                                            SMLoc Loc) {
+  switch (RegKind) {
+  case IS_SPECIAL:
+    if (Reg == RVGPU::EXEC_LO && Reg1 == RVGPU::EXEC_HI) {
+      Reg = RVGPU::EXEC;
+      RegWidth = 64;
+      return true;
     }
-  }
-
-  switch (getLexer().getKind()) {
+    if (Reg == RVGPU::VCC_LO && Reg1 == RVGPU::VCC_HI) {
+      Reg = RVGPU::VCC;
+      RegWidth = 64;
+      return true;
+    }
+  case IS_VGPR:
+    if (Reg1 != Reg + RegWidth / 32) {
+      Error(Loc, "registers in a list must have consecutive indices");
+      return false;
+    }
+    RegWidth += 32;
+    return true;
   default:
-    if (HadParens)
-      getLexer().UnLex(LParen);
-    return ParseStatus::NoMatch;
-  case AsmToken::Identifier:
-    StringRef Name = getLexer().getTok().getIdentifier();
-    MCRegister RegNo = matchRegisterNameHelper(isRVE(), Name);
-
-    if (!RegNo) {
-      if (HadParens)
-        getLexer().UnLex(LParen);
-      return ParseStatus::NoMatch;
-    }
-    if (HadParens)
-      Operands.push_back(RVGPUOperand::createToken("(", FirstS));
-    SMLoc S = getLoc();
-    SMLoc E = SMLoc::getFromPointer(S.getPointer() + Name.size());
-    getLexer().Lex();
-    Operands.push_back(RVGPUOperand::createReg(RegNo, S, E));
+    llvm_unreachable("unexpected register kind");
   }
-
-  if (HadParens) {
-    getParser().Lex(); // Eat ')'
-    Operands.push_back(RVGPUOperand::createToken(")", getLoc()));
-  }
-
-  return ParseStatus::Success;
 }
 
-ParseStatus RVGPUAsmParser::parseFPImm(OperandVector &Operands) {
-  SMLoc S = getLoc();
+struct RegInfo {
+  StringLiteral Name;
+  RegisterKind Kind;
+};
 
-  // Parse special floats (inf/nan/min) representation.
-  if (getTok().is(AsmToken::Identifier)) {
-    StringRef Identifier = getTok().getIdentifier();
-    if (Identifier.compare_insensitive("inf") == 0) {
-      Operands.push_back(
-          RVGPUOperand::createImm(MCConstantExpr::create(30, getContext()), S,
-                                  getTok().getEndLoc(), isRV64()));
-    } else if (Identifier.compare_insensitive("nan") == 0) {
-      Operands.push_back(
-          RVGPUOperand::createImm(MCConstantExpr::create(31, getContext()), S,
-                                  getTok().getEndLoc(), isRV64()));
-    } else if (Identifier.compare_insensitive("min") == 0) {
-      Operands.push_back(
-          RVGPUOperand::createImm(MCConstantExpr::create(1, getContext()), S,
-                                  getTok().getEndLoc(), isRV64()));
-    } else {
-      return TokError("invalid floating point literal");
-    }
+static constexpr RegInfo RegularRegisters[] = {
+  {{"v"},    IS_VGPR},
+};
 
-    Lex(); // Eat the token.
-
-    return ParseStatus::Success;
-  }
-
-  // Handle negation, as that still comes through as a separate token.
-  bool IsNegative = parseOptionalToken(AsmToken::Minus);
-
-  const AsmToken &Tok = getTok();
-  if (!Tok.is(AsmToken::Real))
-    return TokError("invalid floating point immediate");
-
-  // Parse FP representation.
-  APFloat RealVal(APFloat::IEEEdouble());
-  auto StatusOrErr =
-      RealVal.convertFromString(Tok.getString(), APFloat::rmTowardZero);
-  if (errorToBool(StatusOrErr.takeError()))
-    return TokError("invalid floating point representation");
-
-  if (IsNegative)
-    RealVal.changeSign();
-
-  Operands.push_back(RVGPUOperand::createFPImm(
-      RealVal.bitcastToAPInt().getZExtValue(), S));
-
-  Lex(); // Eat the token.
-
-  return ParseStatus::Success;
+static bool isRegularReg(RegisterKind Kind) {
+  return Kind == IS_VGPR;
 }
 
-ParseStatus RVGPUAsmParser::parseImmediate(OperandVector &Operands) {
-  SMLoc S = getLoc();
-  SMLoc E;
-  const MCExpr *Res;
-
-  switch (getLexer().getKind()) {
-  default:
-    return ParseStatus::NoMatch;
-  case AsmToken::LParen:
-  case AsmToken::Dot:
-  case AsmToken::Minus:
-  case AsmToken::Plus:
-  case AsmToken::Exclaim:
-  case AsmToken::Tilde:
-  case AsmToken::Integer:
-  case AsmToken::String:
-  case AsmToken::Identifier:
-    if (getParser().parseExpression(Res, E))
-      return ParseStatus::Failure;
-    break;
-  case AsmToken::Percent:
-    return parseOperandWithModifier(Operands);
-  }
-
-  Operands.push_back(RVGPUOperand::createImm(Res, S, E, isRV64()));
-  return ParseStatus::Success;
+static const RegInfo* getRegularRegInfo(StringRef Str) {
+  for (const RegInfo &Reg : RegularRegisters)
+    if (Str.starts_with(Reg.Name))
+      return &Reg;
+  return nullptr;
 }
 
-ParseStatus RVGPUAsmParser::parseOperandWithModifier(OperandVector &Operands) {
-  SMLoc S = getLoc();
-  SMLoc E;
-
-  if (parseToken(AsmToken::Percent, "expected '%' for operand modifier"))
-    return ParseStatus::Failure;
-
-  if (getLexer().getKind() != AsmToken::Identifier)
-    return Error(getLoc(), "expected valid identifier for operand modifier");
-  StringRef Identifier = getParser().getTok().getIdentifier();
-  RVGPUMCExpr::VariantKind VK = RVGPUMCExpr::getVariantKindForName(Identifier);
-  if (VK == RVGPUMCExpr::VK_RVGPU_Invalid)
-    return Error(getLoc(), "unrecognized operand modifier");
-
-  getParser().Lex(); // Eat the identifier
-  if (parseToken(AsmToken::LParen, "expected '('"))
-    return ParseStatus::Failure;
-
-  const MCExpr *SubExpr;
-  if (getParser().parseParenExpression(SubExpr, E))
-    return ParseStatus::Failure;
-
-  const MCExpr *ModExpr = RVGPUMCExpr::create(SubExpr, VK, getContext());
-  Operands.push_back(RVGPUOperand::createImm(ModExpr, S, E, isRV64()));
-  return ParseStatus::Success;
+static bool getRegNum(StringRef Str, unsigned& Num) {
+  return !Str.getAsInteger(10, Num);
 }
 
-ParseStatus RVGPUAsmParser::parseBareSymbol(OperandVector &Operands) {
-  SMLoc S = getLoc();
-  const MCExpr *Res;
+bool
+RVGPUAsmParser::isRegister(const AsmToken &Token,
+                            const AsmToken &NextToken) const {
 
-  if (getLexer().getKind() != AsmToken::Identifier)
-    return ParseStatus::NoMatch;
-
-  StringRef Identifier;
-  AsmToken Tok = getLexer().getTok();
-
-  if (getParser().parseIdentifier(Identifier))
-    return ParseStatus::Failure;
-
-  SMLoc E = SMLoc::getFromPointer(S.getPointer() + Identifier.size());
-
-  if (Identifier.consume_back("@plt"))
-    return Error(getLoc(), "'@plt' operand not valid for instruction");
-
-  MCSymbol *Sym = getContext().getOrCreateSymbol(Identifier);
-
-  if (Sym->isVariable()) {
-    const MCExpr *V = Sym->getVariableValue(/*SetUsed=*/false);
-    if (!isa<MCSymbolRefExpr>(V)) {
-      getLexer().UnLex(Tok); // Put back if it's not a bare symbol.
-      return ParseStatus::NoMatch;
-    }
-    Res = V;
-  } else
-    Res = MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None, getContext());
-
-  MCBinaryExpr::Opcode Opcode;
-  switch (getLexer().getKind()) {
-  default:
-    Operands.push_back(RVGPUOperand::createImm(Res, S, E, isRV64()));
-    return ParseStatus::Success;
-  case AsmToken::Plus:
-    Opcode = MCBinaryExpr::Add;
-    getLexer().Lex();
-    break;
-  case AsmToken::Minus:
-    Opcode = MCBinaryExpr::Sub;
-    getLexer().Lex();
-    break;
-  }
-
-  const MCExpr *Expr;
-  if (getParser().parseExpression(Expr, E))
-    return ParseStatus::Failure;
-  Res = MCBinaryExpr::create(Opcode, Res, Expr, getContext());
-  Operands.push_back(RVGPUOperand::createImm(Res, S, E, isRV64()));
-  return ParseStatus::Success;
-}
-
-ParseStatus RVGPUAsmParser::parseCallSymbol(OperandVector &Operands) {
-  SMLoc S = getLoc();
-  const MCExpr *Res;
-
-  if (getLexer().getKind() != AsmToken::Identifier)
-    return ParseStatus::NoMatch;
-
-  // Avoid parsing the register in `call rd, foo` as a call symbol.
-  if (getLexer().peekTok().getKind() != AsmToken::EndOfStatement)
-    return ParseStatus::NoMatch;
-
-  StringRef Identifier;
-  if (getParser().parseIdentifier(Identifier))
-    return ParseStatus::Failure;
-
-  SMLoc E = SMLoc::getFromPointer(S.getPointer() + Identifier.size());
-
-  RVGPUMCExpr::VariantKind Kind = RVGPUMCExpr::VK_RVGPU_CALL;
-  if (Identifier.consume_back("@plt"))
-    Kind = RVGPUMCExpr::VK_RVGPU_CALL_PLT;
-
-  MCSymbol *Sym = getContext().getOrCreateSymbol(Identifier);
-  Res = MCSymbolRefExpr::create(Sym, MCSymbolRefExpr::VK_None, getContext());
-  Res = RVGPUMCExpr::create(Res, Kind, getContext());
-  Operands.push_back(RVGPUOperand::createImm(Res, S, E, isRV64()));
-  return ParseStatus::Success;
-}
-
-bool RVGPUAsmParser::generateVTypeError(SMLoc ErrorLoc) {
-  return Error(
-      ErrorLoc,
-      "operand must be "
-      "e[8|16|32|64|128|256|512|1024],m[1|2|4|8|f2|f4|f8],[ta|tu],[ma|mu]");
-}
-
-ParseStatus RVGPUAsmParser::parseMemOpBaseReg(OperandVector &Operands) {
-  if (parseToken(AsmToken::LParen, "expected '('"))
-    return ParseStatus::Failure;
-  Operands.push_back(RVGPUOperand::createToken("(", getLoc()));
-
-  if (!parseRegister(Operands).isSuccess())
-    return Error(getLoc(), "expected register");
-
-  if (parseToken(AsmToken::RParen, "expected ')'"))
-    return ParseStatus::Failure;
-  Operands.push_back(RVGPUOperand::createToken(")", getLoc()));
-
-  return ParseStatus::Success;
-}
-
-/// Looks at a token type and creates the relevant operand from this
-/// information, adding to Operands. If operand was parsed, returns false, else
-/// true.
-bool RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
-  // Check if the current operand has a custom associated parser, if so, try to
-  // custom parse the operand, or fallback to the general approach.
-  ParseStatus Result =
-      MatchOperandParserImpl(Operands, Mnemonic, /*ParseForAllFeatures=*/true);
-  if (Result.isSuccess())
-    return false;
-  if (Result.isFailure())
+  // A list of consecutive registers: [s0,s1,s2,s3]
+  if (Token.is(AsmToken::LBrac))
     return true;
 
-  // Attempt to parse token as a register.
-  if (parseRegister(Operands, true).isSuccess())
+  if (!Token.is(AsmToken::Identifier))
     return false;
 
-  // Attempt to parse token as an immediate
-  if (parseImmediate(Operands).isSuccess()) {
-    // Parse memory base register if present
-    if (getLexer().is(AsmToken::LParen))
-      return !parseMemOpBaseReg(Operands).isSuccess();
+  // A single register like s0 or a range of registers like s[0:1]
+
+  StringRef Str = Token.getString();
+  const RegInfo *Reg = getRegularRegInfo(Str);
+  if (Reg) {
+    StringRef RegName = Reg->Name;
+    StringRef RegSuffix = Str.substr(RegName.size());
+    if (!RegSuffix.empty()) {
+      unsigned Num;
+      // A single register with an index: rXX
+      if (getRegNum(RegSuffix, Num))
+        return true;
+    } else {
+      // A range of registers: r[XX:YY].
+      if (NextToken.is(AsmToken::LBrac))
+        return true;
+    }
+  }
+
+  return getSpecialRegForName(Str) != RVGPU::NoRegister;
+}
+
+bool
+RVGPUAsmParser::isRegister()
+{
+  return isRegister(getToken(), peekToken());
+}
+
+unsigned
+RVGPUAsmParser::getRegularReg(RegisterKind RegKind,
+                               unsigned RegNum,
+                               unsigned RegWidth,
+                               SMLoc Loc) {
+
+  assert(isRegularReg(RegKind));
+
+  unsigned AlignSize = 1;
+
+  if (RegNum % AlignSize != 0) {
+    Error(Loc, "invalid register alignment");
+    return RVGPU::NoRegister;
+  }
+
+  unsigned RegIdx = RegNum / AlignSize;
+  int RCID = getRegClass(RegKind, RegWidth);
+  if (RCID == -1) {
+    Error(Loc, "invalid or unsupported register size");
+    return RVGPU::NoRegister;
+  }
+
+  const MCRegisterInfo *TRI = getContext().getRegisterInfo();
+  const MCRegisterClass RC = TRI->getRegClass(RCID);
+  if (RegIdx >= RC.getNumRegs()) {
+    Error(Loc, "register index is out of range");
+    return RVGPU::NoRegister;
+  }
+
+  return RC.getRegister(RegIdx);
+}
+
+bool RVGPUAsmParser::ParseRegRange(unsigned &Num, unsigned &RegWidth) {
+  int64_t RegLo, RegHi;
+  if (!skipToken(AsmToken::LBrac, "missing register index"))
+    return false;
+
+  SMLoc FirstIdxLoc = getLoc();
+  SMLoc SecondIdxLoc;
+
+  if (!parseExpr(RegLo))
+    return false;
+
+  if (trySkipToken(AsmToken::Colon)) {
+    SecondIdxLoc = getLoc();
+    if (!parseExpr(RegHi))
+      return false;
+  } else {
+    RegHi = RegLo;
+  }
+
+  if (!skipToken(AsmToken::RBrac, "expected a closing square bracket"))
+    return false;
+
+  if (!isUInt<32>(RegLo)) {
+    Error(FirstIdxLoc, "invalid register index");
     return false;
   }
 
-  // Finally we have exhausted all options and must declare defeat.
-  Error(getLoc(), "unknown operand");
+  if (!isUInt<32>(RegHi)) {
+    Error(SecondIdxLoc, "invalid register index");
+    return false;
+  }
+
+  if (RegLo > RegHi) {
+    Error(FirstIdxLoc, "first register index should not exceed second index");
+    return false;
+  }
+
+  Num = static_cast<unsigned>(RegLo);
+  RegWidth = 32 * ((RegHi - RegLo) + 1);
   return true;
 }
 
-bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info,
-                                      StringRef Name, SMLoc NameLoc,
-                                      OperandVector &Operands) {
-  // First operand is token for instruction
-  Operands.push_back(RVGPUOperand::createToken(Name, NameLoc));
+unsigned RVGPUAsmParser::ParseSpecialReg(RegisterKind &RegKind,
+                                          unsigned &RegNum, unsigned &RegWidth,
+                                          SmallVectorImpl<AsmToken> &Tokens) {
+  assert(isToken(AsmToken::Identifier));
+  unsigned Reg = getSpecialRegForName(getTokenStr());
+  if (Reg) {
+    RegNum = 0;
+    RegWidth = 32;
+    RegKind = IS_SPECIAL;
+    Tokens.push_back(getToken());
+    lex(); // skip register name
+  }
+  return Reg;
+}
 
-  // If there are no more operands, then finish
-  if (getLexer().is(AsmToken::EndOfStatement)) {
-    getParser().Lex(); // Consume the EndOfStatement.
+unsigned RVGPUAsmParser::ParseRegularReg(RegisterKind &RegKind,
+                                          unsigned &RegNum, unsigned &RegWidth,
+                                          SmallVectorImpl<AsmToken> &Tokens) {
+  assert(isToken(AsmToken::Identifier));
+  StringRef RegName = getTokenStr();
+  auto Loc = getLoc();
+
+  const RegInfo *RI = getRegularRegInfo(RegName);
+  if (!RI) {
+    Error(Loc, "invalid register name");
+    return RVGPU::NoRegister;
+  }
+
+  Tokens.push_back(getToken());
+  lex(); // skip register name
+
+  RegKind = RI->Kind;
+  StringRef RegSuffix = RegName.substr(RI->Name.size());
+  if (!RegSuffix.empty()) {
+    // Single 32-bit register: vXX.
+    if (!getRegNum(RegSuffix, RegNum)) {
+      Error(Loc, "invalid register index");
+      return RVGPU::NoRegister;
+    }
+    RegWidth = 32;
+  } else {
+    // Range of registers: v[XX:YY]. ":YY" is optional.
+    if (!ParseRegRange(RegNum, RegWidth))
+      return RVGPU::NoRegister;
+  }
+
+  return getRegularReg(RegKind, RegNum, RegWidth, Loc);
+}
+
+unsigned RVGPUAsmParser::ParseRegList(RegisterKind &RegKind, unsigned &RegNum,
+                                       unsigned &RegWidth,
+                                       SmallVectorImpl<AsmToken> &Tokens) {
+  unsigned Reg = RVGPU::NoRegister;
+  auto ListLoc = getLoc();
+
+  if (!skipToken(AsmToken::LBrac,
+                 "expected a register or a list of registers")) {
+    return RVGPU::NoRegister;
+  }
+
+  // List of consecutive registers, e.g.: [s0,s1,s2,s3]
+
+  auto Loc = getLoc();
+  if (!ParseRVGPURegister(RegKind, Reg, RegNum, RegWidth))
+    return RVGPU::NoRegister;
+  if (RegWidth != 32) {
+    Error(Loc, "expected a single 32-bit register");
+    return RVGPU::NoRegister;
+  }
+
+  for (; trySkipToken(AsmToken::Comma); ) {
+    RegisterKind NextRegKind;
+    unsigned NextReg, NextRegNum, NextRegWidth;
+    Loc = getLoc();
+
+    if (!ParseRVGPURegister(NextRegKind, NextReg,
+                             NextRegNum, NextRegWidth,
+                             Tokens)) {
+      return RVGPU::NoRegister;
+    }
+    if (NextRegWidth != 32) {
+      Error(Loc, "expected a single 32-bit register");
+      return RVGPU::NoRegister;
+    }
+    if (NextRegKind != RegKind) {
+      Error(Loc, "registers in a list must be of the same kind");
+      return RVGPU::NoRegister;
+    }
+    if (!AddNextRegisterToList(Reg, RegWidth, RegKind, NextReg, Loc))
+      return RVGPU::NoRegister;
+  }
+
+  if (!skipToken(AsmToken::RBrac,
+                 "expected a comma or a closing square bracket")) {
+    return RVGPU::NoRegister;
+  }
+
+  if (isRegularReg(RegKind))
+    Reg = getRegularReg(RegKind, RegNum, RegWidth, ListLoc);
+
+  return Reg;
+}
+
+bool RVGPUAsmParser::ParseRVGPURegister(RegisterKind &RegKind, unsigned &Reg,
+                                          unsigned &RegNum, unsigned &RegWidth,
+                                          SmallVectorImpl<AsmToken> &Tokens) {
+  auto Loc = getLoc();
+  Reg = RVGPU::NoRegister;
+
+  if (isToken(AsmToken::Identifier)) {
+    Reg = ParseSpecialReg(RegKind, RegNum, RegWidth, Tokens);
+    if (Reg == RVGPU::NoRegister)
+      Reg = ParseRegularReg(RegKind, RegNum, RegWidth, Tokens);
+  } else {
+    Reg = ParseRegList(RegKind, RegNum, RegWidth, Tokens);
+  }
+
+  const MCRegisterInfo *TRI = getContext().getRegisterInfo();
+  if (Reg == RVGPU::NoRegister) {
+    assert(Parser.hasPendingError());
     return false;
   }
 
-  // Parse first operand
-  if (parseOperand(Operands, Name))
+  return true;
+}
+
+bool RVGPUAsmParser::ParseRVGPURegister(RegisterKind &RegKind, unsigned &Reg,
+                                          unsigned &RegNum, unsigned &RegWidth,
+                                          bool RestoreOnFailure /*=false*/) {
+  Reg = RVGPU::NoRegister;
+
+  SmallVector<AsmToken, 1> Tokens;
+  if (ParseRVGPURegister(RegKind, Reg, RegNum, RegWidth, Tokens)) {
+    if (RestoreOnFailure) {
+      while (!Tokens.empty()) {
+        getLexer().UnLex(Tokens.pop_back_val());
+      }
+    }
     return true;
-
-  // Parse until end of statement, consuming commas between operands
-  while (parseOptionalToken(AsmToken::Comma)) {
-    // Parse next operand
-    if (parseOperand(Operands, Name))
-      return true;
   }
+  return false;
+}
 
-  if (getParser().parseEOL("unexpected token")) {
-    getParser().eatToEndOfStatement();
+std::optional<StringRef>
+RVGPUAsmParser::getGprCountSymbolName(RegisterKind RegKind) {
+  switch (RegKind) {
+  case IS_VGPR:
+    return StringRef(".rvgpu.next_free_vgpr");
+  default:
+    return std::nullopt;
+  }
+}
+
+void RVGPUAsmParser::initializeGprCountSymbol(RegisterKind RegKind) {
+  auto SymbolName = getGprCountSymbolName(RegKind);
+  assert(SymbolName && "initializing invalid register kind");
+  MCSymbol *Sym = getContext().getOrCreateSymbol(*SymbolName);
+  Sym->setVariableValue(MCConstantExpr::create(0, getContext()));
+}
+
+bool RVGPUAsmParser::updateGprCountSymbols(RegisterKind RegKind,
+                                            unsigned DwordRegIndex,
+                                            unsigned RegWidth) {
+
+  auto SymbolName = getGprCountSymbolName(RegKind);
+  if (!SymbolName)
     return true;
-  }
-  return false;
+  MCSymbol *Sym = getContext().getOrCreateSymbol(*SymbolName);
+
+  int64_t NewMax = DwordRegIndex + divideCeil(RegWidth, 32) - 1;
+  int64_t OldCount;
+
+  if (!Sym->isVariable())
+    return !Error(getLoc(),
+                  ".rvgpu.next_free_{v,s}gpr symbols must be variable");
+  if (!Sym->getVariableValue(false)->evaluateAsAbsolute(OldCount))
+    return !Error(
+        getLoc(),
+        ".rvgpu.next_free_{v,s}gpr symbols must be absolute expressions");
+
+  if (OldCount <= NewMax)
+    Sym->setVariableValue(MCConstantExpr::create(NewMax + 1, getContext()));
+
+  return true;
 }
 
-bool RVGPUAsmParser::classifySymbolRef(const MCExpr *Expr,
-                                       RVGPUMCExpr::VariantKind &Kind) {
-  Kind = RVGPUMCExpr::VK_RVGPU_None;
+std::unique_ptr<RVGPUOperand>
+RVGPUAsmParser::parseRegister(bool RestoreOnFailure) {
+  const auto &Tok = getToken();
+  SMLoc StartLoc = Tok.getLoc();
+  SMLoc EndLoc = Tok.getEndLoc();
+  RegisterKind RegKind;
+  unsigned Reg, RegNum, RegWidth;
 
-  if (const RVGPUMCExpr *RE = dyn_cast<RVGPUMCExpr>(Expr)) {
-    Kind = RE->getKind();
-    Expr = RE->getSubExpr();
+  if (!ParseRVGPURegister(RegKind, Reg, RegNum, RegWidth)) {
+    return nullptr;
   }
-
-  MCValue Res;
-  MCFixup Fixup;
-  if (Expr->evaluateAsRelocatable(Res, nullptr, &Fixup))
-    return Res.getRefKind() == RVGPUMCExpr::VK_RVGPU_None;
-  return false;
+  if (!updateGprCountSymbols(RegKind, RegNum, RegWidth))
+    return nullptr;
+  return RVGPUOperand::CreateReg(this, Reg, StartLoc, EndLoc);
 }
 
-bool RVGPUAsmParser::isSymbolDiff(const MCExpr *Expr) {
-  MCValue Res;
-  MCFixup Fixup;
-  if (Expr->evaluateAsRelocatable(Res, nullptr, &Fixup)) {
-    return Res.getRefKind() == RVGPUMCExpr::VK_RVGPU_None && Res.getSymA() &&
-           Res.getSymB();
-  }
-  return false;
-}
+ParseStatus RVGPUAsmParser::parseImm(OperandVector &Operands,
+                                      bool HasSP3AbsModifier, bool HasLit) {
+  // TODO: add syntactic sugar for 1/(2*PI)
 
-ParseStatus RVGPUAsmParser::parseDirective(AsmToken DirectiveID) {
-  StringRef IDVal = DirectiveID.getString();
+  if (isRegister())
+    return ParseStatus::NoMatch;
+  assert(!isModifier());
+
+  if (!HasLit) {
+    HasLit = trySkipId("lit");
+    if (HasLit) {
+      if (!skipToken(AsmToken::LParen, "expected left paren after lit"))
+        return ParseStatus::Failure;
+      ParseStatus S = parseImm(Operands, HasSP3AbsModifier, HasLit);
+      if (S.isSuccess() &&
+          !skipToken(AsmToken::RParen, "expected closing parentheses"))
+        return ParseStatus::Failure;
+      return S;
+    }
+  }
+
+  const auto& Tok = getToken();
+  const auto& NextTok = peekToken();
+  bool IsReal = Tok.is(AsmToken::Real);
+  SMLoc S = getLoc();
+  bool Negate = false;
+
+  if (!IsReal && Tok.is(AsmToken::Minus) && NextTok.is(AsmToken::Real)) {
+    lex();
+    IsReal = true;
+    Negate = true;
+  }
+
+  RVGPUOperand::Modifiers Mods;
+  Mods.Lit = HasLit;
+
+  if (IsReal) {
+    // Floating-point expressions are not supported.
+    // Can only allow floating-point literals with an
+    // optional sign.
+
+    StringRef Num = getTokenStr();
+    lex();
+
+    APFloat RealVal(APFloat::IEEEdouble());
+    auto roundMode = APFloat::rmNearestTiesToEven;
+    if (errorToBool(RealVal.convertFromString(Num, roundMode).takeError()))
+      return ParseStatus::Failure;
+    if (Negate)
+      RealVal.changeSign();
+
+    Operands.push_back(
+      RVGPUOperand::CreateImm(this, RealVal.bitcastToAPInt().getZExtValue(), S,
+                               RVGPUOperand::ImmTyNone, true));
+    RVGPUOperand &Op = static_cast<RVGPUOperand &>(*Operands.back());
+    Op.setModifiers(Mods);
+
+    return ParseStatus::Success;
+
+  } else {
+    int64_t IntVal;
+    const MCExpr *Expr;
+    SMLoc S = getLoc();
+
+    if (HasSP3AbsModifier) {
+      // This is a workaround for handling expressions
+      // as arguments of SP3 'abs' modifier, for example:
+      //     |1.0|
+      //     |-1|
+      //     |1+x|
+      // This syntax is not compatible with syntax of standard
+      // MC expressions (due to the trailing '|').
+      SMLoc EndLoc;
+      if (getParser().parsePrimaryExpr(Expr, EndLoc, nullptr))
+        return ParseStatus::Failure;
+    } else {
+      if (Parser.parseExpression(Expr))
+        return ParseStatus::Failure;
+    }
+
+    if (Expr->evaluateAsAbsolute(IntVal)) {
+      Operands.push_back(RVGPUOperand::CreateImm(this, IntVal, S));
+      RVGPUOperand &Op = static_cast<RVGPUOperand &>(*Operands.back());
+      Op.setModifiers(Mods);
+    } else {
+      if (HasLit)
+        return ParseStatus::NoMatch;
+      Operands.push_back(RVGPUOperand::CreateExpr(this, Expr, S));
+    }
+
+    return ParseStatus::Success;
+  }
 
   return ParseStatus::NoMatch;
 }
 
-void RVGPUAsmParser::emitToStreamer(MCStreamer &S, const MCInst &Inst) {
-  S.emitInstruction(Inst, getSTI());
+ParseStatus RVGPUAsmParser::parseReg(OperandVector &Operands) {
+  if (!isRegister())
+    return ParseStatus::NoMatch;
+
+  if (auto R = parseRegister()) {
+    assert(R->isReg());
+    Operands.push_back(std::move(R));
+    return ParseStatus::Success;
+  }
+  return ParseStatus::Failure;
 }
 
-bool RVGPUAsmParser::validateInstruction(MCInst &Inst,
-                                         OperandVector &Operands) {
-  unsigned Opcode = Inst.getOpcode();
+ParseStatus RVGPUAsmParser::parseRegOrImm(OperandVector &Operands,
+                                           bool HasSP3AbsMod, bool HasLit) {
+  ParseStatus Res = parseReg(Operands);
+  if (!Res.isNoMatch())
+    return Res;
+  if (isModifier())
+    return ParseStatus::NoMatch;
+  return parseImm(Operands, HasSP3AbsMod, HasLit);
+}
+
+bool
+RVGPUAsmParser::isNamedOperandModifier(const AsmToken &Token, const AsmToken &NextToken) const {
+  if (Token.is(AsmToken::Identifier) && NextToken.is(AsmToken::LParen)) {
+    const auto &str = Token.getString();
+    return str == "abs" || str == "neg" || str == "sext";
+  }
   return false;
 }
 
-bool RVGPUAsmParser::processInstruction(MCInst &Inst, SMLoc IDLoc,
-                                        OperandVector &Operands,
-                                        MCStreamer &Out) {
-  Inst.setLoc(IDLoc);
+bool
+RVGPUAsmParser::isOpcodeModifierWithVal(const AsmToken &Token, const AsmToken &NextToken) const {
+  return Token.is(AsmToken::Identifier) && NextToken.is(AsmToken::Colon);
+}
 
-  emitToStreamer(Out, Inst);
+bool
+RVGPUAsmParser::isOperandModifier(const AsmToken &Token, const AsmToken &NextToken) const {
+  return isNamedOperandModifier(Token, NextToken) || Token.is(AsmToken::Pipe);
+}
+
+bool
+RVGPUAsmParser::isRegOrOperandModifier(const AsmToken &Token, const AsmToken &NextToken) const {
+  return isRegister(Token, NextToken) || isOperandModifier(Token, NextToken);
+}
+
+// Check if this is an operand modifier or an opcode modifier
+// which may look like an expression but it is not. We should
+// avoid parsing these modifiers as expressions. Currently
+// recognized sequences are:
+//   |...|
+//   abs(...)
+//   neg(...)
+//   sext(...)
+//   -reg
+//   -|...|
+//   -abs(...)
+//   name:...
+//
+bool
+RVGPUAsmParser::isModifier() {
+
+  AsmToken Tok = getToken();
+  AsmToken NextToken[2];
+  peekTokens(NextToken);
+
+  return isOperandModifier(Tok, NextToken[0]) ||
+         (Tok.is(AsmToken::Minus) && isRegOrOperandModifier(NextToken[0], NextToken[1])) ||
+         isOpcodeModifierWithVal(Tok, NextToken[0]);
+}
+
+// Check if the current token is an SP3 'neg' modifier.
+// Currently this modifier is allowed in the following context:
+//
+// 1. Before a register, e.g. "-v0", "-v[...]" or "-[v0,v1]".
+// 2. Before an 'abs' modifier: -abs(...)
+// 3. Before an SP3 'abs' modifier: -|...|
+//
+// In all other cases "-" is handled as a part
+// of an expression that follows the sign.
+//
+// Note: When "-" is followed by an integer literal,
+// this is interpreted as integer negation rather
+// than a floating-point NEG modifier applied to N.
+// Beside being contr-intuitive, such use of floating-point
+// NEG modifier would have resulted in different meaning
+// of integer literals used with VOP1/2/C and VOP3,
+// for example:
+//    v_exp_f32_e32 v5, -1 // VOP1: src0 = 0xFFFFFFFF
+//    v_exp_f32_e64 v5, -1 // VOP3: src0 = 0x80000001
+// Negative fp literals with preceding "-" are
+// handled likewise for uniformity
+//
+bool
+RVGPUAsmParser::parseSP3NegModifier() {
+
+  AsmToken NextToken[2];
+  peekTokens(NextToken);
+
+  if (isToken(AsmToken::Minus) &&
+      (isRegister(NextToken[0], NextToken[1]) ||
+       NextToken[0].is(AsmToken::Pipe) ||
+       isId(NextToken[0], "abs"))) {
+    lex();
+    return true;
+  }
+
   return false;
 }
 
+ParseStatus
+RVGPUAsmParser::parseRegOrImmWithFPInputMods(OperandVector &Operands,
+                                              bool AllowImm) {
+  bool Neg, SP3Neg;
+  bool Abs, SP3Abs;
+  bool Lit;
+  SMLoc Loc;
+
+  // Disable ambiguous constructs like '--1' etc. Should use neg(-1) instead.
+  if (isToken(AsmToken::Minus) && peekToken().is(AsmToken::Minus))
+    return Error(getLoc(), "invalid syntax, expected 'neg' modifier");
+
+  SP3Neg = parseSP3NegModifier();
+
+  Loc = getLoc();
+  Neg = trySkipId("neg");
+  if (Neg && SP3Neg)
+    return Error(Loc, "expected register or immediate");
+  if (Neg && !skipToken(AsmToken::LParen, "expected left paren after neg"))
+    return ParseStatus::Failure;
+
+  Abs = trySkipId("abs");
+  if (Abs && !skipToken(AsmToken::LParen, "expected left paren after abs"))
+    return ParseStatus::Failure;
+
+  Lit = trySkipId("lit");
+  if (Lit && !skipToken(AsmToken::LParen, "expected left paren after lit"))
+    return ParseStatus::Failure;
+
+  Loc = getLoc();
+  SP3Abs = trySkipToken(AsmToken::Pipe);
+  if (Abs && SP3Abs)
+    return Error(Loc, "expected register or immediate");
+
+  ParseStatus Res;
+  if (AllowImm) {
+    Res = parseRegOrImm(Operands, SP3Abs, Lit);
+  } else {
+    Res = parseReg(Operands);
+  }
+  if (!Res.isSuccess())
+    return (SP3Neg || Neg || SP3Abs || Abs || Lit) ? ParseStatus::Failure : Res;
+
+  if (Lit && !Operands.back()->isImm())
+    Error(Loc, "expected immediate with lit modifier");
+
+  if (SP3Abs && !skipToken(AsmToken::Pipe, "expected vertical bar"))
+    return ParseStatus::Failure;
+  if (Abs && !skipToken(AsmToken::RParen, "expected closing parentheses"))
+    return ParseStatus::Failure;
+  if (Neg && !skipToken(AsmToken::RParen, "expected closing parentheses"))
+    return ParseStatus::Failure;
+  if (Lit && !skipToken(AsmToken::RParen, "expected closing parentheses"))
+    return ParseStatus::Failure;
+
+  RVGPUOperand::Modifiers Mods;
+  Mods.Abs = Abs || SP3Abs;
+  Mods.Neg = Neg || SP3Neg;
+  Mods.Lit = Lit;
+
+  if (Mods.hasFPModifiers() || Lit) {
+    RVGPUOperand &Op = static_cast<RVGPUOperand &>(*Operands.back());
+    if (Op.isExpr())
+      return Error(Op.getStartLoc(), "expected an absolute expression");
+    Op.setModifiers(Mods);
+  }
+  return ParseStatus::Success;
+}
+
+ParseStatus
+RVGPUAsmParser::parseRegOrImmWithIntInputMods(OperandVector &Operands,
+                                               bool AllowImm) {
+  bool Sext = trySkipId("sext");
+  if (Sext && !skipToken(AsmToken::LParen, "expected left paren after sext"))
+    return ParseStatus::Failure;
+
+  ParseStatus Res;
+  if (AllowImm) {
+    Res = parseRegOrImm(Operands);
+  } else {
+    Res = parseReg(Operands);
+  }
+  if (!Res.isSuccess())
+    return Sext ? ParseStatus::Failure : Res;
+
+  if (Sext && !skipToken(AsmToken::RParen, "expected closing parentheses"))
+    return ParseStatus::Failure;
+
+  RVGPUOperand::Modifiers Mods;
+  Mods.Sext = Sext;
+
+  if (Mods.hasIntModifiers()) {
+    RVGPUOperand &Op = static_cast<RVGPUOperand &>(*Operands.back());
+    if (Op.isExpr())
+      return Error(Op.getStartLoc(), "expected an absolute expression");
+    Op.setModifiers(Mods);
+  }
+
+  return ParseStatus::Success;
+}
+
+ParseStatus RVGPUAsmParser::parseRegWithFPInputMods(OperandVector &Operands) {
+  return parseRegOrImmWithFPInputMods(Operands, false);
+}
+
+ParseStatus RVGPUAsmParser::parseRegWithIntInputMods(OperandVector &Operands) {
+  return parseRegOrImmWithIntInputMods(Operands, false);
+}
+
+ParseStatus RVGPUAsmParser::parseVReg32OrOff(OperandVector &Operands) {
+  auto Loc = getLoc();
+  if (trySkipId("off")) {
+    Operands.push_back(RVGPUOperand::CreateImm(this, 0, Loc,
+                                                RVGPUOperand::ImmTyOff, false));
+    return ParseStatus::Success;
+  }
+
+  if (!isRegister())
+    return ParseStatus::NoMatch;
+
+  std::unique_ptr<RVGPUOperand> Reg = parseRegister();
+  if (Reg) {
+    Operands.push_back(std::move(Reg));
+    return ParseStatus::Success;
+  }
+
+  return ParseStatus::Failure;
+}
+
+
+static ArrayRef<unsigned> getAllVariants() {
+  static const unsigned Variants[] = {
+    RVGPUAsmVariants::DEFAULT, RVGPUAsmVariants::VOP3,
+    RVGPUAsmVariants::DPP, RVGPUAsmVariants::VOP3_DPP
+  };
+
+  return ArrayRef(Variants);
+}
+
+// What asm variants we should check
+ArrayRef<unsigned> RVGPUAsmParser::getMatchedVariants() const {
+
+  return getAllVariants();
+}
+
+StringRef RVGPUAsmParser::getMatchedVariantName() const {
+  return "";
+}
+
+unsigned RVGPUAsmParser::findImplicitSGPRReadInVOP(const MCInst &Inst) const {
+  const MCInstrDesc &Desc = MII.get(Inst.getOpcode());
+  for (MCPhysReg Reg : Desc.implicit_uses()) {
+    switch (Reg) {
+    case RVGPU::VCC:
+    case RVGPU::VCC_LO:
+    case RVGPU::VCC_HI:
+      return Reg;
+    default:
+      break;
+    }
+  }
+  return RVGPU::NoRegister;
+}
+
+constexpr unsigned MAX_SRC_OPERANDS_NUM = 6;
+using OperandIndices = SmallVector<int16_t, MAX_SRC_OPERANDS_NUM>;
+
+bool RVGPUAsmParser::validateInstruction(const MCInst &Inst,
+                                          const SMLoc &IDLoc,
+                                          const OperandVector &Operands) {
+  return true;
+}
+
+static std::string RVGPUMnemonicSpellCheck(StringRef S,
+                                            const FeatureBitset &FBS,
+                                            unsigned VariantID = 0);
+
+static bool RVGPUCheckMnemonic(StringRef Mnemonic,
+                                const FeatureBitset &AvailableFeatures,
+                                unsigned VariantID);
+
+bool RVGPUAsmParser::isSupportedMnemo(StringRef Mnemo,
+                                       const FeatureBitset &FBS) {
+  return isSupportedMnemo(Mnemo, FBS, getAllVariants());
+}
+
+bool RVGPUAsmParser::isSupportedMnemo(StringRef Mnemo,
+                                       const FeatureBitset &FBS,
+                                       ArrayRef<unsigned> Variants) {
+  for (auto Variant : Variants) {
+    if (RVGPUCheckMnemonic(Mnemo, FBS, Variant))
+      return true;
+  }
+
+  return false;
+}
+
+bool RVGPUAsmParser::checkUnsupportedInstruction(StringRef Mnemo,
+                                                  const SMLoc &IDLoc) {
+  FeatureBitset FBS = ComputeAvailableFeatures(getFeatureBits());
+
+  // Check if requested instruction variant is supported.
+  if (isSupportedMnemo(Mnemo, FBS, getMatchedVariants()))
+    return false;
+
+  // This instruction is not supported.
+  // Clear any other pending errors because they are no longer relevant.
+  getParser().clearPendingErrors();
+
+  // Requested instruction variant is not supported.
+  // Check if any other variants are supported.
+  StringRef VariantName = getMatchedVariantName();
+  if (!VariantName.empty() && isSupportedMnemo(Mnemo, FBS)) {
+    return Error(IDLoc,
+                 Twine(VariantName,
+                       " variant of this instruction is not supported"));
+  }
+
+  // Finally check if this instruction is supported on any other GPU.
+  if (isSupportedMnemo(Mnemo, FeatureBitset().set())) {
+    return Error(IDLoc, "instruction not supported on this GPU");
+  }
+
+  // Instruction not supported on any GPU. Probably a typo.
+  std::string Suggestion = RVGPUMnemonicSpellCheck(Mnemo, FBS);
+  return Error(IDLoc, "invalid instruction" + Suggestion);
+}
+
+static bool isInvalidVOPDY(const OperandVector &Operands,
+                           uint64_t InvalidOprIdx) {
+  assert(InvalidOprIdx < Operands.size());
+  const auto &Op = ((RVGPUOperand &)*Operands[InvalidOprIdx]);
+  if (Op.isToken() && InvalidOprIdx > 1) {
+    const auto &PrevOp = ((RVGPUOperand &)*Operands[InvalidOprIdx - 1]);
+    return PrevOp.isToken() && PrevOp.getToken() == "::";
+  }
+  return false;
+}
+
+bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
+                                              OperandVector &Operands,
+                                              MCStreamer &Out,
+                                              uint64_t &ErrorInfo,
+                                              bool MatchingInlineAsm) {
+  MCInst Inst;
+  unsigned Result = Match_Success;
+  for (auto Variant : getMatchedVariants()) {
+    uint64_t EI;
+    auto R = MatchInstructionImpl(Operands, Inst, EI, MatchingInlineAsm,
+                                  Variant);
+    // We order match statuses from least to most specific. We use most specific
+    // status as resulting
+    // Match_MnemonicFail < Match_InvalidOperand < Match_MissingFeature < Match_PreferE32
+    if ((R == Match_Success) ||
+        (R == Match_PreferE32) ||
+        (R == Match_MissingFeature && Result != Match_PreferE32) ||
+        (R == Match_InvalidOperand && Result != Match_MissingFeature
+                                   && Result != Match_PreferE32) ||
+        (R == Match_MnemonicFail   && Result != Match_InvalidOperand
+                                   && Result != Match_MissingFeature
+                                   && Result != Match_PreferE32)) {
+      Result = R;
+      ErrorInfo = EI;
+    }
+    if (R == Match_Success)
+      break;
+  }
+
+  if (Result == Match_Success) {
+    if (!validateInstruction(Inst, IDLoc, Operands)) {
+      return true;
+    }
+    Inst.setLoc(IDLoc);
+    Out.emitInstruction(Inst, getSTI());
+    return false;
+  }
+
+  StringRef Mnemo = ((RVGPUOperand &)*Operands[0]).getToken();
+  if (checkUnsupportedInstruction(Mnemo, IDLoc)) {
+    return true;
+  }
+
+  switch (Result) {
+  default: break;
+  case Match_MissingFeature:
+    // It has been verified that the specified instruction
+    // mnemonic is valid. A match was found but it requires
+    // features which are not supported on this GPU.
+    return Error(IDLoc, "operands are not valid for this GPU or mode");
+
+  case Match_InvalidOperand: {
+    SMLoc ErrorLoc = IDLoc;
+    if (ErrorInfo != ~0ULL) {
+      if (ErrorInfo >= Operands.size()) {
+        return Error(IDLoc, "too few operands for instruction");
+      }
+      ErrorLoc = ((RVGPUOperand &)*Operands[ErrorInfo]).getStartLoc();
+      if (ErrorLoc == SMLoc())
+        ErrorLoc = IDLoc;
+
+      if (isInvalidVOPDY(Operands, ErrorInfo))
+        return Error(ErrorLoc, "invalid VOPDY instruction");
+    }
+    return Error(ErrorLoc, "invalid operand for instruction");
+  }
+
+  case Match_PreferE32:
+    return Error(IDLoc, "internal error: instruction without _e64 suffix "
+                        "should be encoded as e32");
+  case Match_MnemonicFail:
+    llvm_unreachable("Invalid instructions should have been handled already");
+  }
+  llvm_unreachable("Implement any new match types added!");
+}
+
+bool RVGPUAsmParser::OutOfRangeError(SMRange Range) {
+  return Error(Range.Start, "value out of range", Range);
+}
+
+
+/// Common code to parse out a block of text (typically YAML) between start and
+/// end directives.
+bool RVGPUAsmParser::ParseToEndDirective(const char *AssemblerDirectiveBegin,
+                                          const char *AssemblerDirectiveEnd,
+                                          std::string &CollectString) {
+
+  raw_string_ostream CollectStream(CollectString);
+
+  getLexer().setSkipSpace(false);
+
+  bool FoundEnd = false;
+  while (!isToken(AsmToken::Eof)) {
+    while (isToken(AsmToken::Space)) {
+      CollectStream << getTokenStr();
+      Lex();
+    }
+
+    if (trySkipId(AssemblerDirectiveEnd)) {
+      FoundEnd = true;
+      break;
+    }
+
+    CollectStream << Parser.parseStringToEndOfStatement()
+                  << getContext().getAsmInfo()->getSeparatorString();
+
+    Parser.eatToEndOfStatement();
+  }
+
+  getLexer().setSkipSpace(true);
+
+  if (isToken(AsmToken::Eof) && !FoundEnd) {
+    return TokError(Twine("expected directive ") +
+                    Twine(AssemblerDirectiveEnd) + Twine(" not found"));
+  }
+
+  CollectStream.flush();
+  return false;
+}
+
+bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
+  StringRef IDVal = DirectiveID.getString();
+
+  printf("ParseDirective: %s\n", IDVal.data());
+  return true;
+}
+
+ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands,
+                                          StringRef Mnemonic,
+                                          OperandMode Mode) {
+  // Try to parse with a custom parser
+  //ParseStatus Res = MatchOperandParserImpl(Operands, Mnemonic);
+  ParseStatus Res;
+
+  // If we successfully parsed the operand or if there as an error parsing,
+  // we are done.
+  //
+  // If we are parsing after we reach EndOfStatement then this means we
+  // are appending default values to the Operands list.  This is only done
+  // by custom parser, so we shouldn't continue on to the generic parsing.
+//  if (Res.isSuccess() || Res.isFailure() || isToken(AsmToken::EndOfStatement))
+//    return Res;
+
+  SMLoc RBraceLoc;
+  SMLoc LBraceLoc = getLoc();
+  if (Mode == OperandMode_NSA && trySkipToken(AsmToken::LBrac)) {
+    unsigned Prefix = Operands.size();
+
+    for (;;) {
+      auto Loc = getLoc();
+      Res = parseReg(Operands);
+      if (Res.isNoMatch())
+        Error(Loc, "expected a register");
+      if (!Res.isSuccess())
+        return ParseStatus::Failure;
+
+      RBraceLoc = getLoc();
+      if (trySkipToken(AsmToken::RBrac))
+        break;
+
+      if (!skipToken(AsmToken::Comma,
+                     "expected a comma or a closing square bracket"))
+        return ParseStatus::Failure;
+    }
+
+    if (Operands.size() - Prefix > 1) {
+      Operands.insert(Operands.begin() + Prefix,
+                      RVGPUOperand::CreateToken(this, "[", LBraceLoc));
+      Operands.push_back(RVGPUOperand::CreateToken(this, "]", RBraceLoc));
+    }
+
+    return ParseStatus::Success;
+  }
+
+  return parseRegOrImm(Operands);
+}
+
+
+/*static void applyMnemonicAliases(StringRef &Mnemonic,
+                                 const FeatureBitset &Features,
+                                 unsigned VariantID);
+*/
+bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info,
+                                       StringRef Name,
+                                       SMLoc NameLoc, OperandVector &Operands) {
+  // If the target architecture uses MnemonicAlias, call it here to parse
+  // operands correctly.
+//  applyMnemonicAliases(Name, getAvailableFeatures(), 0);
+
+  Operands.push_back(RVGPUOperand::CreateToken(this, Name, NameLoc));
+
+  while (!trySkipToken(AsmToken::EndOfStatement)) {
+    OperandMode Mode = OperandMode_Default;
+    ParseStatus Res = parseOperand(Operands, Name, Mode);
+
+    if (!Res.isSuccess()) {
+      checkUnsupportedInstruction(Name, NameLoc);
+      if (!Parser.hasPendingError()) {
+        // FIXME: use real operand location rather than the current location.
+        StringRef Msg = Res.isFailure() ? "failed parsing operand."
+                                        : "not a valid operand.";
+        Error(getLoc(), Msg);
+      }
+      while (!trySkipToken(AsmToken::EndOfStatement)) {
+        lex();
+      }
+      return true;
+    }
+
+    // Eat the comma or space if there is one.
+    trySkipToken(AsmToken::Comma);
+  }
+
+  return false;
+}
+
+//===----------------------------------------------------------------------===//
+// Utility functions
+//===----------------------------------------------------------------------===//
+
+ParseStatus RVGPUAsmParser::parseTokenOp(StringRef Name,
+                                          OperandVector &Operands) {
+  SMLoc S = getLoc();
+  if (!trySkipId(Name))
+    return ParseStatus::NoMatch;
+
+  Operands.push_back(RVGPUOperand::CreateToken(this, Name, S));
+  return ParseStatus::Success;
+}
+
+ParseStatus RVGPUAsmParser::parseIntWithPrefix(const char *Prefix,
+                                                int64_t &IntVal) {
+
+  if (!trySkipId(Prefix, AsmToken::Colon))
+    return ParseStatus::NoMatch;
+
+  return parseExpr(IntVal) ? ParseStatus::Success : ParseStatus::Failure;
+}
+
+ParseStatus RVGPUAsmParser::parseIntWithPrefix(
+    const char *Prefix, OperandVector &Operands, RVGPUOperand::ImmTy ImmTy,
+    std::function<bool(int64_t &)> ConvertResult) {
+  SMLoc S = getLoc();
+  int64_t Value = 0;
+
+  ParseStatus Res = parseIntWithPrefix(Prefix, Value);
+  if (!Res.isSuccess())
+    return Res;
+
+  if (ConvertResult && !ConvertResult(Value)) {
+    Error(S, "invalid " + StringRef(Prefix) + " value.");
+  }
+
+  Operands.push_back(RVGPUOperand::CreateImm(this, Value, S, ImmTy));
+  return ParseStatus::Success;
+}
+
+ParseStatus RVGPUAsmParser::parseOperandArrayWithPrefix(
+    const char *Prefix, OperandVector &Operands, RVGPUOperand::ImmTy ImmTy,
+    bool (*ConvertResult)(int64_t &)) {
+  SMLoc S = getLoc();
+  if (!trySkipId(Prefix, AsmToken::Colon))
+    return ParseStatus::NoMatch;
+
+  if (!skipToken(AsmToken::LBrac, "expected a left square bracket"))
+    return ParseStatus::Failure;
+
+  unsigned Val = 0;
+  const unsigned MaxSize = 4;
+
+  // FIXME: How to verify the number of elements matches the number of src
+  // operands?
+  for (int I = 0; ; ++I) {
+    int64_t Op;
+    SMLoc Loc = getLoc();
+    if (!parseExpr(Op))
+      return ParseStatus::Failure;
+
+    if (Op != 0 && Op != 1)
+      return Error(Loc, "invalid " + StringRef(Prefix) + " value.");
+
+    Val |= (Op << I);
+
+    if (trySkipToken(AsmToken::RBrac))
+      break;
+
+    if (I + 1 == MaxSize)
+      return Error(getLoc(), "expected a closing square bracket");
+
+    if (!skipToken(AsmToken::Comma, "expected a comma"))
+      return ParseStatus::Failure;
+  }
+
+  Operands.push_back(RVGPUOperand::CreateImm(this, Val, S, ImmTy));
+  return ParseStatus::Success;
+}
+
+ParseStatus RVGPUAsmParser::parseNamedBit(StringRef Name,
+                                           OperandVector &Operands,
+                                           RVGPUOperand::ImmTy ImmTy) {
+  int64_t Bit;
+  SMLoc S = getLoc();
+
+  if (trySkipId(Name)) {
+    Bit = 1;
+  } else if (trySkipId("no", Name)) {
+    Bit = 0;
+  } else {
+    return ParseStatus::NoMatch;
+  }
+
+  Operands.push_back(RVGPUOperand::CreateImm(this, Bit, S, ImmTy));
+  return ParseStatus::Success;
+}
+
+static void addOptionalImmOperand(
+  MCInst& Inst, const OperandVector& Operands,
+  RVGPUAsmParser::OptionalImmIndexMap& OptionalIdx,
+  RVGPUOperand::ImmTy ImmT,
+  int64_t Default = 0) {
+  auto i = OptionalIdx.find(ImmT);
+  if (i != OptionalIdx.end()) {
+    unsigned Idx = i->second;
+    ((RVGPUOperand &)*Operands[Idx]).addImmOperands(Inst, 1);
+  } else {
+    Inst.addOperand(MCOperand::createImm(Default));
+  }
+}
+
+ParseStatus RVGPUAsmParser::parseStringWithPrefix(StringRef Prefix,
+                                                   StringRef &Value,
+                                                   SMLoc &StringLoc) {
+  if (!trySkipId(Prefix, AsmToken::Colon))
+    return ParseStatus::NoMatch;
+
+  StringLoc = getLoc();
+  return parseId(Value, "expected an identifier") ? ParseStatus::Success
+                                                  : ParseStatus::Failure;
+}
+
+//===----------------------------------------------------------------------===//
+// parser helpers
+//===----------------------------------------------------------------------===//
+
+bool
+RVGPUAsmParser::isId(const AsmToken &Token, const StringRef Id) const {
+  return Token.is(AsmToken::Identifier) && Token.getString() == Id;
+}
+
+bool
+RVGPUAsmParser::isId(const StringRef Id) const {
+  return isId(getToken(), Id);
+}
+
+bool
+RVGPUAsmParser::isToken(const AsmToken::TokenKind Kind) const {
+  return getTokenKind() == Kind;
+}
+
+StringRef RVGPUAsmParser::getId() const {
+  return isToken(AsmToken::Identifier) ? getTokenStr() : StringRef();
+}
+
+bool
+RVGPUAsmParser::trySkipId(const StringRef Id) {
+  if (isId(Id)) {
+    lex();
+    return true;
+  }
+  return false;
+}
+
+bool
+RVGPUAsmParser::trySkipId(const StringRef Pref, const StringRef Id) {
+  if (isToken(AsmToken::Identifier)) {
+    StringRef Tok = getTokenStr();
+    if (Tok.starts_with(Pref) && Tok.drop_front(Pref.size()) == Id) {
+      lex();
+      return true;
+    }
+  }
+  return false;
+}
+
+bool
+RVGPUAsmParser::trySkipId(const StringRef Id, const AsmToken::TokenKind Kind) {
+  if (isId(Id) && peekToken().is(Kind)) {
+    lex();
+    lex();
+    return true;
+  }
+  return false;
+}
+
+bool
+RVGPUAsmParser::trySkipToken(const AsmToken::TokenKind Kind) {
+  if (isToken(Kind)) {
+    lex();
+    return true;
+  }
+  return false;
+}
+
+bool
+RVGPUAsmParser::skipToken(const AsmToken::TokenKind Kind,
+                           const StringRef ErrMsg) {
+  if (!trySkipToken(Kind)) {
+    Error(getLoc(), ErrMsg);
+    return false;
+  }
+  return true;
+}
+
+void RVGPUAsmParser::onBeginOfFile() {
+    getTargetStreamer().EmitDirectiveRVGPUTarget();
+}
+bool
+RVGPUAsmParser::parseExpr(int64_t &Imm, StringRef Expected) {
+  SMLoc S = getLoc();
+
+  const MCExpr *Expr;
+  if (Parser.parseExpression(Expr))
+    return false;
+
+  if (Expr->evaluateAsAbsolute(Imm))
+    return true;
+
+  if (Expected.empty()) {
+    Error(S, "expected absolute expression");
+  } else {
+    Error(S, Twine("expected ", Expected) +
+             Twine(" or an absolute expression"));
+  }
+  return false;
+}
+
+bool
+RVGPUAsmParser::parseExpr(OperandVector &Operands) {
+  SMLoc S = getLoc();
+
+  const MCExpr *Expr;
+  if (Parser.parseExpression(Expr))
+    return false;
+
+  int64_t IntVal;
+  if (Expr->evaluateAsAbsolute(IntVal)) {
+    Operands.push_back(RVGPUOperand::CreateImm(this, IntVal, S));
+  } else {
+    Operands.push_back(RVGPUOperand::CreateExpr(this, Expr, S));
+  }
+  return true;
+}
+
+bool
+RVGPUAsmParser::parseString(StringRef &Val, const StringRef ErrMsg) {
+  if (isToken(AsmToken::String)) {
+    Val = getToken().getStringContents();
+    lex();
+    return true;
+  } else {
+    Error(getLoc(), ErrMsg);
+    return false;
+  }
+}
+
+bool
+RVGPUAsmParser::parseId(StringRef &Val, const StringRef ErrMsg) {
+  if (isToken(AsmToken::Identifier)) {
+    Val = getTokenStr();
+    lex();
+    return true;
+  } else {
+    if (!ErrMsg.empty())
+      Error(getLoc(), ErrMsg);
+    return false;
+  }
+}
+
+AsmToken
+RVGPUAsmParser::getToken() const {
+  return Parser.getTok();
+}
+
+AsmToken RVGPUAsmParser::peekToken(bool ShouldSkipSpace) {
+  return isToken(AsmToken::EndOfStatement)
+             ? getToken()
+             : getLexer().peekTok(ShouldSkipSpace);
+}
+
+void
+RVGPUAsmParser::peekTokens(MutableArrayRef<AsmToken> Tokens) {
+  auto TokCount = getLexer().peekTokens(Tokens);
+
+  for (auto Idx = TokCount; Idx < Tokens.size(); ++Idx)
+    Tokens[Idx] = AsmToken(AsmToken::Error, "");
+}
+
+AsmToken::TokenKind
+RVGPUAsmParser::getTokenKind() const {
+  return getLexer().getKind();
+}
+
+SMLoc
+RVGPUAsmParser::getLoc() const {
+  return getToken().getLoc();
+}
+
+StringRef
+RVGPUAsmParser::getTokenStr() const {
+  return getToken().getString();
+}
+
+void
+RVGPUAsmParser::lex() {
+  Parser.Lex();
+}
+
+SMLoc RVGPUAsmParser::getInstLoc(const OperandVector &Operands) const {
+  return ((RVGPUOperand &)*Operands[0]).getStartLoc();
+}
+
+SMLoc
+RVGPUAsmParser::getOperandLoc(std::function<bool(const RVGPUOperand&)> Test,
+                               const OperandVector &Operands) const {
+  for (unsigned i = Operands.size() - 1; i > 0; --i) {
+    RVGPUOperand &Op = ((RVGPUOperand &)*Operands[i]);
+    if (Test(Op))
+      return Op.getStartLoc();
+  }
+  return getInstLoc(Operands);
+}
+
+SMLoc
+RVGPUAsmParser::getImmLoc(RVGPUOperand::ImmTy Type,
+                           const OperandVector &Operands) const {
+  auto Test = [=](const RVGPUOperand& Op) { return Op.isImmTy(Type); };
+  return getOperandLoc(Test, Operands);
+}
+
+SMLoc
+RVGPUAsmParser::getRegLoc(unsigned Reg,
+                           const OperandVector &Operands) const {
+  auto Test = [=](const RVGPUOperand& Op) {
+    return Op.isRegKind() && Op.getReg() == Reg;
+  };
+  return getOperandLoc(Test, Operands);
+}
+
+SMLoc RVGPUAsmParser::getLitLoc(const OperandVector &Operands,
+                                 bool SearchMandatoryLiterals) const {
+  auto Test = [](const RVGPUOperand& Op) {
+    return Op.IsImmKindLiteral() || Op.isExpr();
+  };
+  SMLoc Loc = getOperandLoc(Test, Operands);
+  if (SearchMandatoryLiterals && Loc == getInstLoc(Operands))
+    Loc = getMandatoryLitLoc(Operands);
+  return Loc;
+}
+
+SMLoc RVGPUAsmParser::getMandatoryLitLoc(const OperandVector &Operands) const {
+  auto Test = [](const RVGPUOperand &Op) {
+    return Op.IsImmKindMandatoryLiteral();
+  };
+  return getOperandLoc(Test, Operands);
+}
+
+SMLoc
+RVGPUAsmParser::getConstLoc(const OperandVector &Operands) const {
+  auto Test = [](const RVGPUOperand& Op) {
+    return Op.isImmKindConst();
+  };
+  return getOperandLoc(Test, Operands);
+}
+
+//===----------------------------------------------------------------------===//
+// swizzle
+//===----------------------------------------------------------------------===//
+
+LLVM_READNONE
+static unsigned
+encodeBitmaskPerm(const unsigned AndMask,
+                  const unsigned OrMask,
+                  const unsigned XorMask) {
+  using namespace llvm::RVGPU::Swizzle;
+
+  return BITMASK_PERM_ENC |
+         (AndMask << BITMASK_AND_SHIFT) |
+         (OrMask  << BITMASK_OR_SHIFT)  |
+         (XorMask << BITMASK_XOR_SHIFT);
+}
+
+bool
+RVGPUOperand::isSwizzle() const {
+  return isImmTy(ImmTySwizzle);
+}
+
+//===----------------------------------------------------------------------===//
+
+static bool ConvertOmodMul(int64_t &Mul) {
+  if (Mul != 1 && Mul != 2 && Mul != 4)
+    return false;
+
+  Mul >>= 1;
+  return true;
+}
+
+static bool ConvertOmodDiv(int64_t &Div) {
+  if (Div == 1) {
+    Div = 0;
+    return true;
+  }
+
+  if (Div == 2) {
+    Div = 3;
+    return true;
+  }
+
+  return false;
+}
+
+static bool isRegOrImmWithInputMods(const MCInstrDesc &Desc, unsigned OpNum) {
+  return
+      // 1. This operand is input modifiers
+      Desc.operands()[OpNum].OperandType == RVGPU::OPERAND_INPUT_MODS
+      // 2. This is not last operand
+      && Desc.NumOperands > (OpNum + 1)
+      // 3. Next operand is register class
+      && Desc.operands()[OpNum + 1].RegClass != -1
+      // 4. Next register is not tied to any other operand
+      && Desc.getOperandConstraint(OpNum + 1,
+                                   MCOI::OperandConstraint::TIED_TO) == -1;
+}
+
+bool RVGPUOperand::isS16Imm() const {
+  return isImmLiteral() && (isInt<16>(getImm()) || isUInt<16>(getImm()));
+}
+
+bool RVGPUOperand::isU16Imm() const {
+  return isImmLiteral() && isUInt<16>(getImm());
+}
+
+/// Force static initialization.
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUAsmParser() {
-  RegisterMCAsmParser<RVGPUAsmParser> X(getTheRVGPUTarget64());
+  RegisterMCAsmParser<RVGPUAsmParser> B(getTheRVGPUTarget64());
 }
+
+#define GET_REGISTER_MATCHER
+#define GET_MATCHER_IMPLEMENTATION
+#define GET_MNEMONIC_SPELL_CHECKER
+#define GET_MNEMONIC_CHECKER
+#include "RVGPUGenAsmMatcher.inc"
+#if 0
+ParseStatus RVGPUAsmParser::parseCustomOperand(OperandVector &Operands,
+                                                unsigned MCK) {
+  switch (MCK) {
+  case MCK_addr64:
+    return parseTokenOp("addr64", Operands);
+  case MCK_done:
+    return parseTokenOp("done", Operands);
+  case MCK_idxen:
+    return parseTokenOp("idxen", Operands);
+  case MCK_lds:
+    return parseTokenOp("lds", Operands);
+  case MCK_offen:
+    return parseTokenOp("offen", Operands);
+  case MCK_off:
+    return parseTokenOp("off", Operands);
+  case MCK_row_95_en:
+    return parseTokenOp("row_en", Operands);
+  case MCK_gds:
+    return parseNamedBit("gds", Operands, RVGPUOperand::ImmTyGDS);
+  case MCK_tfe:
+    return parseNamedBit("tfe", Operands, RVGPUOperand::ImmTyTFE);
+  }
+  return tryCustomParseOperand(Operands, MCK);
+}
+#endif 
+// This function should be defined after auto-generated include so that we have
+// MatchClassKind enum defined
+unsigned RVGPUAsmParser::validateTargetOperandClass(MCParsedAsmOperand &Op,
+                                                     unsigned Kind) {
+  return Match_Success;                                                         
+  // Tokens like "glc" would be parsed as immediate operands in ParseOperand().
+  // But MatchInstructionImpl() expects to meet token and fails to validate
+  // operand. This method checks if we are given immediate operand but expect to
+  // get corresponding token.
+#if 0                                                         
+  RVGPUOperand &Operand = (RVGPUOperand&)Op;
+  switch (Kind) {
+  case MCK_addr64:
+    return Operand.isAddr64() ? Match_Success : Match_InvalidOperand;
+  case MCK_gds:
+    return Operand.isGDS() ? Match_Success : Match_InvalidOperand;
+  case MCK_lds:
+    return Operand.isLDS() ? Match_Success : Match_InvalidOperand;
+  case MCK_idxen:
+    return Operand.isIdxen() ? Match_Success : Match_InvalidOperand;
+  case MCK_offen:
+    return Operand.isOffen() ? Match_Success : Match_InvalidOperand;
+  case MCK_tfe:
+    return Operand.isTFE() ? Match_Success : Match_InvalidOperand;
+  case MCK_SSrcB32:
+    // When operands have expression values, they will return true for isToken,
+    // because it is not possible to distinguish between a token and an
+    // expression at parse time. MatchInstructionImpl() will always try to
+    // match an operand as a token, when isToken returns true, and when the
+    // name of the expression is not a valid token, the match will fail,
+    // so we need to handle it here.
+    return Operand.isSSrcB32() ? Match_Success : Match_InvalidOperand;
+  case MCK_SSrcF32:
+    return Operand.isSSrcF32() ? Match_Success : Match_InvalidOperand;
+  case MCK_SOPPBrTarget:
+    return Operand.isSOPPBrTarget() ? Match_Success : Match_InvalidOperand;
+  case MCK_VReg32OrOff:
+    return Operand.isVReg32OrOff() ? Match_Success : Match_InvalidOperand;
+  case MCK_InterpSlot:
+    return Operand.isInterpSlot() ? Match_Success : Match_InvalidOperand;
+  case MCK_InterpAttr:
+    return Operand.isInterpAttr() ? Match_Success : Match_InvalidOperand;
+  case MCK_InterpAttrChan:
+    return Operand.isInterpAttrChan() ? Match_Success : Match_InvalidOperand;
+  case MCK_SReg_64:
+  case MCK_SReg_64_XEXEC:
+    // Null is defined as a 32-bit register but
+    // it should also be enabled with 64-bit operands.
+    // The following code enables it for SReg_64 operands
+    // used as source and destination. Remaining source
+    // operands are handled in isInlinableImm.
+    return Operand.isNull() ? Match_Success : Match_InvalidOperand;
+  default:
+    return Match_InvalidOperand;
+  }
+#endif 
+}
+

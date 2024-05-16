@@ -19,6 +19,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPU.h"
+#include "RVGPUInstrInfo.h"
+#include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"

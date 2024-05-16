@@ -15,6 +15,7 @@
 #include "RVGPURegisterInfo.h"
 #include "RVGPUSubtarget.h"
 #include "RVGPUTargetMachine.h"
+#include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
@@ -71,7 +72,8 @@ StackOffset
 RVGPUFrameLowering::getFrameIndexReference(const MachineFunction &MF, int FI,
                                            Register &FrameReg) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
-  FrameReg = RVGPU::VRDepot;
+  const RVGPURegisterInfo *RI = MF.getSubtarget<RVGPUSubtarget>().getRegisterInfo();
+  FrameReg = RI->getFrameRegister(MF);
   return StackOffset::getFixed(MFI.getObjectOffset(FI) -
                                getOffsetOfLocalArea());
 }

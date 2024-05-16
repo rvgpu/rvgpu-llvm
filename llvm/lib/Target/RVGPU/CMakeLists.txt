@@ -33,7 +33,7 @@ set(RVGPUCodeGen_sources
   RVGPUMCExpr.cpp
   RVGPUPrologEpilogPass.cpp
   RVGPURegisterInfo.cpp
-  RVGPUReplaceImageHandles.cpp
+#  RVGPUReplaceImageHandles.cpp
   RVGPUSubtarget.cpp
   RVGPUTargetMachine.cpp
   RVGPUTargetTransformInfo.cpp

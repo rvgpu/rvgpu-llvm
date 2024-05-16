@@ -48,6 +48,7 @@ createRVGPUELFObjectWriter(bool Is64Bit, uint8_t OSABI,
 
 // Defines symbolic names for the PTX instructions.
 #define GET_INSTRINFO_ENUM
+#define GET_INSTRINFO_OPERAND_ENUM
 #define GET_INSTRINFO_MC_HELPER_DECLS
 #include "RVGPUGenInstrInfo.inc"
 

@@ -600,6 +600,7 @@ static unsigned getPTXCmpMode(const CondCodeSDNode &CondCode, bool FTZ) {
 }
 
 bool RVGPUDAGToDAGISel::SelectSETP_F16X2(SDNode *N) {
+#if 0
   unsigned PTXCmpMode =
       getPTXCmpMode(*cast<CondCodeSDNode>(N->getOperand(2)), useF32FTZ());
   SDLoc DL(N);
@@ -608,9 +609,13 @@ bool RVGPUDAGToDAGISel::SelectSETP_F16X2(SDNode *N) {
       N->getOperand(1), CurDAG->getTargetConstant(PTXCmpMode, DL, MVT::i32));
   ReplaceNode(N, SetP);
   return true;
+#else
+  return false;
+#endif 
 }
 
 bool RVGPUDAGToDAGISel::SelectSETP_BF16X2(SDNode *N) {
+#if 0    
   unsigned PTXCmpMode =
       getPTXCmpMode(*cast<CondCodeSDNode>(N->getOperand(2)), useF32FTZ());
   SDLoc DL(N);
@@ -619,6 +624,9 @@ bool RVGPUDAGToDAGISel::SelectSETP_BF16X2(SDNode *N) {
       N->getOperand(1), CurDAG->getTargetConstant(PTXCmpMode, DL, MVT::i32));
   ReplaceNode(N, SetP);
   return true;
+#else
+  return false;
+#endif 
 }
 
 // Find all instances of extract_vector_elt that use this v2f16 vector
@@ -946,57 +954,37 @@ bool RVGPUDAGToDAGISel::tryLoad(SDNode *N) {
 
   if (SelectDirectAddr(N1, Addr)) {
     Opcode = pickOpcodeForVT(TargetVT, RVGPU::LD_i8_avar, RVGPU::LD_i16_avar,
-                             RVGPU::LD_i32_avar, RVGPU::LD_i64_avar,
-                             RVGPU::LD_f32_avar, RVGPU::LD_f64_avar);
+                             RVGPU::LD_b32_avar, RVGPU::LD_b64_avar,
+                             RVGPU::LD_b32_avar, RVGPU::LD_b64_avar);
     if (!Opcode)
       return false;
-    SDValue Ops[] = { getI32Imm(isVolatile, dl), getI32Imm(CodeAddrSpace, dl),
-                      getI32Imm(vecType, dl), getI32Imm(fromType, dl),
-                      getI32Imm(fromTypeWidth, dl), Addr, Chain };
+    SDValue Ops[] = {Addr, Chain };
     RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
-  } else if (PointerSize == 64 ? SelectADDRsi64(N1.getNode(), N1, Base, Offset)
-                               : SelectADDRsi(N1.getNode(), N1, Base, Offset)) {
+  } else if (SelectADDRsi64(N1.getNode(), N1, Base, Offset)) {
     Opcode = pickOpcodeForVT(TargetVT, RVGPU::LD_i8_asi, RVGPU::LD_i16_asi,
-                             RVGPU::LD_i32_asi, RVGPU::LD_i64_asi,
-                             RVGPU::LD_f32_asi, RVGPU::LD_f64_asi);
+                             RVGPU::LD_b32_asi, RVGPU::LD_b64_asi,
+                             RVGPU::LD_b32_asi, RVGPU::LD_b64_asi);
     if (!Opcode)
       return false;
-    SDValue Ops[] = { getI32Imm(isVolatile, dl), getI32Imm(CodeAddrSpace, dl),
-                      getI32Imm(vecType, dl), getI32Imm(fromType, dl),
-                      getI32Imm(fromTypeWidth, dl), Base, Offset, Chain };
+    SDValue Ops[] = {Base, Offset, Chain };
     RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
-  } else if (PointerSize == 64 ? SelectADDRri64(N1.getNode(), N1, Base, Offset)
-                               : SelectADDRri(N1.getNode(), N1, Base, Offset)) {
-    if (PointerSize == 64)
-      Opcode =
+  } else if (SelectADDRri64(N1.getNode(), N1, Base, Offset)) {
+    Opcode =
           pickOpcodeForVT(TargetVT, RVGPU::LD_i8_ari_64, RVGPU::LD_i16_ari_64,
-                          RVGPU::LD_i32_ari_64, RVGPU::LD_i64_ari_64,
-                          RVGPU::LD_f32_ari_64, RVGPU::LD_f64_ari_64);
-    else
-      Opcode = pickOpcodeForVT(TargetVT, RVGPU::LD_i8_ari, RVGPU::LD_i16_ari,
-                               RVGPU::LD_i32_ari, RVGPU::LD_i64_ari,
-                               RVGPU::LD_f32_ari, RVGPU::LD_f64_ari);
+                          RVGPU::LD_b32_ari_64, RVGPU::LD_b64_ari_64,
+                          RVGPU::LD_b32_ari_64, RVGPU::LD_b64_ari_64);
     if (!Opcode)
       return false;
-    SDValue Ops[] = { getI32Imm(isVolatile, dl), getI32Imm(CodeAddrSpace, dl),
-                      getI32Imm(vecType, dl), getI32Imm(fromType, dl),
-                      getI32Imm(fromTypeWidth, dl), Base, Offset, Chain };
+    SDValue Ops[] = {Base, Offset, Chain };
     RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
   } else {
-    if (PointerSize == 64)
-      Opcode =
+    Opcode =
           pickOpcodeForVT(TargetVT, RVGPU::LD_i8_areg_64, RVGPU::LD_i16_areg_64,
-                          RVGPU::LD_i32_areg_64, RVGPU::LD_i64_areg_64,
-                          RVGPU::LD_f32_areg_64, RVGPU::LD_f64_areg_64);
-    else
-      Opcode = pickOpcodeForVT(TargetVT, RVGPU::LD_i8_areg, RVGPU::LD_i16_areg,
-                               RVGPU::LD_i32_areg, RVGPU::LD_i64_areg,
-                               RVGPU::LD_f32_areg, RVGPU::LD_f64_areg);
+                          RVGPU::LD_b32_areg_64, RVGPU::LD_b64_areg_64,
+                          RVGPU::LD_b32_areg_64, RVGPU::LD_b64_areg_64);
     if (!Opcode)
       return false;
-    SDValue Ops[] = { getI32Imm(isVolatile, dl), getI32Imm(CodeAddrSpace, dl),
-                      getI32Imm(vecType, dl), getI32Imm(fromType, dl),
-                      getI32Imm(fromTypeWidth, dl), N1, Chain };
+    SDValue Ops[] = {N1, Chain };
     RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
   }
 
@@ -1093,140 +1081,65 @@ bool RVGPUDAGToDAGISel::tryLoadVector(SDNode *N) {
       return false;
     case RVGPUISD::LoadV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               RVGPU::LDV_i8_v2_avar, RVGPU::LDV_i16_v2_avar,
-                               RVGPU::LDV_i32_v2_avar, RVGPU::LDV_i64_v2_avar,
-                               RVGPU::LDV_f32_v2_avar, RVGPU::LDV_f64_v2_avar);
+                               RVGPU::LD_b32_avar, RVGPU::LD_b32_avar,
+                               RVGPU::LD_b64_avar, RVGPU::LD_b128_avar,
+                               RVGPU::LD_b64_avar, RVGPU::LD_b128_avar);
       break;
     case RVGPUISD::LoadV4:
       Opcode =
-          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_avar,
-                          RVGPU::LDV_i16_v4_avar, RVGPU::LDV_i32_v4_avar,
-                          std::nullopt, RVGPU::LDV_f32_v4_avar, std::nullopt);
+          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LD_b32_avar,
+                          RVGPU::LD_b64_avar, RVGPU::LD_b128_avar,
+                          std::nullopt, RVGPU::LD_b128_avar, std::nullopt);
       break;
     }
     if (!Opcode)
       return false;
-    SDValue Ops[] = { getI32Imm(IsVolatile, DL), getI32Imm(CodeAddrSpace, DL),
-                      getI32Imm(VecType, DL), getI32Imm(FromType, DL),
-                      getI32Imm(FromTypeWidth, DL), Addr, Chain };
+    SDValue Ops[] = {Addr, Chain };
     LD = CurDAG->getMachineNode(*Opcode, DL, N->getVTList(), Ops);
-  } else if (PointerSize == 64
-                 ? SelectADDRsi64(Op1.getNode(), Op1, Base, Offset)
-                 : SelectADDRsi(Op1.getNode(), Op1, Base, Offset)) {
+  } else if (SelectADDRsi64(Op1.getNode(), Op1, Base, Offset)) {
     switch (N->getOpcode()) {
     default:
       return false;
     case RVGPUISD::LoadV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               RVGPU::LDV_i8_v2_asi, RVGPU::LDV_i16_v2_asi,
-                               RVGPU::LDV_i32_v2_asi, RVGPU::LDV_i64_v2_asi,
-                               RVGPU::LDV_f32_v2_asi, RVGPU::LDV_f64_v2_asi);
+                               RVGPU::LD_b32_asi, RVGPU::LD_b32_asi,
+                               RVGPU::LD_b64_asi, RVGPU::LD_b128_asi,
+                               RVGPU::LD_b64_asi, RVGPU::LD_b128_asi);
       break;
     case RVGPUISD::LoadV4:
       Opcode =
-          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_asi,
-                          RVGPU::LDV_i16_v4_asi, RVGPU::LDV_i32_v4_asi,
-                          std::nullopt, RVGPU::LDV_f32_v4_asi, std::nullopt);
+          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LD_b32_asi,
+                          RVGPU::LD_b64_asi, RVGPU::LD_b128_asi,
+                          std::nullopt, RVGPU::LD_b128_asi, std::nullopt);
       break;
     }
     if (!Opcode)
       return false;
-    SDValue Ops[] = { getI32Imm(IsVolatile, DL), getI32Imm(CodeAddrSpace, DL),
-                      getI32Imm(VecType, DL), getI32Imm(FromType, DL),
-                      getI32Imm(FromTypeWidth, DL), Base, Offset, Chain };
+    SDValue Ops[] = {Base, Offset, Chain };
     LD = CurDAG->getMachineNode(*Opcode, DL, N->getVTList(), Ops);
-  } else if (PointerSize == 64
-                 ? SelectADDRri64(Op1.getNode(), Op1, Base, Offset)
-                 : SelectADDRri(Op1.getNode(), Op1, Base, Offset)) {
-    if (PointerSize == 64) {
+  } else if (SelectADDRri64(Op1.getNode(), Op1, Base, Offset)) {
       switch (N->getOpcode()) {
       default:
         return false;
       case RVGPUISD::LoadV2:
         Opcode =
             pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                            RVGPU::LDV_i8_v2_ari_64, RVGPU::LDV_i16_v2_ari_64,
-                            RVGPU::LDV_i32_v2_ari_64, RVGPU::LDV_i64_v2_ari_64,
-                            RVGPU::LDV_f32_v2_ari_64, RVGPU::LDV_f64_v2_ari_64);
+                            RVGPU::LD_b32_ari_64, RVGPU::LD_b32_ari_64,
+                            RVGPU::LD_b64_ari_64, RVGPU::LD_b128_ari_64,
+                            RVGPU::LD_b64_ari_64, RVGPU::LD_b128_ari_64);
         break;
       case RVGPUISD::LoadV4:
         Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_ari_64,
-            RVGPU::LDV_i16_v4_ari_64, RVGPU::LDV_i32_v4_ari_64, std::nullopt,
-            RVGPU::LDV_f32_v4_ari_64, std::nullopt);
+            EltVT.getSimpleVT().SimpleTy, RVGPU::LD_b32_ari_64,
+            RVGPU::LD_b64_ari_64, RVGPU::LD_b128_ari_64, std::nullopt,
+            RVGPU::LD_b128_ari_64, std::nullopt);
         break;
       }
-    } else {
-      switch (N->getOpcode()) {
-      default:
-        return false;
-      case RVGPUISD::LoadV2:
-        Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 RVGPU::LDV_i8_v2_ari, RVGPU::LDV_i16_v2_ari,
-                                 RVGPU::LDV_i32_v2_ari, RVGPU::LDV_i64_v2_ari,
-                                 RVGPU::LDV_f32_v2_ari, RVGPU::LDV_f64_v2_ari);
-        break;
-      case RVGPUISD::LoadV4:
-        Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_ari,
-                            RVGPU::LDV_i16_v4_ari, RVGPU::LDV_i32_v4_ari,
-                            std::nullopt, RVGPU::LDV_f32_v4_ari, std::nullopt);
-        break;
-      }
-    }
     if (!Opcode)
       return false;
-    SDValue Ops[] = { getI32Imm(IsVolatile, DL), getI32Imm(CodeAddrSpace, DL),
-                      getI32Imm(VecType, DL), getI32Imm(FromType, DL),
-                      getI32Imm(FromTypeWidth, DL), Base, Offset, Chain };
-
-    LD = CurDAG->getMachineNode(*Opcode, DL, N->getVTList(), Ops);
-  } else {
-    if (PointerSize == 64) {
-      switch (N->getOpcode()) {
-      default:
-        return false;
-      case RVGPUISD::LoadV2:
-        Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v2_areg_64,
-            RVGPU::LDV_i16_v2_areg_64, RVGPU::LDV_i32_v2_areg_64,
-            RVGPU::LDV_i64_v2_areg_64, RVGPU::LDV_f32_v2_areg_64,
-            RVGPU::LDV_f64_v2_areg_64);
-        break;
-      case RVGPUISD::LoadV4:
-        Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_areg_64,
-            RVGPU::LDV_i16_v4_areg_64, RVGPU::LDV_i32_v4_areg_64, std::nullopt,
-            RVGPU::LDV_f32_v4_areg_64, std::nullopt);
-        break;
-      }
-    } else {
-      switch (N->getOpcode()) {
-      default:
-        return false;
-      case RVGPUISD::LoadV2:
-        Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v2_areg,
-                            RVGPU::LDV_i16_v2_areg, RVGPU::LDV_i32_v2_areg,
-                            RVGPU::LDV_i64_v2_areg, RVGPU::LDV_f32_v2_areg,
-                            RVGPU::LDV_f64_v2_areg);
-        break;
-      case RVGPUISD::LoadV4:
-        Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::LDV_i8_v4_areg,
-                            RVGPU::LDV_i16_v4_areg, RVGPU::LDV_i32_v4_areg,
-                            std::nullopt, RVGPU::LDV_f32_v4_areg, std::nullopt);
-        break;
-      }
-    }
-    if (!Opcode)
-      return false;
-    SDValue Ops[] = { getI32Imm(IsVolatile, DL), getI32Imm(CodeAddrSpace, DL),
-                      getI32Imm(VecType, DL), getI32Imm(FromType, DL),
-                      getI32Imm(FromTypeWidth, DL), Op1, Chain };
+    SDValue Ops[] = {Base, Offset, Chain };
     LD = CurDAG->getMachineNode(*Opcode, DL, N->getVTList(), Ops);
   }
-
   MachineMemOperand *MemRef = cast<MemSDNode>(N)->getMemOperand();
   CurDAG->setNodeMemRefs(cast<MachineSDNode>(LD), {MemRef});
 
@@ -1717,81 +1630,47 @@ bool RVGPUDAGToDAGISel::tryStore(SDNode *N) {
       Value.getNode()->getSimpleValueType(0).SimpleTy;
 
   if (SelectDirectAddr(BasePtr, Addr)) {
-    Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_i8_avar, RVGPU::ST_i16_avar,
-                             RVGPU::ST_i32_avar, RVGPU::ST_i64_avar,
-                             RVGPU::ST_f32_avar, RVGPU::ST_f64_avar);
+    Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_b8_avar, RVGPU::ST_b16_avar,
+                             RVGPU::ST_b32_avar, RVGPU::ST_b64_avar,
+                             RVGPU::ST_b32_avar, RVGPU::ST_b64_avar);
     if (!Opcode)
       return false;
     SDValue Ops[] = {Value,
-                     getI32Imm(isVolatile, dl),
-                     getI32Imm(CodeAddrSpace, dl),
-                     getI32Imm(vecType, dl),
-                     getI32Imm(toType, dl),
-                     getI32Imm(toTypeWidth, dl),
                      Addr,
                      Chain};
     RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
-  } else if (PointerSize == 64
-                 ? SelectADDRsi64(BasePtr.getNode(), BasePtr, Base, Offset)
-                 : SelectADDRsi(BasePtr.getNode(), BasePtr, Base, Offset)) {
-    Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_i8_asi, RVGPU::ST_i16_asi,
-                             RVGPU::ST_i32_asi, RVGPU::ST_i64_asi,
-                             RVGPU::ST_f32_asi, RVGPU::ST_f64_asi);
+  } else if (SelectADDRsi64(BasePtr.getNode(), BasePtr, Base, Offset)) {
+    Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_b8_asi, RVGPU::ST_b16_asi,
+                             RVGPU::ST_b32_asi, RVGPU::ST_b64_asi,
+                             RVGPU::ST_b32_asi, RVGPU::ST_b64_asi);
     if (!Opcode)
       return false;
-    SDValue Ops[] = {Value,
-                     getI32Imm(isVolatile, dl),
-                     getI32Imm(CodeAddrSpace, dl),
-                     getI32Imm(vecType, dl),
-                     getI32Imm(toType, dl),
-                     getI32Imm(toTypeWidth, dl),
+    SDValue Ops[] = {Value,                     
                      Base,
                      Offset,
                      Chain};
     RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
-  } else if (PointerSize == 64
-                 ? SelectADDRri64(BasePtr.getNode(), BasePtr, Base, Offset)
-                 : SelectADDRri(BasePtr.getNode(), BasePtr, Base, Offset)) {
-    if (PointerSize == 64)
-      Opcode =
-          pickOpcodeForVT(SourceVT, RVGPU::ST_i8_ari_64, RVGPU::ST_i16_ari_64,
-                          RVGPU::ST_i32_ari_64, RVGPU::ST_i64_ari_64,
-                          RVGPU::ST_f32_ari_64, RVGPU::ST_f64_ari_64);
-    else
-      Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_i8_ari, RVGPU::ST_i16_ari,
-                               RVGPU::ST_i32_ari, RVGPU::ST_i64_ari,
-                               RVGPU::ST_f32_ari, RVGPU::ST_f64_ari);
+  } else if (SelectADDRri64(BasePtr.getNode(), BasePtr, Base, Offset)) {
+    Opcode =
+          pickOpcodeForVT(SourceVT, RVGPU::ST_b8_ari_64, RVGPU::ST_b16_ari_64,
+                          RVGPU::ST_b32_ari_64, RVGPU::ST_b64_ari_64,
+                          RVGPU::ST_b32_ari_64, RVGPU::ST_b64_ari_64);
     if (!Opcode)
       return false;
 
     SDValue Ops[] = {Value,
-                     getI32Imm(isVolatile, dl),
-                     getI32Imm(CodeAddrSpace, dl),
-                     getI32Imm(vecType, dl),
-                     getI32Imm(toType, dl),
-                     getI32Imm(toTypeWidth, dl),
                      Base,
                      Offset,
                      Chain};
     RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
   } else {
-    if (PointerSize == 64)
-      Opcode =
-          pickOpcodeForVT(SourceVT, RVGPU::ST_i8_areg_64, RVGPU::ST_i16_areg_64,
-                          RVGPU::ST_i32_areg_64, RVGPU::ST_i64_areg_64,
-                          RVGPU::ST_f32_areg_64, RVGPU::ST_f64_areg_64);
-    else
-      Opcode = pickOpcodeForVT(SourceVT, RVGPU::ST_i8_areg, RVGPU::ST_i16_areg,
-                               RVGPU::ST_i32_areg, RVGPU::ST_i64_areg,
-                               RVGPU::ST_f32_areg, RVGPU::ST_f64_areg);
+    Opcode =
+          pickOpcodeForVT(SourceVT, RVGPU::ST_b8_areg_64, RVGPU::ST_b16_areg_64,
+                          RVGPU::ST_b32_areg_64, RVGPU::ST_b64_areg_64,
+                          RVGPU::ST_b32_areg_64, RVGPU::ST_b64_areg_64);
     if (!Opcode)
       return false;
-    SDValue Ops[] = {Value,
-                     getI32Imm(isVolatile, dl),
-                     getI32Imm(CodeAddrSpace, dl),
-                     getI32Imm(vecType, dl),
-                     getI32Imm(toType, dl),
-                     getI32Imm(toTypeWidth, dl),
+    SDValue Ops[] = {Value,                     
                      BasePtr,
                      Chain};
     RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
@@ -1873,128 +1752,87 @@ bool RVGPUDAGToDAGISel::tryStoreVector(SDNode *N) {
     ToType = RVGPU::PTXLdStInstCode::Untyped;
     ToTypeWidth = 32;
   }
-
+/*
   StOps.push_back(getI32Imm(IsVolatile, DL));
   StOps.push_back(getI32Imm(CodeAddrSpace, DL));
   StOps.push_back(getI32Imm(VecType, DL));
   StOps.push_back(getI32Imm(ToType, DL));
   StOps.push_back(getI32Imm(ToTypeWidth, DL));
-
+*/
   if (SelectDirectAddr(N2, Addr)) {
     switch (N->getOpcode()) {
     default:
       return false;
     case RVGPUISD::StoreV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               RVGPU::STV_i8_v2_avar, RVGPU::STV_i16_v2_avar,
-                               RVGPU::STV_i32_v2_avar, RVGPU::STV_i64_v2_avar,
-                               RVGPU::STV_f32_v2_avar, RVGPU::STV_f64_v2_avar);
+                               RVGPU::ST_b32_avar, RVGPU::ST_b32_avar,
+                               RVGPU::ST_b64_avar, RVGPU::ST_b128_avar,
+                               RVGPU::ST_b64_avar, RVGPU::ST_b128_avar);
       break;
     case RVGPUISD::StoreV4:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               RVGPU::STV_i8_v4_avar, RVGPU::STV_i16_v4_avar,
-                               RVGPU::STV_i32_v4_avar, std::nullopt,
-                               RVGPU::STV_f32_v4_avar, std::nullopt);
+                               RVGPU::ST_b32_avar, RVGPU::ST_b64_avar,
+                               RVGPU::ST_b128_avar, std::nullopt,
+                               RVGPU::ST_b128_avar, std::nullopt);
       break;
     }
     StOps.push_back(Addr);
-  } else if (PointerSize == 64 ? SelectADDRsi64(N2.getNode(), N2, Base, Offset)
-                               : SelectADDRsi(N2.getNode(), N2, Base, Offset)) {
+  } else if (SelectADDRsi64(N2.getNode(), N2, Base, Offset)){
     switch (N->getOpcode()) {
     default:
       return false;
     case RVGPUISD::StoreV2:
       Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                               RVGPU::STV_i8_v2_asi, RVGPU::STV_i16_v2_asi,
-                               RVGPU::STV_i32_v2_asi, RVGPU::STV_i64_v2_asi,
-                               RVGPU::STV_f32_v2_asi, RVGPU::STV_f64_v2_asi);
+                               RVGPU::ST_b32_asi, RVGPU::ST_b32_asi,
+                               RVGPU::ST_b64_asi, RVGPU::ST_b128_asi,
+                               RVGPU::ST_b64_asi, RVGPU::ST_b128_asi);
       break;
     case RVGPUISD::StoreV4:
       Opcode =
-          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v4_asi,
-                          RVGPU::STV_i16_v4_asi, RVGPU::STV_i32_v4_asi,
-                          std::nullopt, RVGPU::STV_f32_v4_asi, std::nullopt);
+          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::ST_b32_asi,
+                          RVGPU::ST_b64_asi, RVGPU::ST_b128_asi,
+                          std::nullopt, RVGPU::ST_b128_asi, std::nullopt);
       break;
     }
     StOps.push_back(Base);
     StOps.push_back(Offset);
-  } else if (PointerSize == 64 ? SelectADDRri64(N2.getNode(), N2, Base, Offset)
-                               : SelectADDRri(N2.getNode(), N2, Base, Offset)) {
-    if (PointerSize == 64) {
-      switch (N->getOpcode()) {
-      default:
-        return false;
-      case RVGPUISD::StoreV2:
-        Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                            RVGPU::STV_i8_v2_ari_64, RVGPU::STV_i16_v2_ari_64,
-                            RVGPU::STV_i32_v2_ari_64, RVGPU::STV_i64_v2_ari_64,
-                            RVGPU::STV_f32_v2_ari_64, RVGPU::STV_f64_v2_ari_64);
-        break;
-      case RVGPUISD::StoreV4:
-        Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v4_ari_64,
-            RVGPU::STV_i16_v4_ari_64, RVGPU::STV_i32_v4_ari_64, std::nullopt,
-            RVGPU::STV_f32_v4_ari_64, std::nullopt);
-        break;
-      }
-    } else {
-      switch (N->getOpcode()) {
-      default:
-        return false;
-      case RVGPUISD::StoreV2:
-        Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 RVGPU::STV_i8_v2_ari, RVGPU::STV_i16_v2_ari,
-                                 RVGPU::STV_i32_v2_ari, RVGPU::STV_i64_v2_ari,
-                                 RVGPU::STV_f32_v2_ari, RVGPU::STV_f64_v2_ari);
-        break;
-      case RVGPUISD::StoreV4:
-        Opcode = pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
-                                 RVGPU::STV_i8_v4_ari, RVGPU::STV_i16_v4_ari,
-                                 RVGPU::STV_i32_v4_ari, std::nullopt,
-                                 RVGPU::STV_f32_v4_ari, std::nullopt);
-        break;
-      }
+  } else if (SelectADDRri64(N2.getNode(), N2, Base, Offset)) {
+    switch (N->getOpcode()) {
+    default:
+      return false;
+    case RVGPUISD::StoreV2:
+      Opcode =
+          pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy,
+                          RVGPU::ST_b32_ari_64, RVGPU::ST_b32_ari_64,
+                          RVGPU::ST_b64_ari_64, RVGPU::ST_b128_ari_64,
+                          RVGPU::ST_b64_ari_64, RVGPU::ST_b128_ari_64);
+      break;
+    case RVGPUISD::StoreV4:
+      Opcode = pickOpcodeForVT(
+          EltVT.getSimpleVT().SimpleTy, RVGPU::ST_b32_ari_64,
+          RVGPU::ST_b64_ari_64, RVGPU::ST_b128_ari_64, std::nullopt,
+          RVGPU::ST_b128_ari_64, std::nullopt);
+      break;
     }
     StOps.push_back(Base);
     StOps.push_back(Offset);
   } else {
-    if (PointerSize == 64) {
-      switch (N->getOpcode()) {
-      default:
-        return false;
-      case RVGPUISD::StoreV2:
-        Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v2_areg_64,
-            RVGPU::STV_i16_v2_areg_64, RVGPU::STV_i32_v2_areg_64,
-            RVGPU::STV_i64_v2_areg_64, RVGPU::STV_f32_v2_areg_64,
-            RVGPU::STV_f64_v2_areg_64);
-        break;
-      case RVGPUISD::StoreV4:
-        Opcode = pickOpcodeForVT(
-            EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v4_areg_64,
-            RVGPU::STV_i16_v4_areg_64, RVGPU::STV_i32_v4_areg_64, std::nullopt,
-            RVGPU::STV_f32_v4_areg_64, std::nullopt);
-        break;
-      }
-    } else {
-      switch (N->getOpcode()) {
-      default:
-        return false;
-      case RVGPUISD::StoreV2:
-        Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v2_areg,
-                            RVGPU::STV_i16_v2_areg, RVGPU::STV_i32_v2_areg,
-                            RVGPU::STV_i64_v2_areg, RVGPU::STV_f32_v2_areg,
-                            RVGPU::STV_f64_v2_areg);
-        break;
-      case RVGPUISD::StoreV4:
-        Opcode =
-            pickOpcodeForVT(EltVT.getSimpleVT().SimpleTy, RVGPU::STV_i8_v4_areg,
-                            RVGPU::STV_i16_v4_areg, RVGPU::STV_i32_v4_areg,
-                            std::nullopt, RVGPU::STV_f32_v4_areg, std::nullopt);
-        break;
-      }
+    switch (N->getOpcode()) {
+    default:
+      return false;
+    case RVGPUISD::StoreV2:
+      Opcode = pickOpcodeForVT(
+          EltVT.getSimpleVT().SimpleTy, RVGPU::ST_b32_areg_64,
+          RVGPU::ST_b32_areg_64, RVGPU::ST_b64_areg_64,
+          RVGPU::ST_b128_areg_64, RVGPU::ST_b64_areg_64,
+          RVGPU::ST_b128_areg_64);
+      break;
+    case RVGPUISD::StoreV4:
+      Opcode = pickOpcodeForVT(
+          EltVT.getSimpleVT().SimpleTy, RVGPU::ST_b32_areg_64,
+          RVGPU::ST_b64_areg_64, RVGPU::ST_b128_areg_64, std::nullopt,
+          RVGPU::ST_b128_areg_64, std::nullopt);
+      break;
     }
     StOps.push_back(N2);
   }

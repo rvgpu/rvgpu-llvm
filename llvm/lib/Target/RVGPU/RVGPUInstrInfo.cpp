@@ -13,6 +13,7 @@
 #include "RVGPUInstrInfo.h"
 #include "RVGPU.h"
 #include "RVGPUTargetMachine.h"
+#include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"

@@ -10,7 +10,7 @@
 // of machine-dependent LLVM code to RVGPU assembly language.
 //
 //===----------------------------------------------------------------------===//
-
+#include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVGPUAsmPrinter.h"
 #include "MCTargetDesc/RVGPUBaseInfo.h"
 #include "MCTargetDesc/RVGPUInstPrinter.h"
@@ -2195,9 +2195,6 @@ void RVGPUAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNum,
   switch (MO.getType()) {
   case MachineOperand::MO_Register:
     if (MO.getReg().isPhysical()) {
-      if (MO.getReg() == RVGPU::VRDepot)
-        O << DEPOTNAME << getFunctionNumber();
-      else
         O << RVGPUInstPrinter::getRegisterName(MO.getReg());
     } else {
       emitVirtualRegister(MO.getReg(), O);

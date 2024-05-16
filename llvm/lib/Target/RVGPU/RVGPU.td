@@ -14,6 +14,15 @@
 
 include "llvm/Target/Target.td"
 
+
+def p0 : PtrValueType<i64, 0>;
+def p1 : PtrValueType<i64, 1>;
+def p2 : PtrValueType<i32, 2>;
+def p3 : PtrValueType<i32, 3>;
+def p4 : PtrValueType<i64, 4>;
+def p5 : PtrValueType<i32, 5>;
+def p6 : PtrValueType<i32, 6>;
+
 include "RVGPURegisterInfo.td"
 include "RVGPUInstrInfo.td"
 

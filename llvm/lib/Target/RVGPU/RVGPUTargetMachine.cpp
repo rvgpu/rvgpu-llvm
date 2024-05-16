@@ -25,6 +25,7 @@
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
+#include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/IR/IntrinsicsRVGPU.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Pass.h"
@@ -42,13 +43,59 @@
 
 using namespace llvm;
 
+namespace {
+class GPRRegisterRegAlloc : public RegisterRegAllocBase<GPRRegisterRegAlloc> {
+public:
+  GPRRegisterRegAlloc(const char *N, const char *D, FunctionPassCtor C)
+    : RegisterRegAllocBase(N, D, C) {}
+};
+
+static FunctionPass *useDefaultRegisterAllocator() { return nullptr; }
+
+
+static llvm::once_flag InitializeDefaultGPRRegisterAllocatorFlag;
+
+static cl::opt<GPRRegisterRegAlloc::FunctionPassCtor, false,
+               RegisterPassParser<GPRRegisterRegAlloc>>
+GPRRegAlloc("gpr-regalloc", cl::Hidden, cl::init(&useDefaultRegisterAllocator),
+             cl::desc("Register allocator to use for GPRs"));
+
+static void initializeDefaultGPRRegisterAllocatorOnce() {
+  RegisterRegAlloc::FunctionPassCtor Ctor = GPRRegisterRegAlloc::getDefault();
+
+  if (!Ctor) {
+    Ctor = GPRRegAlloc;
+    GPRRegisterRegAlloc::setDefault(GPRRegAlloc);
+  }
+}
+
+static FunctionPass *createBasicGPRRegisterAllocator() {
+  return createBasicRegisterAllocator();
+}
+
+static FunctionPass *createGreedyGPRRegisterAllocator() {
+  return createGreedyRegisterAllocator();
+}
+
+static FunctionPass *createFastGPRRegisterAllocator() {
+  return createFastRegisterAllocator();
+}
+
+static GPRRegisterRegAlloc basicRegAllocGPR(
+  "basic", "basic register allocator", createBasicGPRRegisterAllocator);
+static GPRRegisterRegAlloc greedyRegAllocGPR(
+  "greedy", "greedy register allocator", createGreedyGPRRegisterAllocator);
+
+static GPRRegisterRegAlloc fastRegAllocGPR(
+  "fast", "fast register allocator", createFastGPRRegisterAllocator);
+
+}
 // LSV is still relatively new; this switch lets us turn it off in case we
 // encounter (or suspect) a bug.
 static cl::opt<bool>
     DisableLoadStoreVectorizer("disable-rvgpu-load-store-vectorizer",
                                cl::desc("Disable load/store vectorizer"),
                                cl::init(false), cl::Hidden);
-
 // TODO: Remove this flag when we are confident with no regressions.
 static cl::opt<bool> DisableRequireStructuredCFG(
     "disable-rvgpu-require-structured-cfg",
@@ -62,6 +109,8 @@ static cl::opt<bool> UseShortPointersOpt(
     cl::desc(
         "Use 32-bit pointers for accessing const/local/shared address spaces."),
     cl::init(false), cl::Hidden);
+
+
 
 namespace llvm {
 
@@ -183,17 +232,15 @@ public:
   void addPostRegAlloc() override;
   void addMachineSSAOptimization() override;
 
-  FunctionPass *createTargetRegisterAllocator(bool) override;
   void addFastRegAlloc() override;
   void addOptimizedRegAlloc() override;
 
-  bool addRegAssignAndRewriteFast() override {
-    llvm_unreachable("should not be used");
-  }
+  bool addRegAssignAndRewriteFast() override;
 
-  bool addRegAssignAndRewriteOptimized() override {
-    llvm_unreachable("should not be used");
-  }
+  bool addRegAssignAndRewriteOptimized() override;
+
+  FunctionPass *createGPRAllocPass(bool Optimized);
+  FunctionPass *createRegAllocPass(bool Optimized) override;
 
 private:
   // If the opt level is aggressive, add GVN; otherwise, add EarlyCSE. This
@@ -414,8 +461,8 @@ bool RVGPUPassConfig::addInstSelector() {
   addPass(createRVGPUAllocaHoisting());
   addPass(createRVGPUISelDag(getRVGPUTargetMachine(), getOptLevel()));
 
-  if (!ST.hasImageHandles())
-    addPass(createRVGPUReplaceImageHandlesPass());
+//  if (!ST.hasImageHandles())
+ //   addPass(createRVGPUReplaceImageHandlesPass());
 
   return false;
 }
@@ -435,13 +482,72 @@ void RVGPUPassConfig::addPostRegAlloc() {
   }
 }
 
-FunctionPass *RVGPUPassConfig::createTargetRegisterAllocator(bool) {
-  return nullptr; // No reg alloc
-}
-
 void RVGPUPassConfig::addFastRegAlloc() {
   addPass(&PHIEliminationID);
   addPass(&TwoAddressInstructionPassID);
+}
+
+FunctionPass *RVGPUPassConfig::createGPRAllocPass(bool Optimized) {
+  // Initialize the global default.
+  llvm::call_once(InitializeDefaultGPRRegisterAllocatorFlag,
+                  initializeDefaultGPRRegisterAllocatorOnce);
+
+  RegisterRegAlloc::FunctionPassCtor Ctor = GPRRegisterRegAlloc::getDefault();
+  if (Ctor != useDefaultRegisterAllocator)
+    return Ctor();
+
+  if (Optimized)
+    return createGreedyGPRRegisterAllocator();
+
+  return createFastGPRRegisterAllocator();
+}
+
+static const char RegAllocOptNotSupportedMessage[] =
+  "-regalloc not supported with rvgpu. Use gpr-regalloc";
+
+FunctionPass *RVGPUPassConfig::createRegAllocPass(bool Optimized) {
+  llvm_unreachable("should not be used");
+}
+
+bool RVGPUPassConfig::addRegAssignAndRewriteFast() {
+  if (!usingDefaultRegAlloc())
+    report_fatal_error(RegAllocOptNotSupportedMessage);
+#if 0
+  addPass(&GCNPreRALongBranchRegID);
+  addPass(createSGPRAllocPass(false));
+  // Equivalent of PEI for SGPRs.
+  addPass(&SILowerSGPRSpillsID);
+  addPass(&SIPreAllocateWWMRegsID);
+#endif 
+  addPass(createGPRAllocPass(false));
+
+  //addPass(&SILowerWWMCopiesID);
+  return true;
+}
+
+bool RVGPUPassConfig::addRegAssignAndRewriteOptimized() {
+  if (!usingDefaultRegAlloc())
+    report_fatal_error(RegAllocOptNotSupportedMessage);
+#if 0
+  addPass(&GCNPreRALongBranchRegID);
+  addPass(createSGPRAllocPass(true));
+#endif 
+  // Commit allocated register changes. This is mostly necessary because too
+  // many things rely on the use lists of the physical registers, such as the
+  // verifier. This is only necessary with allocators which use LiveIntervals,
+  // since FastRegAlloc does the replacements itself.
+  addPass(createVirtRegRewriter(false));
+#if 0
+  // Equivalent of PEI for SGPRs.
+  addPass(&SILowerSGPRSpillsID);
+  addPass(&SIPreAllocateWWMRegsID);
+#endif 
+  addPass(createGPRAllocPass(true));
+
+  addPreRewrite();
+  addPass(&VirtRegRewriterID);
+
+  return true;
 }
 
 void RVGPUPassConfig::addOptimizedRegAlloc() {

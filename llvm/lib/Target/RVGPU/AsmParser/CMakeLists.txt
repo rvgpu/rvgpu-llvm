@@ -2,10 +2,12 @@ add_llvm_component_library(LLVMRVGPUAsmParser
   RVGPUAsmParser.cpp
 
   LINK_COMPONENTS
-  MC
-  MCParser
   RVGPUDesc
   RVGPUInfo
+#  RVGPUUtils
+  CodeGenTypes
+  MC
+  MCParser
   Support
   TargetParser
 

@@ -22,6 +22,17 @@ class Enc64 {
   int Size = 8;
 }
 
+class VOPDstOperand <RegisterClass rc> : RegisterOperand <rc, "printVOPDst">;
+
+def VOPDstOperand_t16 : VOPDstOperand <GPR16> {
+  let EncoderMethod = "getMachineOpValueT16";
+  let DecoderMethod = "DecodeGPR_16RegisterClass";
+}
+
+def VOPDstOperand_t16Lo128 : VOPDstOperand <GPR16_Lo128> {
+  let EncoderMethod = "getMachineOpValueT16Lo128";
+  let DecoderMethod = "DecodeGPR16_Lo128RegisterClass";
+}
 // Generic RVGPU Format
 
 class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
@@ -114,6 +125,33 @@ class RVGPULDri<bits<8> op1, bits<3> type, bits<8> op2,
   let Inst{55-53} = type;
   let Inst{52-45} = op2;
   let Inst{31-24} = dst;
+  let Inst{23-16} = addr;
+  let Inst{15-0}  = offset;
+}
+
+class RVGPUSTrr<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> addr = 0;
+  bits<8> src1 = 0;
+
+  let Inst{63-56} = 0b11000110;
+  let Inst{55-53} = 0b000;
+  let Inst{52-45} = op;
+  let Inst{31-24} = src1;
+  let Inst{23-16} = addr;
+  let Inst{15-0} = 0;
+}
+
+class RVGPUSTri<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> src1 = 0;
+  bits<8> addr = 0;
+  bits<16> offset = 0;
+
+  let Inst{63-56} = 0b11000110;
+  let Inst{55-53} = 0b000;
+  let Inst{52-45} = op;
+  let Inst{31-24} = src1;
   let Inst{23-16} = addr;
   let Inst{15-0}  = offset;
 }

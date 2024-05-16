@@ -13,6 +13,7 @@
 #ifndef LLVM_LIB_TARGET_RVGPU_RVGPUISELDAGTODAG_H
 #define LLVM_LIB_TARGET_RVGPU_RVGPUISELDAGTODAG_H
 
+#include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "MCTargetDesc/RVGPUBaseInfo.h"
 #include "RVGPU.h"
 #include "RVGPUISelLowering.h"

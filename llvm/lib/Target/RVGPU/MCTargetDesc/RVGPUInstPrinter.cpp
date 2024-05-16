@@ -12,6 +12,7 @@
 
 #include "MCTargetDesc/RVGPUInstPrinter.h"
 #include "MCTargetDesc/RVGPUBaseInfo.h"
+#include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "RVGPU.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"

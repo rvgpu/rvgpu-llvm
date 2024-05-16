@@ -43,7 +43,7 @@ ModulePass *createRVGPUCtorDtorLoweringLegacyPass();
 FunctionPass *createNVVMIntrRangePass();
 FunctionPass *createNVVMReflectPass(unsigned int SmVersion);
 MachineFunctionPass *createRVGPUPrologEpilogPass();
-MachineFunctionPass *createRVGPUReplaceImageHandlesPass();
+//MachineFunctionPass *createRVGPUReplaceImageHandlesPass();
 FunctionPass *createRVGPUImageOptimizerPass();
 FunctionPass *createRVGPULowerArgsPass();
 FunctionPass *createRVGPULowerAllocaPass();
@@ -199,12 +199,13 @@ void initializeRVGPUDAGToDAGISelPass(PassRegistry &);
 
 // Defines symbolic names for RVGPU registers.  This defines a mapping from
 // register name to register number.
-#define GET_REGINFO_ENUM
-#include "RVGPUGenRegisterInfo.inc"
+//#define GET_REGINFO_ENUM
+//#include "RVGPUGenRegisterInfo.inc"
 
 // Defines symbolic names for the RVGPU instructions.
+/*
 #define GET_INSTRINFO_ENUM
 #define GET_INSTRINFO_MC_HELPER_DECLS
 #include "RVGPUGenInstrInfo.inc"
-
+*/
 #endif
