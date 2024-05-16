@@ -3023,15 +3023,15 @@ SDValue RVGPUTargetLowering::getParamSymbol(SelectionDAG &DAG, int idx,
 }
 
 static const MCPhysReg ArgGPRs[] = {
-  RVGPU::R0,
-  RVGPU::R2,
-  RVGPU::R4,
-  RVGPU::R6,
-  RVGPU::R8,
-  RVGPU::R10, 
-  RVGPU::R12, 
-  RVGPU::R14,
-  RVGPU::R16
+  RVGPU::GPR_0,
+  RVGPU::GPR_2,
+  RVGPU::GPR_4,
+  RVGPU::GPR_6,
+  RVGPU::GPR_8,
+  RVGPU::GPR_10, 
+  RVGPU::GPR_12, 
+  RVGPU::GPR_14,
+  RVGPU::GPR_16
 };
 
 SDValue RVGPUTargetLowering::LowerFormalArguments(

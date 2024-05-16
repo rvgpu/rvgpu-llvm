@@ -485,6 +485,7 @@ void RVGPUPassConfig::addPostRegAlloc() {
 void RVGPUPassConfig::addFastRegAlloc() {
   addPass(&PHIEliminationID);
   addPass(&TwoAddressInstructionPassID);
+  TargetPassConfig::addFastRegAlloc();
 }
 
 FunctionPass *RVGPUPassConfig::createGPRAllocPass(bool Optimized) {
@@ -554,10 +555,10 @@ void RVGPUPassConfig::addOptimizedRegAlloc() {
   addPass(&ProcessImplicitDefsID);
   addPass(&LiveVariablesID);
   addPass(&MachineLoopInfoID);
-  addPass(&PHIEliminationID);
+//  addPass(&PHIEliminationID);
 
-  addPass(&TwoAddressInstructionPassID);
-  addPass(&RegisterCoalescerID);
+//  addPass(&TwoAddressInstructionPassID);
+//  addPass(&RegisterCoalescerID);
 
   // PreRA instruction scheduling.
   if (addPass(&MachineSchedulerID))
@@ -569,9 +570,11 @@ void RVGPUPassConfig::addOptimizedRegAlloc() {
   // addPass(&MachineLICMID);
 
   printAndVerify("After StackSlotColoring");
+  TargetPassConfig::addOptimizedRegAlloc();
 }
 
 void RVGPUPassConfig::addMachineSSAOptimization() {
+  TargetPassConfig::addMachineSSAOptimization();
   // Pre-ra tail duplication.
   if (addPass(&EarlyTailDuplicateID))
     printAndVerify("After Pre-RegAlloc TailDuplicate");

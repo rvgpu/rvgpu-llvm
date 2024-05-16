@@ -282,43 +282,43 @@ def GPR32_Lo128 : RVGPURegClass<!listconcat(Reg32Types.types, Reg16Types.types),
 }
 
 // GPR 64-bit registers
-def VReg64 : RVRegisterTuples<getSubRegs<2>.ret, GPR32, 127, 1, 2, "v">;
+def VReg64 : RVRegisterTuples<getSubRegs<2>.ret, GPR32, 127, 1, 2, "r">;
 
 // GPR 96-bit registers
-def VReg96 : RVRegisterTuples<getSubRegs<3>.ret, GPR32, 127, 1, 3, "v">;
+def VReg96 : RVRegisterTuples<getSubRegs<3>.ret, GPR32, 127, 1, 3, "r">;
 
 // GPR 128-bit registers
-def VReg128 : RVRegisterTuples<getSubRegs<4>.ret, GPR32, 127, 1, 4, "v">;
+def VReg128 : RVRegisterTuples<getSubRegs<4>.ret, GPR32, 127, 1, 4, "r">;
 
 // GPR 160-bit registers
-def VReg160 : RVRegisterTuples<getSubRegs<5>.ret, GPR32, 127, 1, 5, "v">;
+def VReg160 : RVRegisterTuples<getSubRegs<5>.ret, GPR32, 127, 1, 5, "r">;
 
 // GPR 192-bit registers
-def VReg192 : RVRegisterTuples<getSubRegs<6>.ret, GPR32, 127, 1, 6, "v">;
+def VReg192 : RVRegisterTuples<getSubRegs<6>.ret, GPR32, 127, 1, 6, "r">;
 
 // GPR 224-bit registers
-def VReg224 : RVRegisterTuples<getSubRegs<7>.ret, GPR32, 127, 1, 7, "v">;
+def VReg224 : RVRegisterTuples<getSubRegs<7>.ret, GPR32, 127, 1, 7, "r">;
 
 // GPR 256-bit registers
-def VReg256 : RVRegisterTuples<getSubRegs<8>.ret, GPR32, 127, 1, 8, "v">;
+def VReg256 : RVRegisterTuples<getSubRegs<8>.ret, GPR32, 127, 1, 8, "r">;
 
 // GPR 288-bit registers
-def VReg288 : RVRegisterTuples<getSubRegs<9>.ret, GPR32, 127, 1, 9, "v">;
+def VReg288 : RVRegisterTuples<getSubRegs<9>.ret, GPR32, 127, 1, 9, "r">;
 
 // GPR 320-bit registers
-def VReg320 : RVRegisterTuples<getSubRegs<10>.ret, GPR32, 127, 1, 10, "v">;
+def VReg320 : RVRegisterTuples<getSubRegs<10>.ret, GPR32, 127, 1, 10, "r">;
 
 // GPR 352-bit registers
-def VReg352 : RVRegisterTuples<getSubRegs<11>.ret, GPR32, 127, 1, 11, "v">;
+def VReg352 : RVRegisterTuples<getSubRegs<11>.ret, GPR32, 127, 1, 11, "r">;
 
 // GPR 384-bit registers
-def VReg384 : RVRegisterTuples<getSubRegs<12>.ret, GPR32, 127, 1, 12, "v">;
+def VReg384 : RVRegisterTuples<getSubRegs<12>.ret, GPR32, 127, 1, 12, "r">;
 
 // GPR 512-bit registers
-def VReg512 : RVRegisterTuples<getSubRegs<16>.ret, GPR32, 127, 1, 16, "v">;
+def VReg512 : RVRegisterTuples<getSubRegs<16>.ret, GPR32, 127, 1, 16, "r">;
 
 // GPR 1024-bit registers
-def VReg1024 : RVRegisterTuples<getSubRegs<32>.ret, GPR32, 127, 1, 32, "v">;
+def VReg1024 : RVRegisterTuples<getSubRegs<32>.ret, GPR32, 127, 1, 32, "r">;
 
 // Register class for all vector registers (VGPRs + Interpolation Registers)
 class RegClassBase<int numRegs, list<ValueType> regTypes, dag regList> :

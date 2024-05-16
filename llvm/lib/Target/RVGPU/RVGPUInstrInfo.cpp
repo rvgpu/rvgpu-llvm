@@ -35,7 +35,8 @@ void RVGPUInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  const DebugLoc &DL, MCRegister DestReg,
                                  MCRegister SrcReg, bool KillSrc) const {
   const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
-  const TargetRegisterClass *DestRC = MRI.getRegClass(DestReg);
+  //const TargetRegisterClass *DestRC = MRI.getRegClass(DestReg);
+  const TargetRegisterClass *DestRC = RegInfo.getPhysRegBaseClass(DestReg);
   // const TargetRegisterClass *SrcRC = MRI.getRegClass(SrcReg);
 
   // if (RegInfo.getRegSizeInBits(*DestRC) != RegInfo.getRegSizeInBits(*SrcRC))
