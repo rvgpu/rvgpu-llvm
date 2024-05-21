@@ -393,6 +393,7 @@ void RVGPULowerArgs::markPointerAsGlobal(Value *Ptr) {
   if (Ptr->getType()->getPointerAddressSpace() != ADDRESS_SPACE_GENERIC)
     return;
 
+  return;
   // Deciding where to emit the addrspacecast pair.
   BasicBlock::iterator InsertPt;
   if (Argument *Arg = dyn_cast<Argument>(Ptr)) {
