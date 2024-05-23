@@ -193,3 +193,14 @@ unsigned RVGPUInstrInfo::insertBranch(MachineBasicBlock &MBB,
   BuildMI(&MBB, DL, get(RVGPU::GOTO)).addMBB(FBB);
   return 2;
 }
+#define GET_INSTRINFO_NAMED_OPS  
+#include "RVGPUGenInstrInfo.inc"
+
+MachineOperand*
+RVGPUInstrInfo::getNamedOperand(MachineInstr &MI, unsigned OperandName) const {
+  int Idx = RVGPU::getNamedOperandIdx(MI.getOpcode(), OperandName);
+  if (Idx == -1)
+      return nullptr;
+
+  return &MI.getOperand(Idx);
+}

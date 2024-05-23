@@ -352,3 +352,8 @@ void RVGPUInstPrinter::printPrmtMode(const MCInst *MI, int OpNum,
     break;
   }
 }
+
+void RVGPUInstPrinter::printRegOperand(unsigned RegNo, raw_ostream &O,
+                                       const MCRegisterInfo &MRI) {
+  O << getRegisterName(RegNo);
+}

@@ -53,6 +53,7 @@ public:
   }
 
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+  static int64_t getNullPointerValue(unsigned AddrSpace);
 
   // Emission of machine code through MCJIT is not supported.
   bool addPassesToEmitMC(PassManagerBase &, MCContext *&, raw_pwrite_stream &,

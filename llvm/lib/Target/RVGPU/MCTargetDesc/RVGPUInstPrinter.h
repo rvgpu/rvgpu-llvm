@@ -34,6 +34,8 @@ public:
   void printInstruction(const MCInst *MI, uint64_t Address,
                         const MCSubtargetInfo &STI, raw_ostream &O);
   static const char *getRegisterName(MCRegister Reg);
+  static void printRegOperand(unsigned RegNo, raw_ostream &O,
+                              const MCRegisterInfo &MRI);
   // End
 
   void printOperand(const MCInst *MI, unsigned OpNo, const MCSubtargetInfo &STI, raw_ostream &O);

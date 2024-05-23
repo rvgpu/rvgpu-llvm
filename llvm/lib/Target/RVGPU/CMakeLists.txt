@@ -42,7 +42,11 @@ set(RVGPUCodeGen_sources
   NVVMReflect.cpp
   RVGPUProxyRegErasure.cpp
   RVGPUCtorDtorLowering.cpp
-#  RVGPUHSAMetadataStreamer.cpp
+  RVProgramInfo.cpp
+  RVGPUHSAMetadataStreamer.cpp
+  RVGPUResourceUsageAnalysis.cpp
+  RVModeRegisterDefaults.cpp
+  RVGPUMCInstLower.cpp
   )
 
 add_llvm_target(RVGPUCodeGen
@@ -58,6 +62,8 @@ add_llvm_target(RVGPUCodeGen
   MC
   RVGPUDesc
   RVGPUInfo
+  RVGPUUtils
+  BinaryFormat
   Scalar
   SelectionDAG
   Support
@@ -74,3 +80,4 @@ add_subdirectory(MCTargetDesc)
 add_subdirectory(TargetInfo)
 add_subdirectory(Disassembler)
 add_subdirectory(AsmParser)
+add_subdirectory(Utils)

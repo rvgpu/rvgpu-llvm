@@ -250,6 +250,9 @@ namespace CallingConv {
 
     /// Used by GraalVM. Two additional registers are reserved.
     GRAAL = 107,
+  
+    /// Used for RVGPU code object kernels.
+    RVGPU_KERNEL = 110,
 
     /// The highest possible ID. Must be some 2^k - 1.
     MaxID = 1023

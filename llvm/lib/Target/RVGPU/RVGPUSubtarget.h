@@ -18,6 +18,7 @@
 #include "RVGPUISelLowering.h"
 #include "RVGPUInstrInfo.h"
 #include "RVGPURegisterInfo.h"
+#include "Utils/RVGPUBaseInfo.h"
 #include "llvm/CodeGen/SelectionDAGTargetInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DataLayout.h"
@@ -106,9 +107,28 @@ public:
   unsigned getMaxRequiredAlignment() const { return 8; }
 
   unsigned getPTXVersion() const { return PTXVersion; }
+  uint64_t getExplicitKernArgSize(const Function &F, Align &MaxAlign) const;
+  unsigned getImplicitArgNumBytes(const Function &F) const;
+  unsigned getKernArgSegmentSize(const Function &F, Align &MaxAlign) const;
 
   RVGPUSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
   void ParseSubtargetFeatures(StringRef CPU, StringRef TuneCPU, StringRef FS);
+
+  Align getAlignmentForImplicitArgPtr() const {
+    return Align(8);
+  }
+  unsigned getWavefrontSize() const {
+    return 32;
+  }
+    unsigned getMaxWaveScratchSize() const {
+    // 15-bit field in units of 64-dword.
+    return (64 * 4) * ((1 << 15) - 1);
+  }
+   /// \returns the minimum number of VGPRs that will prevent achieving more than
+  /// the specified number of waves \p WavesPerEU.
+  unsigned getMinNumVGPRs(unsigned WavesPerEU) const {
+    return RVGPU::IsaInfo::getMinNumVGPRs(this, WavesPerEU);
+  }
 };
 
 } // End llvm namespace

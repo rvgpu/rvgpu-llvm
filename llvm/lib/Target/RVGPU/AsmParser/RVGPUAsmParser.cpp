@@ -1095,6 +1095,7 @@ class RVGPUAsmParser : public MCTargetAsmParser {
             OperandVector &Operands, MCStreamer &Out,
             uint64_t &ErrorInfo,
             bool MatchingInlineAsm) override;
+    bool ParseDirectiveRVGPUTarget();
     bool ParseDirective(AsmToken DirectiveID) override;
     ParseStatus parseOperand(OperandVector &Operands, StringRef Mnemonic,
             OperandMode Mode = OperandMode_Default);
@@ -1145,35 +1146,7 @@ class RVGPUAsmParser : public MCTargetAsmParser {
     ParseStatus parseRegWithFPInputMods(OperandVector &Operands);
     ParseStatus parseRegWithIntInputMods(OperandVector &Operands);
     ParseStatus parseVReg32OrOff(OperandVector &Operands);
-    ParseStatus parseDfmtNfmt(int64_t &Format);
-    ParseStatus parseUfmt(int64_t &Format);
-    ParseStatus parseSymbolicSplitFormat(StringRef FormatStr, SMLoc Loc,
-            int64_t &Format);
-    ParseStatus parseSymbolicUnifiedFormat(StringRef FormatStr, SMLoc Loc,
-            int64_t &Format);
-    ParseStatus parseFORMAT(OperandVector &Operands);
-    ParseStatus parseSymbolicOrNumericFormat(int64_t &Format);
-    ParseStatus parseNumericFormat(int64_t &Format);
-    ParseStatus parseFlatOffset(OperandVector &Operands);
-    ParseStatus parseR128A16(OperandVector &Operands);
-    ParseStatus parseBLGP(OperandVector &Operands);
-    bool tryParseFmt(const char *Pref, int64_t MaxVal, int64_t &Val);
-    bool matchDfmtNfmt(int64_t &Dfmt, int64_t &Nfmt, StringRef FormatStr, SMLoc Loc);
-
-    void cvtExp(MCInst &Inst, const OperandVector &Operands);
-
-    bool parseCnt(int64_t &IntVal);
-    ParseStatus parseSWaitCnt(OperandVector &Operands);
-
-    bool parseDepCtr(int64_t &IntVal, unsigned &Mask);
-    void depCtrError(SMLoc Loc, int ErrorId, StringRef DepCtrName);
-    ParseStatus parseDepCtr(OperandVector &Operands);
-
-    bool parseDelay(int64_t &Delay);
-    ParseStatus parseSDelayALU(OperandVector &Operands);
-
-    ParseStatus parseHwreg(OperandVector &Operands);
-
+    
     private:
     struct OperandInfoTy {
         SMLoc Loc;
@@ -1183,22 +1156,6 @@ class RVGPUAsmParser : public MCTargetAsmParser {
 
         OperandInfoTy(int64_t Id_) : Id(Id_) {}
     };
-
-    bool parseSendMsgBody(OperandInfoTy &Msg, OperandInfoTy &Op, OperandInfoTy &Stream);
-    bool validateSendMsg(const OperandInfoTy &Msg,
-            const OperandInfoTy &Op,
-            const OperandInfoTy &Stream);
-
-    bool parseHwregBody(OperandInfoTy &HwReg,
-            OperandInfoTy &Offset,
-            OperandInfoTy &Width);
-    bool validateHwreg(const OperandInfoTy &HwReg,
-            const OperandInfoTy &Offset,
-            const OperandInfoTy &Width);
-
-    SMLoc getFlatOffsetLoc(const OperandVector &Operands) const;
-    SMLoc getSMEMOffsetLoc(const OperandVector &Operands) const;
-    SMLoc getBLGPLoc(const OperandVector &Operands) const;
 
     SMLoc getOperandLoc(std::function<bool(const RVGPUOperand&)> Test,
             const OperandVector &Operands) const;
@@ -1211,43 +1168,6 @@ class RVGPUAsmParser : public MCTargetAsmParser {
     SMLoc getInstLoc(const OperandVector &Operands) const;
 
     bool validateInstruction(const MCInst &Inst, const SMLoc &IDLoc, const OperandVector &Operands);
-    bool validateOffset(const MCInst &Inst, const OperandVector &Operands);
-    bool validateFlatOffset(const MCInst &Inst, const OperandVector &Operands);
-    bool validateSMEMOffset(const MCInst &Inst, const OperandVector &Operands);
-    bool validateSOPLiteral(const MCInst &Inst) const;
-    bool validateConstantBusLimitations(const MCInst &Inst, const OperandVector &Operands);
-    bool validateVOPDRegBankConstraints(const MCInst &Inst,
-            const OperandVector &Operands);
-    bool validateIntClampSupported(const MCInst &Inst);
-    bool validateMIMGAtomicDMask(const MCInst &Inst);
-    bool validateMIMGGatherDMask(const MCInst &Inst);
-    bool validateMovrels(const MCInst &Inst, const OperandVector &Operands);
-    bool validateMIMGDataSize(const MCInst &Inst, const SMLoc &IDLoc);
-    bool validateMIMGAddrSize(const MCInst &Inst, const SMLoc &IDLoc);
-    bool validateMIMGD16(const MCInst &Inst);
-    bool validateMIMGMSAA(const MCInst &Inst);
-    bool validateOpSel(const MCInst &Inst);
-    bool validateDPP(const MCInst &Inst, const OperandVector &Operands);
-    bool validateVccOperand(unsigned Reg) const;
-    bool validateVOPLiteral(const MCInst &Inst, const OperandVector &Operands);
-    bool validateMAIAccWrite(const MCInst &Inst, const OperandVector &Operands);
-    bool validateMAISrc2(const MCInst &Inst, const OperandVector &Operands);
-    bool validateMFMA(const MCInst &Inst, const OperandVector &Operands);
-    bool validateAGPRLdSt(const MCInst &Inst) const;
-    bool validateVGPRAlign(const MCInst &Inst) const;
-    bool validateBLGP(const MCInst &Inst, const OperandVector &Operands);
-    bool validateDS(const MCInst &Inst, const OperandVector &Operands);
-    bool validateGWS(const MCInst &Inst, const OperandVector &Operands);
-    bool validateDivScale(const MCInst &Inst);
-    bool validateWaitCnt(const MCInst &Inst, const OperandVector &Operands);
-    bool validateCoherencyBits(const MCInst &Inst, const OperandVector &Operands,
-            const SMLoc &IDLoc);
-    bool validateTHAndScopeBits(const MCInst &Inst, const OperandVector &Operands,
-            const unsigned CPol);
-    bool validateExeczVcczOperands(const OperandVector &Operands);
-    bool validateTFE(const MCInst &Inst, const OperandVector &Operands);
-    std::optional<StringRef> validateLdsDirect(const MCInst &Inst);
-    unsigned findImplicitSGPRReadInVOP(const MCInst &Inst) const;
 
     bool isSupportedMnemo(StringRef Mnemo,
             const FeatureBitset &FBS);
@@ -1708,6 +1628,9 @@ static unsigned getSpecialRegForName(StringRef RegName) {
   return StringSwitch<unsigned>(RegName)
     .Case("exec", RVGPU::EXEC)
     .Case("vcc", RVGPU::VCC)
+    .StartsWith("%tid.x", RVGPU::TID_X)
+    .StartsWith("%tid.y", RVGPU::TID_Y)
+    .StartsWith("%tid.z", RVGPU::TID_Z)
     /*.Case("shared_base", RVGPU::SRC_SHARED_BASE)
     .Case("src_shared_base", RVGPU::SRC_SHARED_BASE)
     .Case("shared_limit", RVGPU::SRC_SHARED_LIMIT)
@@ -1807,7 +1730,7 @@ struct RegInfo {
 };
 
 static constexpr RegInfo RegularRegisters[] = {
-  {{"v"},    IS_VGPR},
+  {{"r"},    IS_VGPR},
 };
 
 static bool isRegularReg(RegisterKind Kind) {
@@ -1832,10 +1755,10 @@ RVGPUAsmParser::isRegister(const AsmToken &Token,
   // A list of consecutive registers: [s0,s1,s2,s3]
   if (Token.is(AsmToken::LBrac))
     return true;
-
+  
   if (!Token.is(AsmToken::Identifier))
     return false;
-
+  
   // A single register like s0 or a range of registers like s[0:1]
 
   StringRef Str = Token.getString();
@@ -2044,7 +1967,6 @@ unsigned RVGPUAsmParser::ParseRegList(RegisterKind &RegKind, unsigned &RegNum,
 bool RVGPUAsmParser::ParseRVGPURegister(RegisterKind &RegKind, unsigned &Reg,
                                           unsigned &RegNum, unsigned &RegWidth,
                                           SmallVectorImpl<AsmToken> &Tokens) {
-  auto Loc = getLoc();
   Reg = RVGPU::NoRegister;
 
   if (isToken(AsmToken::Identifier)) {
@@ -2055,7 +1977,6 @@ bool RVGPUAsmParser::ParseRVGPURegister(RegisterKind &RegKind, unsigned &Reg,
     Reg = ParseRegList(RegKind, RegNum, RegWidth, Tokens);
   }
 
-  const MCRegisterInfo *TRI = getContext().getRegisterInfo();
   if (Reg == RVGPU::NoRegister) {
     assert(Parser.hasPendingError());
     return false;
@@ -2478,8 +2399,7 @@ ParseStatus RVGPUAsmParser::parseVReg32OrOff(OperandVector &Operands) {
 
 static ArrayRef<unsigned> getAllVariants() {
   static const unsigned Variants[] = {
-    RVGPUAsmVariants::DEFAULT, RVGPUAsmVariants::VOP3,
-    RVGPUAsmVariants::DPP, RVGPUAsmVariants::VOP3_DPP
+    RVGPUAsmVariants::DEFAULT 
   };
 
   return ArrayRef(Variants);
@@ -2493,21 +2413,6 @@ ArrayRef<unsigned> RVGPUAsmParser::getMatchedVariants() const {
 
 StringRef RVGPUAsmParser::getMatchedVariantName() const {
   return "";
-}
-
-unsigned RVGPUAsmParser::findImplicitSGPRReadInVOP(const MCInst &Inst) const {
-  const MCInstrDesc &Desc = MII.get(Inst.getOpcode());
-  for (MCPhysReg Reg : Desc.implicit_uses()) {
-    switch (Reg) {
-    case RVGPU::VCC:
-    case RVGPU::VCC_LO:
-    case RVGPU::VCC_HI:
-      return Reg;
-    default:
-      break;
-    }
-  }
-  return RVGPU::NoRegister;
 }
 
 constexpr unsigned MAX_SRC_OPERANDS_NUM = 6;
@@ -2574,17 +2479,6 @@ bool RVGPUAsmParser::checkUnsupportedInstruction(StringRef Mnemo,
   return Error(IDLoc, "invalid instruction" + Suggestion);
 }
 
-static bool isInvalidVOPDY(const OperandVector &Operands,
-                           uint64_t InvalidOprIdx) {
-  assert(InvalidOprIdx < Operands.size());
-  const auto &Op = ((RVGPUOperand &)*Operands[InvalidOprIdx]);
-  if (Op.isToken() && InvalidOprIdx > 1) {
-    const auto &PrevOp = ((RVGPUOperand &)*Operands[InvalidOprIdx - 1]);
-    return PrevOp.isToken() && PrevOp.getToken() == "::";
-  }
-  return false;
-}
-
 bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                               OperandVector &Operands,
                                               MCStreamer &Out,
@@ -2646,8 +2540,6 @@ bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
       if (ErrorLoc == SMLoc())
         ErrorLoc = IDLoc;
 
-      if (isInvalidVOPDY(Operands, ErrorInfo))
-        return Error(ErrorLoc, "invalid VOPDY instruction");
     }
     return Error(ErrorLoc, "invalid operand for instruction");
   }
@@ -2705,10 +2597,33 @@ bool RVGPUAsmParser::ParseToEndDirective(const char *AssemblerDirectiveBegin,
   return false;
 }
 
+bool RVGPUAsmParser::ParseDirectiveRVGPUTarget() {
+  if (getSTI().getTargetTriple().getArch() != Triple::rvgpu)
+    return TokError("directive only supported for rvgpu architecture");
+
+  std::string TargetIDDirective;
+  SMLoc TargetStart = getTok().getLoc();
+  if (getParser().parseEscapedString(TargetIDDirective))
+    return true;
+#if 0
+  SMRange TargetRange = SMRange(TargetStart, getTok().getLoc());
+  
+  if (getTargetStreamer().getTargetID()->toString() != TargetIDDirective)
+    return getParser().Error(TargetRange.Start,
+        (Twine(".amdgcn_target directive's target id ") +
+         Twine(TargetIDDirective) +
+         Twine(" does not match the specified target id ") +
+         Twine(getTargetStreamer().getTargetID()->toString())).str());
+#endif 
+  return false;
+}
+
 bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
   StringRef IDVal = DirectiveID.getString();
 
   printf("ParseDirective: %s\n", IDVal.data());
+  if (IDVal == ".rvgpu_target")
+    return ParseDirectiveRVGPUTarget();
   return true;
 }
 

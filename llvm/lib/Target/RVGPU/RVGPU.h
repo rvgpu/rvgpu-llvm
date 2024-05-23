@@ -14,6 +14,7 @@
 #ifndef LLVM_LIB_TARGET_RVGPU_RVGPU_H
 #define LLVM_LIB_TARGET_RVGPU_RVGPU_H
 
+#include "llvm/Support/RVGPUAddrSpace.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CodeGen.h"
@@ -51,6 +52,8 @@ FunctionPass *createRVGPULowerUnreachablePass(bool TrapUnreachable,
                                               bool NoTrapAfterNoreturn);
 MachineFunctionPass *createRVGPUPeephole();
 MachineFunctionPass *createRVGPUProxyRegErasurePass();
+void initializeRVGPUResourceUsageAnalysisPass(PassRegistry &);
+extern char &RVGPUResourceUsageAnalysisID;
 
 struct NVVMIntrRangePass : PassInfoMixin<NVVMIntrRangePass> {
   NVVMIntrRangePass();

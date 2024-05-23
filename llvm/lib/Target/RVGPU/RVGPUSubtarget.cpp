@@ -69,3 +69,53 @@ bool RVGPUSubtarget::hasImageHandles() const {
 bool RVGPUSubtarget::allowFP16Math() const {
   return hasFP16Math() && NoF16Math == false;
 }
+
+uint64_t RVGPUSubtarget::getExplicitKernArgSize(const Function &F,
+                                                 Align &MaxAlign) const {
+  const DataLayout &DL = F.getParent()->getDataLayout();
+  uint64_t ExplicitArgBytes = 0;
+  MaxAlign = Align(1);
+
+  for (const Argument &Arg : F.args()) {
+    const bool IsByRef = Arg.hasByRefAttr();
+    Type *ArgTy = IsByRef ? Arg.getParamByRefType() : Arg.getType();
+    Align Alignment = DL.getValueOrABITypeAlignment(
+        IsByRef ? Arg.getParamAlign() : std::nullopt, ArgTy);
+    uint64_t AllocSize = DL.getTypeAllocSize(ArgTy);
+    ExplicitArgBytes = alignTo(ExplicitArgBytes, Alignment) + AllocSize;
+    MaxAlign = std::max(MaxAlign, Alignment);
+  }
+
+  return ExplicitArgBytes;
+}
+
+unsigned RVGPUSubtarget::getImplicitArgNumBytes(const Function &F) const {
+
+  // We don't allocate the segment if we know the implicit arguments weren't
+  // used, even if the ABI implies we need them.
+  if (F.hasFnAttribute("rvgpu-no-implicitarg-ptr"))
+    return 0;
+
+  // Assume all implicit inputs are used by default
+  const Module *M = F.getParent();
+  unsigned NBytes = 256;
+  return F.getFnAttributeAsParsedInteger("rvgpu-implicitarg-num-bytes",
+                                         NBytes);
+}
+
+unsigned RVGPUSubtarget::getKernArgSegmentSize(const Function &F,
+                                                Align &MaxAlign) const {
+  uint64_t ExplicitArgBytes = getExplicitKernArgSize(F, MaxAlign);
+  unsigned ExplicitOffset = 0;
+
+  uint64_t TotalSize = ExplicitOffset + ExplicitArgBytes;
+  unsigned ImplicitBytes = getImplicitArgNumBytes(F);
+  if (ImplicitBytes != 0) {
+    const Align Alignment = getAlignmentForImplicitArgPtr();
+    TotalSize = alignTo(ExplicitArgBytes, Alignment) + ImplicitBytes;
+    MaxAlign = std::max(MaxAlign, Alignment);
+  }
+
+  // Being able to dereference past the end is useful for emitting scalar loads.
+  return alignTo(TotalSize, 4);
+}

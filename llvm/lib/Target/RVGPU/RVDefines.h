@@ -297,11 +297,6 @@ enum EncBits : unsigned {
 namespace RVGPUAsmVariants {
   enum : unsigned {
     DEFAULT = 0,
-    VOP3 = 1,
-    SDWA = 2,
-    SDWA9 = 3,
-    DPP = 4,
-    VOP3_DPP = 5
   };
 } // namespace RVGPUAsmVariants
 
@@ -309,13 +304,6 @@ namespace RVGPU {
 namespace EncValues { // Encoding values of enum9/8/7 operands
 
 enum : unsigned {
-  SGPR_MIN = 0,
-  SGPR_MAX_SI = 101,
-  SGPR_MAX_GFX10 = 105,
-  TTMP_VI_MIN = 112,
-  TTMP_VI_MAX = 123,
-  TTMP_GFX9PLUS_MIN = 108,
-  TTMP_GFX9PLUS_MAX = 123,
   INLINE_INTEGER_C_MIN = 128,
   INLINE_INTEGER_C_POSITIVE_MAX = 192, // 64
   INLINE_INTEGER_C_MAX = 208,
@@ -324,7 +312,7 @@ enum : unsigned {
   LITERAL_CONST = 255,
   VGPR_MIN = 256,
   VGPR_MAX = 511,
-  IS_VGPR = 256, // Indicates VGPR or AGPR
+  IS_VGPR = 256, // Indicates VGPR
 };
 
 } // namespace EncValues

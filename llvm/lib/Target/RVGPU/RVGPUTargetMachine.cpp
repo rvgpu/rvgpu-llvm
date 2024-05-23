@@ -154,6 +154,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUTarget() {
   initializeRVGPUDAGToDAGISelPass(PR);
   initializeRVGPUAAWrapperPassPass(PR);
   initializeRVGPUExternalAAWrapperPass(PR);
+  initializeRVGPUResourceUsageAnalysisPass(PR);
 }
 
 static std::string computeDataLayout(bool is64Bit, bool UseShortPointers) {
@@ -612,4 +613,12 @@ void RVGPUPassConfig::addMachineSSAOptimization() {
 
   addPass(&PeepholeOptimizerID);
   printAndVerify("After codegen peephole optimization pass");
+}
+
+int64_t RVGPUTargetMachine::getNullPointerValue(unsigned AddrSpace) {
+  return (AddrSpace == RVGPUAS::LOCAL_ADDRESS ||
+          AddrSpace == RVGPUAS::PRIVATE_ADDRESS ||
+          AddrSpace == RVGPUAS::REGION_ADDRESS)
+             ? -1
+             : 0;
 }

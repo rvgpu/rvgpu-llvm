@@ -55,7 +55,10 @@ public:
     O << "reg" << RegNo;
     return getStrPool().save(O.str()).data();
   }
-
+  // Pseudo regs are not allowed
+  unsigned getHWRegIndex(MCRegister Reg) const {
+    return getEncodingValue(Reg);
+  }
 };
 
 std::string getRVGPURegClassName(const TargetRegisterClass *RC);

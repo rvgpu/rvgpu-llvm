@@ -216,6 +216,10 @@ def PRIVATE_RSRC_REG : RVReg<"private_rsrc", 0>;
 def FP_REG : RVReg<"fp", 0>;
 def SP_REG : RVReg<"sp", 0>;
 
+def TID_X : RVReg<"tid.x", 129>;
+def TID_Y : RVReg<"tid.y", 130>;
+def TID_Z : RVReg<"tid.z", 131>;
+
 class RegisterTypes<list<ValueType> reg_types> {
   list<ValueType> types = reg_types;
 }

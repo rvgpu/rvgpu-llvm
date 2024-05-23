@@ -9,7 +9,7 @@
 #ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUTARGETSTREAMER_H
 #define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUTARGETSTREAMER_H
 
-//#include "Utils/RVGPUBaseInfo.h"
+#include "Utils/RVGPUBaseInfo.h"
 //#include "Utils/RVGPUPALMetadata.h"
 #include "llvm/BinaryFormat/MsgPackDocument.h"
 #include "llvm/MC/MCStreamer.h"
@@ -37,7 +37,7 @@ class RVGPUTargetStreamer : public MCTargetStreamer {
 
 protected:
   // TODO: Move HSAMetadataStream to RVGPUTargetStreamer.
-//  std::optional<RVGPU::IsaInfo::RVGPUTargetID> TargetID;
+  std::optional<RVGPU::IsaInfo::RVGPUTargetID> TargetID;
 
   MCContext &getContext() const { return Streamer.getContext(); }
 
@@ -96,12 +96,12 @@ public:
   virtual void EmitRvhsaKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
       const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
-      uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
+      bool ReserveVCC, bool ReserveFlatScr,
       unsigned CodeObjectVersion){};
 
   static StringRef getArchNameFromElfMach(unsigned ElfMach);
   static unsigned getElfMach(StringRef GPU);
-#if 0
+  
   const std::optional<RVGPU::IsaInfo::RVGPUTargetID> &getTargetID() const {
     return TargetID;
   }
@@ -117,11 +117,7 @@ public:
   void initializeTargetID(const MCSubtargetInfo &STI, StringRef FeatureString,
                           unsigned CodeObjectVersion) {
     initializeTargetID(STI, CodeObjectVersion);
-
-    assert(getTargetID() != std::nullopt && "TargetID is None");
-    getTargetID()->setTargetIDFromFeaturesString(FeatureString);
   }
-#endif   
 };
 
 class RVGPUTargetAsmStreamer final : public RVGPUTargetStreamer {
@@ -164,7 +160,7 @@ public:
   void EmitRvhsaKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
       const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
-      uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
+      bool ReserveVCC, bool ReserveFlatScr,
       unsigned CodeObjectVersion) override;
 };
 
@@ -224,7 +220,7 @@ public:
   void EmitRvhsaKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
       const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
-      uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
+      bool ReserveVCC, bool ReserveFlatScr,
       unsigned CodeObjectVersion) override;
 };
 

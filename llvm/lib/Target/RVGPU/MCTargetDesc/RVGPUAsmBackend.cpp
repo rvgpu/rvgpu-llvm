@@ -251,5 +251,4 @@ MCAsmBackend *llvm::createRVGPUAsmBackend(const Target &T,
                                            const MCTargetOptions &Options) {
   return new ELFRVGPUAsmBackend(T, STI.getTargetTriple(),
                                 0);
-                                 //getHsaAbiVersion(&STI).value_or(0));
 }

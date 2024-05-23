@@ -6218,13 +6218,13 @@ def : Pat<(int_rvgpu_sust_p_3d_v4i32_trap
 
 class PTX_READ_SREG_R64<string regname, Intrinsic intop, list<Predicate> Preds=[]>
   : RVGPUInst<(outs GPR64:$d), (ins),
-              !strconcat("mov.u64 \t$d, %", regname, ""),
+              !strconcat("mov.u64 \t$d, ", regname, ""),
               [(set GPR64:$d, (intop))]>,
     Requires<Preds>;
 
 class PTX_READ_SREG_R32<string regname, Intrinsic intop, list<Predicate> Preds=[]>
   : RVGPUInst<(outs GPR32:$d), (ins),
-              !strconcat("mov.u32 \t$d, %", regname, ""),
+              !strconcat("mov.u32 \t$d, ", regname, ""),
               [(set GPR32:$d, (intop))]>,
     Requires<Preds>;
 

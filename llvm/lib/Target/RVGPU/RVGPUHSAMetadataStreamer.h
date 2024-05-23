@@ -1,4 +1,4 @@
-//===--- AMDGPUHSAMetadataStreamer.h ----------------------------*- C++ -*-===//
+//===--- RVGPUHSAMetadataStreamer.h ----------------------------*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,34 +7,34 @@
 //===----------------------------------------------------------------------===//
 //
 /// \file
-/// AMDGPU HSA Metadata Streamer.
+/// RVGPU HSA Metadata Streamer.
 ///
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LIB_TARGET_AMDGPU_MCTARGETDESC_AMDGPUHSAMETADATASTREAMER_H
-#define LLVM_LIB_TARGET_AMDGPU_MCTARGETDESC_AMDGPUHSAMETADATASTREAMER_H
+#ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUHSAMETADATASTREAMER_H
+#define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUHSAMETADATASTREAMER_H
 
 #include "llvm/BinaryFormat/MsgPackDocument.h"
-#include "llvm/Support/AMDGPUMetadata.h"
+#include "llvm/Support/RVGPUMetadata.h"
 #include "llvm/Support/Alignment.h"
 
 namespace llvm {
 
-class AMDGPUTargetStreamer;
+class RVGPUTargetStreamer;
 class Argument;
 class DataLayout;
 class Function;
 class MachineFunction;
 class MDNode;
 class Module;
-struct SIProgramInfo;
+struct RVProgramInfo;
 class Type;
 
-namespace AMDGPU {
+namespace RVGPU {
 
 namespace IsaInfo {
-class AMDGPUTargetID;
+class RVGPUTargetID;
 }
 
 namespace HSAMD {
@@ -43,15 +43,15 @@ class MetadataStreamer {
 public:
   virtual ~MetadataStreamer() = default;
 
-  virtual bool emitTo(AMDGPUTargetStreamer &TargetStreamer) = 0;
+  virtual bool emitTo(RVGPUTargetStreamer &TargetStreamer) = 0;
 
   virtual void begin(const Module &Mod,
-                     const IsaInfo::AMDGPUTargetID &TargetID) = 0;
+                     const IsaInfo::RVGPUTargetID &TargetID) = 0;
 
   virtual void end() = 0;
 
   virtual void emitKernel(const MachineFunction &MF,
-                          const SIProgramInfo &ProgramInfo) = 0;
+                          const RVProgramInfo &ProgramInfo) = 0;
 
 protected:
   virtual void emitVersion() = 0;
@@ -83,12 +83,11 @@ protected:
   msgpack::ArrayDocNode getWorkGroupDimensions(MDNode *Node) const;
 
   msgpack::MapDocNode getHSAKernelProps(const MachineFunction &MF,
-                                        const SIProgramInfo &ProgramInfo,
-                                        unsigned CodeObjectVersion) const;
+                                        const RVProgramInfo &ProgramInfo) const;
 
   void emitVersion() override;
 
-  void emitTargetID(const IsaInfo::AMDGPUTargetID &TargetID);
+  void emitTargetID(const IsaInfo::RVGPUTargetID &TargetID);
 
   void emitPrintf(const Module &Mod);
 
@@ -124,15 +123,15 @@ public:
   MetadataStreamerMsgPackV4() = default;
   ~MetadataStreamerMsgPackV4() = default;
 
-  bool emitTo(AMDGPUTargetStreamer &TargetStreamer) override;
+  bool emitTo(RVGPUTargetStreamer &TargetStreamer) override;
 
   void begin(const Module &Mod,
-             const IsaInfo::AMDGPUTargetID &TargetID) override;
+             const IsaInfo::RVGPUTargetID &TargetID) override;
 
   void end() override;
 
   void emitKernel(const MachineFunction &MF,
-                  const SIProgramInfo &ProgramInfo) override;
+                  const RVProgramInfo &ProgramInfo) override;
 };
 
 class MetadataStreamerMsgPackV5 final : public MetadataStreamerMsgPackV4 {
@@ -148,7 +147,7 @@ public:
 };
 
 } // end namespace HSAMD
-} // end namespace AMDGPU
+} // end namespace RVGPU
 } // end namespace llvm
 
-#endif // LLVM_LIB_TARGET_AMDGPU_MCTARGETDESC_AMDGPUHSAMETADATASTREAMER_H
+#endif // LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUHSAMETADATASTREAMER_H

@@ -76,7 +76,7 @@ void RVGPUTargetAsmStreamer::finish() {
 }
 
 void RVGPUTargetAsmStreamer::EmitDirectiveRVGPUTarget() {
-//  OS << "\t.rvgpu_target \"" << getTargetID()->toString() << "\"\n";
+  OS << "\t.rvgpu_target \"" << "r1000" "\"\n";
 }
 
 void RVGPUTargetAsmStreamer::EmitDirectiveHSACodeObjectVersion(
@@ -169,7 +169,7 @@ bool RVGPUTargetAsmStreamer::EmitCodeEnd(const MCSubtargetInfo &STI) {
 
 void RVGPUTargetAsmStreamer::EmitRvhsaKernelDescriptor(
     const MCSubtargetInfo &STI, StringRef KernelName,
-    const rvhsa::kernel_descriptor_t &KD, uint64_t NextVGPR, uint64_t NextSGPR,
+    const rvhsa::kernel_descriptor_t &KD, uint64_t NextVGPR,
     bool ReserveVCC, bool ReserveFlatScr, unsigned CodeObjectVersion) {
 
   OS << "\t.rvhsa_kernel " << KernelName << '\n';
@@ -593,7 +593,7 @@ bool RVGPUTargetELFStreamer::EmitCodeEnd(const MCSubtargetInfo &STI) {
 void RVGPUTargetELFStreamer::EmitRvhsaKernelDescriptor(
     const MCSubtargetInfo &STI, StringRef KernelName,
     const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
-    uint64_t NextSGPR, bool ReserveVCC, bool ReserveFlatScr,
+    bool ReserveVCC, bool ReserveFlatScr,
     unsigned CodeObjectVersion) {
   auto &Streamer = getStreamer();
   auto &Context = Streamer.getContext();
