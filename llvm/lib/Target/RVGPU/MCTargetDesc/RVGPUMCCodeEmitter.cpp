@@ -46,14 +46,21 @@ public:
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override;
 
-  void getMachineOpValue(const MCInst &MI, const MCOperand &MO, APInt &Op,
+  /*void getMachineOpValue(const MCInst &MI, const MCOperand &MO, APInt &Op,
                          SmallVectorImpl<MCFixup> &Fixups,
-                         const MCSubtargetInfo &STI) const;
+                         const MCSubtargetInfo &STI) const;*/
+  /// Return binary encoding of operand. If the machine operand requires
+  /// relocation, record the relocation and return zero.
+  unsigned getMachineOpValue(const MCInst &MI, const MCOperand &MO,
+                             SmallVectorImpl<MCFixup> &Fixups,
+                             const MCSubtargetInfo &STI) const;
+
 
 private:
   uint64_t getImplicitOpSelHiEncoding(int Opcode) const;
-  void getMachineOpValueCommon(const MCInst &MI, const MCOperand &MO,
-                               unsigned OpNo, APInt &Op,
+  unsigned getMachineOpValueCommon(const MCInst &MI, const MCOperand &MO,
+                               unsigned OpNo, 
+                                //APInt &Op,
                                SmallVectorImpl<MCFixup> &Fixups,
                                const MCSubtargetInfo &STI) const;
 
@@ -348,27 +355,25 @@ static bool needsPCRel(const MCExpr *Expr) {
   llvm_unreachable("invalid kind");
 }
 
-void RVGPUMCCodeEmitter::getMachineOpValue(const MCInst &MI,
-                                            const MCOperand &MO, APInt &Op,
+unsigned RVGPUMCCodeEmitter::getMachineOpValue(const MCInst &MI,
+                                            const MCOperand &MO,
                                             SmallVectorImpl<MCFixup> &Fixups,
                                             const MCSubtargetInfo &STI) const {
   if (MO.isReg()){
-    unsigned Enc = MRI.getEncodingValue(MO.getReg());
+    return MRI.getEncodingValue(MO.getReg());
 #if 0    
 //    unsigned Idx = Enc & RVGPU::HWEncoding::REG_IDX_MASK;
 //    bool IsVGPR = Enc & RVGPU::HWEncoding::IS_VGPR_OR_AGPR;
 //    Op = Idx | (IsVGPR << 8);
-#else
-    Op = Enc;
-#endif 
     return;
+#endif 
   }
   unsigned OpNo = &MO - MI.begin();
-  getMachineOpValueCommon(MI, MO, OpNo, Op, Fixups, STI);
+  return getMachineOpValueCommon(MI, MO, OpNo, Fixups, STI);
 }
 
-void RVGPUMCCodeEmitter::getMachineOpValueCommon(
-    const MCInst &MI, const MCOperand &MO, unsigned OpNo, APInt &Op,
+unsigned RVGPUMCCodeEmitter::getMachineOpValueCommon(
+    const MCInst &MI, const MCOperand &MO, unsigned OpNo,
     SmallVectorImpl<MCFixup> &Fixups, const MCSubtargetInfo &STI) const {
 
   if (MO.isExpr() && MO.getExpr()->getKind() != MCExpr::Constant) {
@@ -397,8 +402,7 @@ void RVGPUMCCodeEmitter::getMachineOpValueCommon(
 
   const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
   if (MO.isImm()) {
-    Op = MO.getImm();
-    return;
+    return MO.getImm();
   }
   #if 0
   if (RVGPU::isSISrcOperand(Desc, OpNo)) {

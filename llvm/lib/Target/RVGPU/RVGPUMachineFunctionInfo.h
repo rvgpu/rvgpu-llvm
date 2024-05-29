@@ -84,7 +84,8 @@ public:
   }
 
   bool isEntryFunction() const {
-    return IsEntryFunction;
+    //return IsEntryFunction;
+    return true;
   }
   /// \returns Default/requested maximum number of waves per execution unit.
   unsigned getMaxWavesPerEU() const {

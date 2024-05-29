@@ -724,7 +724,8 @@ RVGPUTargetLowering::RVGPUTargetLowering(const RVGPUTargetMachine &TM,
 
   // We have some custom DAG combine patterns for these nodes
   setTargetDAGCombine({ISD::ADD, ISD::AND, ISD::EXTRACT_VECTOR_ELT, ISD::FADD,
-                       ISD::LOAD, ISD::MUL, ISD::SHL, ISD::SREM, ISD::UREM,
+                       ISD::LOAD,  ISD::SREM, ISD::UREM,
+                       //ISD::LOAD, ISD::MUL, ISD::SHL, ISD::SREM, ISD::UREM,
                        ISD::VSELECT});
 
   // setcc for f16x2 and bf16x2 needs special handling to prevent

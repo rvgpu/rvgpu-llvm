@@ -402,13 +402,13 @@ let GeneratePressureSet = 0 in {
 def VReg_1 : RVGPURegClass<[i1], 32, (add)> {
   let Size = 1;
 }
-
+/*
 def SReg_1_XEXEC : RVGPURegClass<[i1], 32,
   (add GPR32)> {
   let CopyCost = 1;
   let isAllocatable = 0;
 }
-
+*/
 def VS_16 : RVGPURegClass<Reg16Types.types, 16,
                           (add GPR16)> {
   let isAllocatable = 0;
@@ -433,8 +433,7 @@ def VS_64 : RVGPURegClass<[i64, f64, v2f32], 32, (add GPR64)> {
   let isAllocatable = 0;
 }
 
-def AV_32 : RVGPURegClass<GPR32.RegTypes, 32, (add GPR32)> {
-}
+//def AV_32 : RVGPURegClass<GPR32.RegTypes, 32, (add GPR32)> {}
 } // End GeneratePressureSet = 0
 
 //===----------------------------------------------------------------------===//

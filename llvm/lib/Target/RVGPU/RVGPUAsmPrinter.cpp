@@ -105,7 +105,45 @@ RVGPUTargetStreamer* RVGPUAsmPrinter::getTargetStreamer() const {
 void RVGPUAsmPrinter::emitStartOfAsmFile(Module &M) {
   IsTargetStreamerInitialized = false;
 }
+/*
+void RVGPUAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNum,
+                                   raw_ostream &O) {
+  const MachineOperand &MO = MI->getOperand(OpNum);
+  switch (MO.getType()) {
+  case MachineOperand::MO_Register:
+   //     O << NVPTXInstPrinter::getRegisterName(MO.getReg());
+    RVGPUInstPrinter::printRegOperand(MO.getReg(), O,
+                                       *MF->getSubtarget().getRegisterInfo());
+    break;
 
+  case MachineOperand::MO_Immediate:
+    O << MO.getImm();
+    break;
+
+  case MachineOperand::MO_MachineBasicBlock:
+    MO.getMBB()->getSymbol()->print(O, MAI);
+    break;
+  default:
+    llvm_unreachable("Operand type not supported.");
+  }
+}
+
+void RVGPUAsmPrinter::printMemOperand(const MachineInstr *MI, unsigned OpNum,
+                                      raw_ostream &O, const char *Modifier) {
+  printOperand(MI, OpNum, O);
+
+  if (Modifier && strcmp(Modifier, "add") == 0) {
+    O << ", ";
+    printOperand(MI, OpNum + 1, O);
+  } else {
+    if (MI->getOperand(OpNum + 1).isImm() &&
+        MI->getOperand(OpNum + 1).getImm() == 0)
+      return; // don't print ',0' or '+0'
+    O << "+";
+    printOperand(MI, OpNum + 1, O);
+  }
+}
+*/
 void RVGPUAsmPrinter::initTargetStreamer(Module &M) {
   IsTargetStreamerInitialized = true;
 
@@ -174,8 +212,7 @@ void RVGPUAsmPrinter::emitFunctionBodyEnd() {
   getTargetStreamer()->EmitRvhsaKernelDescriptor(
       STM, KernelName, getRvhsaKernelDescriptor(*MF, CurrentProgramInfo),
       CurrentProgramInfo.NumVGPRsForWavesPerEU,
-      CurrentProgramInfo.VCCUsed, CurrentProgramInfo.FlatUsed,
-      CodeObjectVersion);
+      CurrentProgramInfo.VCCUsed, CurrentProgramInfo.FlatUsed);
 
   Streamer.popSection();
 }
@@ -228,6 +265,10 @@ bool RVGPUAsmPrinter::doInitialization(Module &M) {
 }
 
 bool RVGPUAsmPrinter::doFinalization(Module &M) {
+  const MCSubtargetInfo &STI = *getGlobalSTI(); 
+  OutStreamer->switchSection(getObjFileLowering().getTextSection());                                                                                                                                        
+  getTargetStreamer()->EmitCodeEnd(STI);
+    
   return AsmPrinter::doFinalization(M);
 }
 

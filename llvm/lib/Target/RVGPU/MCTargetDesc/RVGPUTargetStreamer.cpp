@@ -13,10 +13,9 @@
 #include "RVGPUTargetStreamer.h"
 #include "RVGPUPTNote.h"
 #include "RVKernelCodeT.h"
-/*#include "Utils/RVGPUBaseInfo.h"
-#include "Utils/AMDKernelCodeTUtils.h"
-#include "llvm/BinaryFormat/RVGPUMetadataVerifier.h"
-*/
+#include "Utils/RVGPUBaseInfo.h"
+//#include "Utils/RVKernelCodeTUtils.h"
+//#include "llvm/BinaryFormat/RVGPUMetadataVerifier.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCContext.h"
@@ -125,7 +124,7 @@ bool RVGPUTargetAsmStreamer::EmitISAVersion() {
 
 bool RVGPUTargetAsmStreamer::EmitHSAMetadata(
     const RVGPU::HSAMD::Metadata &HSAMetadata) {
-#if 0  
+#if 0 
   std::string HSAMetadataString;
   if (HSAMD::toString(HSAMetadata, HSAMetadataString))
     return false;
@@ -139,7 +138,7 @@ bool RVGPUTargetAsmStreamer::EmitHSAMetadata(
 
 bool RVGPUTargetAsmStreamer::EmitHSAMetadata(
     msgpack::Document &HSAMetadataDoc, bool Strict) {
-
+#if 0
   std::string HSAMetadataString;
   raw_string_ostream StrOS(HSAMetadataString);
 //  HSAMetadataDoc.toYAML(StrOS);
@@ -147,6 +146,7 @@ bool RVGPUTargetAsmStreamer::EmitHSAMetadata(
   OS << '\t' << ".rv_rvgpu_hsa_metadata" << '\n';
 //  OS << StrOS.str() << '\n';
   OS << '\t' << ".end_rv_rvgpu_hsa_metadata" << '\n';
+#endif         
   return true;
 }
 
@@ -170,13 +170,13 @@ bool RVGPUTargetAsmStreamer::EmitCodeEnd(const MCSubtargetInfo &STI) {
 void RVGPUTargetAsmStreamer::EmitRvhsaKernelDescriptor(
     const MCSubtargetInfo &STI, StringRef KernelName,
     const rvhsa::kernel_descriptor_t &KD, uint64_t NextVGPR,
-    bool ReserveVCC, bool ReserveFlatScr, unsigned CodeObjectVersion) {
+    bool ReserveVCC, bool ReserveFlatScr) {
 
   OS << "\t.rvhsa_kernel " << KernelName << '\n';
-#if 0
+#if 1
 #define PRINT_FIELD(STREAM, DIRECTIVE, KERNEL_DESC, MEMBER_NAME, FIELD_NAME)   \
   STREAM << "\t\t" << DIRECTIVE << " "                                         \
-         << AMDHSA_BITS_GET(KERNEL_DESC.MEMBER_NAME, FIELD_NAME) << '\n';
+         << RVHSA_BITS_GET(KERNEL_DESC.MEMBER_NAME, FIELD_NAME) << '\n';
 
   OS << "\t\t.rvhsa_group_segment_fixed_size " << KD.group_segment_fixed_size
      << '\n';
@@ -184,83 +184,15 @@ void RVGPUTargetAsmStreamer::EmitRvhsaKernelDescriptor(
      << KD.private_segment_fixed_size << '\n';
   OS << "\t\t.rvhsa_kernarg_size " << KD.kernarg_size << '\n';
 
-  PRINT_FIELD(OS, ".rvhsa_user_sgpr_count", KD,
-              compute_pgm_rsrc2,
-              rvhsa::COMPUTE_PGM_RSRC2_USER_SGPR_COUNT);
-
-  if (!hasArchitectedFlatScratch(STI))
-    PRINT_FIELD(
-        OS, ".rvhsa_user_sgpr_private_segment_buffer", KD,
-        kernel_code_properties,
-        rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER);
-  PRINT_FIELD(OS, ".rvhsa_user_sgpr_dispatch_ptr", KD,
+  PRINT_FIELD(OS, ".rvhsa_wavefront_size32", KD,
               kernel_code_properties,
-              rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_PTR);
-  PRINT_FIELD(OS, ".rvhsa_user_sgpr_queue_ptr", KD,
-              kernel_code_properties,
-              rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_QUEUE_PTR);
-  PRINT_FIELD(OS, ".rvhsa_user_sgpr_kernarg_segment_ptr", KD,
-              kernel_code_properties,
-              rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_KERNARG_SEGMENT_PTR);
-  PRINT_FIELD(OS, ".rvhsa_user_sgpr_dispatch_id", KD,
-              kernel_code_properties,
-              rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_DISPATCH_ID);
-  if (!hasArchitectedFlatScratch(STI))
-    PRINT_FIELD(OS, ".rvhsa_user_sgpr_flat_scratch_init", KD,
-                kernel_code_properties,
-                rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_FLAT_SCRATCH_INIT);
-  if (hasKernargPreload(STI)) {
-    PRINT_FIELD(OS, ".rvhsa_user_sgpr_kernarg_preload_length ", KD,
-                kernarg_preload, rvhsa::KERNARG_PRELOAD_SPEC_LENGTH);
-    PRINT_FIELD(OS, ".rvhsa_user_sgpr_kernarg_preload_offset ", KD,
-                kernarg_preload, rvhsa::KERNARG_PRELOAD_SPEC_OFFSET);
-  }
-  PRINT_FIELD(OS, ".rvhsa_user_sgpr_private_segment_size", KD,
-              kernel_code_properties,
-              rvhsa::KERNEL_CODE_PROPERTY_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE);
-  if (IVersion.Major >= 10)
-    PRINT_FIELD(OS, ".rvhsa_wavefront_size32", KD,
-                kernel_code_properties,
-                rvhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32);
-  if (CodeObjectVersion >= RVGPU::AMDHSA_COV5)
-    PRINT_FIELD(OS, ".rvhsa_uses_dynamic_stack", KD, kernel_code_properties,
-                rvhsa::KERNEL_CODE_PROPERTY_USES_DYNAMIC_STACK);
-  PRINT_FIELD(OS,
-              (hasArchitectedFlatScratch(STI)
-                   ? ".rvhsa_enable_private_segment"
-                   : ".rvhsa_system_sgpr_private_segment_wavefront_offset"),
-              KD, compute_pgm_rsrc2,
-              rvhsa::COMPUTE_PGM_RSRC2_ENABLE_PRIVATE_SEGMENT);
-  PRINT_FIELD(OS, ".rvhsa_system_sgpr_workgroup_id_x", KD,
-              compute_pgm_rsrc2,
-              rvhsa::COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_X);
-  PRINT_FIELD(OS, ".rvhsa_system_sgpr_workgroup_id_y", KD,
-              compute_pgm_rsrc2,
-              rvhsa::COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_Y);
-  PRINT_FIELD(OS, ".rvhsa_system_sgpr_workgroup_id_z", KD,
-              compute_pgm_rsrc2,
-              rvhsa::COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_ID_Z);
-  PRINT_FIELD(OS, ".rvhsa_system_sgpr_workgroup_info", KD,
-              compute_pgm_rsrc2,
-              rvhsa::COMPUTE_PGM_RSRC2_ENABLE_SGPR_WORKGROUP_INFO);
+              rvhsa::KERNEL_CODE_PROPERTY_ENABLE_WAVEFRONT_SIZE32);
   PRINT_FIELD(OS, ".rvhsa_system_vgpr_workitem_id", KD,
               compute_pgm_rsrc2,
               rvhsa::COMPUTE_PGM_RSRC2_ENABLE_VGPR_WORKITEM_ID);
 
   // These directives are required.
   OS << "\t\t.rvhsa_next_free_vgpr " << NextVGPR << '\n';
-  OS << "\t\t.rvhsa_next_free_sgpr " << NextSGPR << '\n';
-
-  if (RVGPU::isGFX90A(STI))
-    OS << "\t\t.rvhsa_accum_offset " <<
-      (AMDHSA_BITS_GET(KD.compute_pgm_rsrc3,
-                       rvhsa::COMPUTE_PGM_RSRC3_GFX90A_ACCUM_OFFSET) + 1) * 4
-      << '\n';
-
-  if (!ReserveVCC)
-    OS << "\t\t.rvhsa_reserve_vcc " << ReserveVCC << '\n';
-  if (IVersion.Major >= 7 && !ReserveFlatScr && !hasArchitectedFlatScratch(STI))
-    OS << "\t\t.rvhsa_reserve_flat_scratch " << ReserveFlatScr << '\n';
 
 
   PRINT_FIELD(OS, ".rvhsa_float_round_mode_32", KD,
@@ -275,36 +207,24 @@ void RVGPUTargetAsmStreamer::EmitRvhsaKernelDescriptor(
   PRINT_FIELD(OS, ".rvhsa_float_denorm_mode_16_64", KD,
               compute_pgm_rsrc1,
               rvhsa::COMPUTE_PGM_RSRC1_FLOAT_DENORM_MODE_16_64);
-  if (IVersion.Major < 12) {
-    PRINT_FIELD(OS, ".rvhsa_dx10_clamp", KD, compute_pgm_rsrc1,
-                rvhsa::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP);
-    PRINT_FIELD(OS, ".rvhsa_ieee_mode", KD, compute_pgm_rsrc1,
+  PRINT_FIELD(OS, ".rvhsa_dx10_clamp", KD, compute_pgm_rsrc1,
+              rvhsa::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_DX10_CLAMP);
+  PRINT_FIELD(OS, ".rvhsa_ieee_mode", KD, compute_pgm_rsrc1,
                 rvhsa::COMPUTE_PGM_RSRC1_GFX6_GFX11_ENABLE_IEEE_MODE);
-  }
-  if (IVersion.Major >= 9)
-    PRINT_FIELD(OS, ".rvhsa_fp16_overflow", KD,
+  PRINT_FIELD(OS, ".rvhsa_fp16_overflow", KD,
                 compute_pgm_rsrc1,
                 rvhsa::COMPUTE_PGM_RSRC1_GFX9_PLUS_FP16_OVFL);
-  if (RVGPU::isGFX90A(STI))
-    PRINT_FIELD(OS, ".rvhsa_tg_split", KD,
-                compute_pgm_rsrc3,
-                rvhsa::COMPUTE_PGM_RSRC3_GFX90A_TG_SPLIT);
-  if (IVersion.Major >= 10) {
-    PRINT_FIELD(OS, ".rvhsa_workgroup_processor_mode", KD,
-                compute_pgm_rsrc1,
-                rvhsa::COMPUTE_PGM_RSRC1_GFX10_PLUS_WGP_MODE);
-    PRINT_FIELD(OS, ".rvhsa_memory_ordered", KD,
-                compute_pgm_rsrc1,
-                rvhsa::COMPUTE_PGM_RSRC1_GFX10_PLUS_MEM_ORDERED);
-    PRINT_FIELD(OS, ".rvhsa_forward_progress", KD,
-                compute_pgm_rsrc1,
-                rvhsa::COMPUTE_PGM_RSRC1_GFX10_PLUS_FWD_PROGRESS);
-    PRINT_FIELD(OS, ".rvhsa_shared_vgpr_count", KD, compute_pgm_rsrc3,
+  PRINT_FIELD(OS, ".rvhsa_workgroup_processor_mode", KD,
+              compute_pgm_rsrc1,
+              rvhsa::COMPUTE_PGM_RSRC1_GFX10_PLUS_WGP_MODE);
+  PRINT_FIELD(OS, ".rvhsa_memory_ordered", KD,
+              compute_pgm_rsrc1,
+              rvhsa::COMPUTE_PGM_RSRC1_GFX10_PLUS_MEM_ORDERED);
+  PRINT_FIELD(OS, ".rvhsa_forward_progress", KD,
+              compute_pgm_rsrc1,
+              rvhsa::COMPUTE_PGM_RSRC1_GFX10_PLUS_FWD_PROGRESS);
+  PRINT_FIELD(OS, ".rvhsa_shared_vgpr_count", KD, compute_pgm_rsrc3,
                 rvhsa::COMPUTE_PGM_RSRC3_GFX10_PLUS_SHARED_VGPR_COUNT);
-  }
-  if (IVersion.Major >= 12)
-    PRINT_FIELD(OS, ".rvhsa_round_robin_scheduling", KD, compute_pgm_rsrc1,
-                rvhsa::COMPUTE_PGM_RSRC1_GFX12_PLUS_ENABLE_WG_RR_EN);
   PRINT_FIELD(
       OS, ".rvhsa_exception_fp_ieee_invalid_op", KD,
       compute_pgm_rsrc2,
@@ -322,9 +242,6 @@ void RVGPUTargetAsmStreamer::EmitRvhsaKernelDescriptor(
   PRINT_FIELD(OS, ".rvhsa_exception_fp_ieee_underflow", KD,
               compute_pgm_rsrc2,
               rvhsa::COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_UNDERFLOW);
-  PRINT_FIELD(OS, ".rvhsa_exception_fp_ieee_inexact", KD,
-              compute_pgm_rsrc2,
-              rvhsa::COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_IEEE_754_FP_INEXACT);
   PRINT_FIELD(OS, ".rvhsa_exception_int_div_zero", KD,
               compute_pgm_rsrc2,
               rvhsa::COMPUTE_PGM_RSRC2_ENABLE_EXCEPTION_INT_DIVIDE_BY_ZERO);
@@ -399,7 +316,7 @@ void RVGPUTargetELFStreamer::EmitDirectiveHSACodeObjectVersion(
     uint32_t Major, uint32_t Minor) {
 
   EmitNote(ElfNote::NoteNameV2, MCConstantExpr::create(8, getContext()),
-           ELF::NT_AMD_HSA_CODE_OBJECT_VERSION, [&](MCELFStreamer &OS) {
+           ELF::NT_RV_HSA_CODE_OBJECT_VERSION, [&](MCELFStreamer &OS) {
              OS.emitInt32(Major);
              OS.emitInt32(Minor);
            });
@@ -419,7 +336,7 @@ RVGPUTargetELFStreamer::EmitDirectiveHSACodeObjectISAV2(uint32_t Major,
     VendorNameSize + ArchNameSize;
 
   EmitNote(ElfNote::NoteNameV2, MCConstantExpr::create(DescSZ, getContext()),
-           ELF::NT_AMD_HSA_ISA_VERSION, [&](MCELFStreamer &OS) {
+           ELF::NT_RV_HSA_ISA_VERSION, [&](MCELFStreamer &OS) {
              OS.emitInt16(VendorNameSize);
              OS.emitInt16(ArchNameSize);
              OS.emitInt32(Major);
@@ -477,7 +394,7 @@ bool RVGPUTargetELFStreamer::EmitISAVersion() {
     MCSymbolRefExpr::create(DescEnd, Context),
     MCSymbolRefExpr::create(DescBegin, Context), Context);
 
-  EmitNote(ElfNote::NoteNameV2, DescSZ, ELF::NT_AMD_HSA_ISA_NAME,
+  EmitNote(ElfNote::NoteNameV2, DescSZ, ELF::NT_RV_HSA_ISA_NAME,
            [&](MCELFStreamer &OS) {
              OS.emitLabel(DescBegin);
              OS.emitBytes("");
@@ -532,7 +449,7 @@ bool RVGPUTargetELFStreamer::EmitHSAMetadata(
     MCSymbolRefExpr::create(DescEnd, Context),
     MCSymbolRefExpr::create(DescBegin, Context), Context);
 
-  EmitNote(ElfNote::NoteNameV2, DescSZ, ELF::NT_AMD_HSA_METADATA,
+  EmitNote(ElfNote::NoteNameV2, DescSZ, ELF::NT_RV_HSA_METADATA,
            [&](MCELFStreamer &OS) {
              OS.emitLabel(DescBegin);
              OS.emitBytes(HSAMetadataString);
@@ -544,7 +461,7 @@ bool RVGPUTargetELFStreamer::EmitHSAMetadata(
 
 bool RVGPUTargetAsmStreamer::EmitKernargPreloadHeader(
     const MCSubtargetInfo &STI) {
-      #if 0
+ #if 0
   for (int i = 0; i < 64; ++i) {
     OS << "\ts_nop 0\n";
   }
@@ -593,8 +510,7 @@ bool RVGPUTargetELFStreamer::EmitCodeEnd(const MCSubtargetInfo &STI) {
 void RVGPUTargetELFStreamer::EmitRvhsaKernelDescriptor(
     const MCSubtargetInfo &STI, StringRef KernelName,
     const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
-    bool ReserveVCC, bool ReserveFlatScr,
-    unsigned CodeObjectVersion) {
+    bool ReserveVCC, bool ReserveFlatScr) {
   auto &Streamer = getStreamer();
   auto &Context = Streamer.getContext();
 

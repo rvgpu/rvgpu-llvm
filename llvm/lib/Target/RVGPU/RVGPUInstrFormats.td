@@ -17,36 +17,20 @@ class VecInstTypeEnum<bits<4> val> {
 }
 def VecNOP : VecInstTypeEnum<0>;
 
-class Enc64 {
-  field bits<64> Inst;
-  int Size = 8;
-}
 
-class VOPDstOperand <RegisterClass rc> : RegisterOperand <rc, "printVOPDst">;
-
-def VOPDstOperand_t16 : VOPDstOperand <GPR16> {
-  let EncoderMethod = "getMachineOpValueT16";
-  let DecoderMethod = "DecodeGPR_16RegisterClass";
-}
-
-def VOPDstOperand_t16Lo128 : VOPDstOperand <GPR16_Lo128> {
-  let EncoderMethod = "getMachineOpValueT16Lo128";
-  let DecoderMethod = "DecodeGPR16_Lo128RegisterClass";
-}
 // Generic RVGPU Format
 
-class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
+class RVGPUInstBase<dag outs, dag ins, string asmstr, list<dag> pattern>
   : Instruction {
-  field bits<64> Inst = 0;
-
   let Namespace = "RVGPU";
   dag OutOperandList = outs;
   dag InOperandList = ins;
+  
   let AsmString = asmstr;
   let Pattern = pattern;
 
   // TSFlagFields
-  bits<4> VecInstType = VecNOP.Value;
+//  bits<4> VecInstType = VecNOP.Value;
   bit IsSimpleMove = false;
   bit IsLoad = false;
   bit IsStore = false;
@@ -62,7 +46,7 @@ class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   // 2**(2-1) = 2.
   bits<2> IsSuld = 0;
 
-  let TSFlags{3...0}   = VecInstType;
+ // let TSFlags{3...0}   = VecInstType;
   let TSFlags{4...4}   = IsSimpleMove;
   let TSFlags{5...5}   = IsLoad;
   let TSFlags{6...6}   = IsStore;
@@ -73,14 +57,24 @@ class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   let TSFlags{12}      = IsTexModeUnified;
 }
 
-class RVGPUInstR<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmstr, list<dag> pattern>
-    : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<8> rd = 0;
-  bits<8> rs1 = 0;
-  bits<8> rs2 = 0;
+class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInstBase<outs, ins, asmstr, pattern> {
+  field bits<64> Inst;
+  field bits<64> SoftFail = 0; 
+  let Size = 8;
+}
 
-  let Inst{63-56} = opcode;
+class RVGPUInstR<bits<8> op1, bits<3> optype,
+                bits<8> op2,
+                dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> rd;
+  bits<8> rs1;
+  bits<8> rs2;
+
+  let Inst{63-56} = op1;
   let Inst{55-53} = optype;
+  let Inst{52-45} = op2;
   let Inst{23-16} = rs2;
   let Inst{15-8}  = rs1;
   let Inst{7-0}   = rd;
@@ -88,9 +82,9 @@ class RVGPUInstR<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmst
 
 class CMP<bits<8> opcode, dag outs, dag ins, string asmstr, list<dag> pattern>
     : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<8> rd = 0;
-  bits<8> rs1 = 0;
-  bits<8> rs2 = 0;
+  bits<8> rd;
+  bits<8> rs1;
+  bits<8> rs2;
 
   let Inst{63-56} = 0b11000000;
   let Inst{55-53} = 0b000;
@@ -103,8 +97,8 @@ class CMP<bits<8> opcode, dag outs, dag ins, string asmstr, list<dag> pattern>
 class RVGPULDrr<bits<8> op1, bits<3> type, bits<8> op2,
       dag outs, dag ins, string asmstr, list<dag> pattern>
     : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<8> dst = 0;
-  bits<8> addr = 0;
+  bits<8> dst;
+  bits<8> addr;
 
   let Inst{63-56} = op1;
   let Inst{55-53} = type;
@@ -117,9 +111,9 @@ class RVGPULDrr<bits<8> op1, bits<3> type, bits<8> op2,
 class RVGPULDri<bits<8> op1, bits<3> type, bits<8> op2,
       dag outs, dag ins, string asmstr, list<dag> pattern>
     : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<8> dst = 0;
-  bits<8> addr = 0;
-  bits<16> offset = 0;
+  bits<8> dst;
+  bits<8> addr;
+  bits<16> offset;
 
   let Inst{63-56} = op1;
   let Inst{55-53} = type;
@@ -131,8 +125,8 @@ class RVGPULDri<bits<8> op1, bits<3> type, bits<8> op2,
 
 class RVGPUSTrr<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
     : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<8> addr = 0;
-  bits<8> src1 = 0;
+  bits<8> addr;
+  bits<8> src1;
 
   let Inst{63-56} = 0b11000110;
   let Inst{55-53} = 0b000;
@@ -144,9 +138,9 @@ class RVGPUSTrr<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
 
 class RVGPUSTri<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
     : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<8> src1 = 0;
-  bits<8> addr = 0;
-  bits<16> offset = 0;
+  bits<8> src1;
+  bits<8> addr;
+  bits<16> offset;
 
   let Inst{63-56} = 0b11000110;
   let Inst{55-53} = 0b000;
@@ -156,15 +150,45 @@ class RVGPUSTri<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
   let Inst{15-0}  = offset;
 }
 
-class RVGPUInstI<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmstr, list<dag> pattern>
+class RVGPUInstI<bits<8> op1, bits<3> optype,
+                 bits<8> op2, dag outs, dag ins,
+                 string asmstr, list<dag> pattern>
     : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<8> rd = 0;
-  bits<8> rs1 = 0;
-  bits<16> imm16 = 0;
+  bits<8> rd;
+  bits<8> rs1;
+  bits<16> imm16;
 
-  let Inst{63-56} = opcode;
+  let Inst{63-56} = op1;
   let Inst{55-53} = optype;
+  let Inst{52-45} = op2;
   let Inst{31-16} = imm16;
   let Inst{15-8}  = rs1;
   let Inst{7-0}   = rd;
+  let Inst{52} = 0b1;
+}
+
+class UnaryR<bits<8> enc, bits<3> type, bits<8> op,
+      dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> rd;
+  bits<8> rs1;
+
+  let Inst{63-56} = enc;
+  let Inst{55-53} = type;
+  let Inst{52-45} = op;
+  let Inst{31-24} = rd;
+  let Inst{23-16}  = rs1;
+}
+
+class UnaryI<bits<8> enc, bits<3> type, bits<8> op,
+      dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> rd;
+  bits<24> imm;
+
+  let Inst{63-56} = enc;
+  let Inst{55-53} = type;
+  let Inst{52-45} = op;
+  let Inst{31-24} = rd;
+  let Inst{23-0}  = imm;
 }

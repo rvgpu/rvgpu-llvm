@@ -96,8 +96,7 @@ public:
   virtual void EmitRvhsaKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
       const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
-      bool ReserveVCC, bool ReserveFlatScr,
-      unsigned CodeObjectVersion){};
+      bool ReserveVCC, bool ReserveFlatScr){};
 
   static StringRef getArchNameFromElfMach(unsigned ElfMach);
   static unsigned getElfMach(StringRef GPU);
@@ -160,8 +159,7 @@ public:
   void EmitRvhsaKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
       const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
-      bool ReserveVCC, bool ReserveFlatScr,
-      unsigned CodeObjectVersion) override;
+      bool ReserveVCC, bool ReserveFlatScr) override;
 };
 
 class RVGPUTargetELFStreamer final : public RVGPUTargetStreamer {
@@ -220,8 +218,7 @@ public:
   void EmitRvhsaKernelDescriptor(
       const MCSubtargetInfo &STI, StringRef KernelName,
       const rvhsa::kernel_descriptor_t &KernelDescriptor, uint64_t NextVGPR,
-      bool ReserveVCC, bool ReserveFlatScr,
-      unsigned CodeObjectVersion) override;
+      bool ReserveVCC, bool ReserveFlatScr) override;
 };
 
 }

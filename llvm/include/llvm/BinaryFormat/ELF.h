@@ -1841,6 +1841,16 @@ enum {
   NT_AMD_PAL_METADATA = 12
 };
 
+// RV vendor specific notes. (Code Object V2)
+enum {
+  NT_RV_HSA_CODE_OBJECT_VERSION = 1,
+  NT_RV_HSA_HSAIL = 2,
+  NT_RV_HSA_ISA_VERSION = 3,
+  // Note types with values between 4 and 9 (inclusive) are reserved.
+  NT_RV_HSA_METADATA = 10,
+  NT_RV_HSA_ISA_NAME = 11,
+};
+
 // AMDGPU vendor specific notes. (Code Object V3)
 enum {
   // Note types with values between 0 and 31 (inclusive) are reserved.

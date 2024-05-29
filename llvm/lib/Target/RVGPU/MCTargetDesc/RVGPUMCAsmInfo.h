@@ -1,4 +1,4 @@
-//===-- RVGPUMCAsmInfo.h - RVGPU asm properties ----------------*- C++ -*--===//
+//===-- MCTargetDesc/RVGPUMCAsmInfo.h - RVGPU MCAsm Interface -*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,36 +6,28 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the declaration of the RVGPUMCAsmInfo class.
+/// \file
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUMCASMINFO_H
 #define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUMCASMINFO_H
 
-#include "llvm/MC/MCAsmInfo.h"
-
+#include "llvm/MC/MCAsmInfoELF.h"
 namespace llvm {
+
 class Triple;
 
-class RVGPUMCAsmInfo : public MCAsmInfo {
-  virtual void anchor();
-
+// If you need to create another MCAsmInfo class, which inherits from MCAsmInfo,
+// you will need to make sure your new class sets PrivateGlobalPrefix to
+// a prefix that won't appear in a function name.  The default value
+// for PrivateGlobalPrefix is 'L', so it will consider any function starting
+// with 'L' as a local symbol.
+class RVGPUMCAsmInfo : public MCAsmInfoELF {
 public:
-  explicit RVGPUMCAsmInfo(const Triple &TheTriple,
-                          const MCTargetOptions &Options);
-
-  /// Return true if the .section directive should be omitted when
-  /// emitting \p SectionName.  For example:
-  ///
-  /// shouldOmitSectionDirective(".text")
-  ///
-  /// returns false => .section .text,#alloc,#execinstr
-  /// returns true  => .text
-  bool shouldOmitSectionDirective(StringRef SectionName) const override {
-    return true;
-  }
+  explicit RVGPUMCAsmInfo(const Triple &TT, const MCTargetOptions &Options);
+  bool shouldOmitSectionDirective(StringRef SectionName) const override;
+  unsigned getMaxInstLength(const MCSubtargetInfo *STI) const override;
 };
 } // namespace llvm
-
 #endif

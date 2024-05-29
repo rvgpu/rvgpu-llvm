@@ -78,7 +78,12 @@ private:
       const RVProgramInfo &PI) const;
 
   void initTargetStreamer(Module &M);
-
+ /* 
+  void printMemOperand(const MachineInstr *MI, unsigned OpNum, raw_ostream &O,
+                       const char *Modifier = nullptr);
+  void RVGPUAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNum,
+                                   raw_ostream &O);
+*/
 public:
   explicit RVGPUAsmPrinter(TargetMachine &TM,
                             std::unique_ptr<MCStreamer> Streamer);

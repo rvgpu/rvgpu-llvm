@@ -1,4 +1,4 @@
-//===--- AMDHSAKernelDescriptor.h -----------------------------*- C++ -*---===//
+//===--- RVHSAKernelDescriptor.h -----------------------------*- C++ -*---===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 /// \file
-/// AMDHSA kernel descriptor definitions. For more information, visit
+/// RVHSA kernel descriptor definitions. For more information, visit
 /// https://llvm.org/docs/RVGPUUsage.html#kernel-descriptor
 ///
 /// \warning
@@ -19,8 +19,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_AMDHSAKERNELDESCRIPTOR_H
-#define LLVM_SUPPORT_AMDHSAKERNELDESCRIPTOR_H
+#ifndef LLVM_SUPPORT_RVHSAKERNELDESCRIPTOR_H
+#define LLVM_SUPPORT_RVHSAKERNELDESCRIPTOR_H
 
 #include <cstddef>
 #include <cstdint>
@@ -32,24 +32,24 @@
 
 // Creates enumeration entries used for packing bits into integers. Enumeration
 // entries include bit shift amount, bit width, and bit mask.
-#ifndef AMDHSA_BITS_ENUM_ENTRY
-#define AMDHSA_BITS_ENUM_ENTRY(NAME, SHIFT, WIDTH) \
+#ifndef RVHSA_BITS_ENUM_ENTRY
+#define RVHSA_BITS_ENUM_ENTRY(NAME, SHIFT, WIDTH) \
   NAME ## _SHIFT = (SHIFT),                        \
   NAME ## _WIDTH = (WIDTH),                        \
   NAME = (((1 << (WIDTH)) - 1) << (SHIFT))
-#endif // AMDHSA_BITS_ENUM_ENTRY
+#endif // RVHSA_BITS_ENUM_ENTRY
 
 // Gets bits for specified bit mask from specified source.
-#ifndef AMDHSA_BITS_GET
-#define AMDHSA_BITS_GET(SRC, MSK) ((SRC & MSK) >> MSK ## _SHIFT)
-#endif // AMDHSA_BITS_GET
+#ifndef RVHSA_BITS_GET
+#define RVHSA_BITS_GET(SRC, MSK) ((SRC & MSK) >> MSK ## _SHIFT)
+#endif // RVHSA_BITS_GET
 
 // Sets bits for specified bit mask in specified destination.
-#ifndef AMDHSA_BITS_SET
-#define AMDHSA_BITS_SET(DST, MSK, VAL)  \
+#ifndef RVHSA_BITS_SET
+#define RVHSA_BITS_SET(DST, MSK, VAL)  \
   DST &= ~MSK;                          \
   DST |= ((VAL << MSK ## _SHIFT) & MSK)
-#endif // AMDHSA_BITS_SET
+#endif // RVHSA_BITS_SET
 
 namespace llvm {
 namespace rvhsa {
@@ -81,25 +81,25 @@ enum : uint8_t {
 // Compute program resource register 1. Must match hardware definition.
 // GFX6+.
 #define COMPUTE_PGM_RSRC1(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_ ## NAME, SHIFT, WIDTH)
 // [GFX6-GFX8].
 #define COMPUTE_PGM_RSRC1_GFX6_GFX8(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX6_GFX8_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX6_GFX8_ ## NAME, SHIFT, WIDTH)
 // [GFX6-GFX9].
 #define COMPUTE_PGM_RSRC1_GFX6_GFX9(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX6_GFX9_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX6_GFX9_ ## NAME, SHIFT, WIDTH)
 // [GFX6-GFX11].
 #define COMPUTE_PGM_RSRC1_GFX6_GFX11(NAME, SHIFT, WIDTH)                       \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX6_GFX11_##NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX6_GFX11_##NAME, SHIFT, WIDTH)
 // GFX9+.
 #define COMPUTE_PGM_RSRC1_GFX9_PLUS(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX9_PLUS_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX9_PLUS_ ## NAME, SHIFT, WIDTH)
 // GFX10+.
 #define COMPUTE_PGM_RSRC1_GFX10_PLUS(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX10_PLUS_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX10_PLUS_ ## NAME, SHIFT, WIDTH)
 // GFX12+.
 #define COMPUTE_PGM_RSRC1_GFX12_PLUS(NAME, SHIFT, WIDTH)                       \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX12_PLUS_##NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC1_GFX12_PLUS_##NAME, SHIFT, WIDTH)
 enum : int32_t {
   COMPUTE_PGM_RSRC1(GRANULATED_WORKITEM_VGPR_COUNT, 0, 6),
   COMPUTE_PGM_RSRC1(GRANULATED_WAVEFRONT_SGPR_COUNT, 6, 4),
@@ -128,7 +128,7 @@ enum : int32_t {
 
 // Compute program resource register 2. Must match hardware definition.
 #define COMPUTE_PGM_RSRC2(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC2_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC2_ ## NAME, SHIFT, WIDTH)
 enum : int32_t {
   COMPUTE_PGM_RSRC2(ENABLE_PRIVATE_SEGMENT, 0, 1),
   COMPUTE_PGM_RSRC2(USER_SGPR_COUNT, 1, 5),
@@ -155,7 +155,7 @@ enum : int32_t {
 // Compute program resource register 3 for GFX90A+. Must match hardware
 // definition.
 #define COMPUTE_PGM_RSRC3_GFX90A(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX90A_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX90A_ ## NAME, SHIFT, WIDTH)
 enum : int32_t {
   COMPUTE_PGM_RSRC3_GFX90A(ACCUM_OFFSET, 0, 6),
   COMPUTE_PGM_RSRC3_GFX90A(RESERVED0, 6, 10),
@@ -168,13 +168,13 @@ enum : int32_t {
 // definition.
 // [GFX10].
 #define COMPUTE_PGM_RSRC3_GFX10(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX10_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX10_ ## NAME, SHIFT, WIDTH)
 // GFX10+.
 #define COMPUTE_PGM_RSRC3_GFX10_PLUS(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX10_PLUS_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX10_PLUS_ ## NAME, SHIFT, WIDTH)
 // GFX11+.
 #define COMPUTE_PGM_RSRC3_GFX11_PLUS(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX11_PLUS_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(COMPUTE_PGM_RSRC3_GFX11_PLUS_ ## NAME, SHIFT, WIDTH)
 enum : int32_t {
   COMPUTE_PGM_RSRC3_GFX10_PLUS(SHARED_VGPR_COUNT, 0, 4),
   COMPUTE_PGM_RSRC3_GFX10(RESERVED0, 4, 8),
@@ -189,7 +189,7 @@ enum : int32_t {
 
 // Kernel code properties. Must be kept backwards compatible.
 #define KERNEL_CODE_PROPERTY(NAME, SHIFT, WIDTH) \
-  AMDHSA_BITS_ENUM_ENTRY(KERNEL_CODE_PROPERTY_ ## NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(KERNEL_CODE_PROPERTY_ ## NAME, SHIFT, WIDTH)
 enum : int32_t {
   KERNEL_CODE_PROPERTY(ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER, 0, 1),
   KERNEL_CODE_PROPERTY(ENABLE_SGPR_DISPATCH_PTR, 1, 1),
@@ -207,7 +207,7 @@ enum : int32_t {
 
 // Kernarg preload specification.
 #define KERNARG_PRELOAD_SPEC(NAME, SHIFT, WIDTH)                               \
-  AMDHSA_BITS_ENUM_ENTRY(KERNARG_PRELOAD_SPEC_##NAME, SHIFT, WIDTH)
+  RVHSA_BITS_ENUM_ENTRY(KERNARG_PRELOAD_SPEC_##NAME, SHIFT, WIDTH)
 enum : int32_t {
   KERNARG_PRELOAD_SPEC(LENGTH, 0, 7),
   KERNARG_PRELOAD_SPEC(OFFSET, 7, 9),
@@ -285,4 +285,4 @@ static_assert(offsetof(kernel_descriptor_t, reserved3) == RESERVED3_OFFSET,
 } // end namespace rvhsa
 } // end namespace llvm
 
-#endif // LLVM_SUPPORT_AMDHSAKERNELDESCRIPTOR_H
+#endif // LLVM_SUPPORT_RVHSAKERNELDESCRIPTOR_H

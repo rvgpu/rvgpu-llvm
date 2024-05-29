@@ -1,68 +1,58 @@
-//===-- RVGPUMCAsmInfo.cpp - RVGPU asm properties -------------------------===//
+//===-- MCTargetDesc/RVGPUMCAsmInfo.cpp - Assembly Info ------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
-//===----------------------------------------------------------------------===//
-//
-// This file contains the declarations of the RVGPUMCAsmInfo properties.
-//
+/// \file
 //===----------------------------------------------------------------------===//
 
 #include "RVGPUMCAsmInfo.h"
+#include "MCTargetDesc/RVGPUMCTargetDesc.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/TargetParser/Triple.h"
 
 using namespace llvm;
 
-void RVGPUMCAsmInfo::anchor() {}
-
-RVGPUMCAsmInfo::RVGPUMCAsmInfo(const Triple &TheTriple,
-                               const MCTargetOptions &Options) {
-  if (TheTriple.getArch() == Triple::rvgpu) {
-    CodePointerSize = CalleeSaveStackSlotSize = 8;
-  }
-
-  CommentString = "//";
-
+RVGPUMCAsmInfo::RVGPUMCAsmInfo(const Triple &TT,
+                                 const MCTargetOptions &Options) {
+  CodePointerSize = (TT.getArch() == Triple::amdgcn) ? 8 : 4;
+  StackGrowsUp = true;
   HasSingleParameterDotFile = false;
+  //===------------------------------------------------------------------===//
+  MinInstAlignment = 4;
 
-  InlineAsmStart = " begin inline asm";
-  InlineAsmEnd = " end inline asm";
+  // This is the maximum instruction encoded size for gfx10. With a known
+  // subtarget, it can be reduced to 8 bytes.
+  MaxInstLength = (TT.getArch() == Triple::amdgcn) ? 20 : 16;
+  SeparatorString = "\n";
+  CommentString = ";";
+  InlineAsmStart = ";#ASMSTART";
+  InlineAsmEnd = ";#ASMEND";
 
+  //===--- Data Emission Directives -------------------------------------===//
+  SunStyleELFSectionSwitchSyntax = true;
+  UsesELFSectionDirectiveForBSS = true;
+
+  //===--- Global Variable Emission Directives --------------------------===//
+  HasAggressiveSymbolFolding = true;
+  COMMDirectiveAlignmentIsInBytes = false;
+  HasNoDeadStrip = true;
+  //===--- Dwarf Emission Directives -----------------------------------===//
   SupportsDebugInformation = true;
-  // PTX does not allow .align on functions.
-  HasFunctionAlignment = false;
-  HasDotTypeDotSizeDirective = false;
-  // PTX does not allow .hidden or .protected
-  HiddenDeclarationVisibilityAttr = HiddenVisibilityAttr = MCSA_Invalid;
-  ProtectedVisibilityAttr = MCSA_Invalid;
-
-  Data8bitsDirective = ".b8 ";
-  Data16bitsDirective = nullptr; // not supported
-  Data32bitsDirective = ".b32 ";
-  Data64bitsDirective = ".b64 ";
-  ZeroDirective = ".b8";
-  AsciiDirective = nullptr; // not supported
-  AscizDirective = nullptr; // not supported
-  SupportsQuotedNames = false;
-  SupportsExtendedDwarfLocDirective = false;
-  SupportsSignedData = false;
-
-  PrivateGlobalPrefix = "$L__";
-  PrivateLabelPrefix = PrivateGlobalPrefix;
-
-  // @TODO: Can we just disable this?
-  WeakDirective = "\t// .weak\t";
-  GlobalDirective = "\t// .globl\t";
+  UsesCFIWithoutEH = true;
+  DwarfRegNumForCFI = true;
 
   UseIntegratedAssembler = false;
+}
 
-  // Avoid using parens for identifiers starting with $ - ptxas does
-  // not expect them.
-  UseParensForDollarSignNames = false;
+bool RVGPUMCAsmInfo::shouldOmitSectionDirective(StringRef SectionName) const {
+  return SectionName == ".hsatext" || SectionName == ".hsadata_global_agent" ||
+         SectionName == ".hsadata_global_program" ||
+         SectionName == ".hsarodata_readonly_agent" ||
+         MCAsmInfo::shouldOmitSectionDirective(SectionName);
+}
 
-  // ptxas does not support DWARF `.file fileno directory filename'
-  // syntax as of v11.X.
-  EnableDwarfFileDirectoryDefault = false;
+unsigned RVGPUMCAsmInfo::getMaxInstLength(const MCSubtargetInfo *STI) const {
+  return 8;
 }

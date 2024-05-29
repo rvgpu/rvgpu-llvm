@@ -2157,6 +2157,7 @@ defm INT_PTX_SATOM_XOR : ATOM2_bitwise_impl<"xor">;
 
 // Scalar
 
+let isCodeGenOnly = 1 in {
 multiclass LDU_G<string TyStr, RVGPURegClass regclass> {
   def areg: RVGPUInst<(outs regclass:$result), (ins GPR32:$src),
                !strconcat("ldu.global.", TyStr),
@@ -2173,6 +2174,7 @@ multiclass LDU_G<string TyStr, RVGPURegClass regclass> {
  def ari64 :  RVGPUInst<(outs regclass:$result), (ins MEMri64:$src),
                !strconcat("ldu.global.", TyStr),
                         []>, Requires<[hasLDU]>;
+}
 }
 
 defm INT_PTX_LDU_GLOBAL_i8  : LDU_G<"u8 \t$result, [$src]", GPR16>;
@@ -2262,6 +2264,7 @@ defm INT_PTX_LDU_G_v4f32_ELE
 // non-coherent texture cache, and therefore the values read must be read-only
 // during the lifetime of the kernel.
 
+let isCodeGenOnly = 1 in {
 multiclass LDG_G<string TyStr, RVGPURegClass regclass> {
   def areg: RVGPUInst<(outs regclass:$result), (ins GPR32:$src),
                !strconcat("ld.global.nc.", TyStr),
@@ -2279,7 +2282,7 @@ multiclass LDG_G<string TyStr, RVGPURegClass regclass> {
                !strconcat("ld.global.nc.", TyStr),
                         []>, Requires<[hasLDG]>;
 }
-
+}
 defm INT_PTX_LDG_GLOBAL_i8
   : LDG_G<"u8 \t$result, [$src]", GPR16>;
 defm INT_PTX_LDG_GLOBAL_i16

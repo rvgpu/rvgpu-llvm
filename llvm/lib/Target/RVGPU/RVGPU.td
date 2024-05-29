@@ -84,12 +84,13 @@ def : Proc<"sm_90a", [SM90a, PTX80]>;
 def : Proc<"r1000", [SM90a, PTX80]>;
 
 def RVGPUInstrInfo : InstrInfo {
+  let guessInstructionProperties = 1;
 }
 
 def RVGPUAsmParser : AsmParser {
   let ShouldEmitMatchRegisterAltName = 0;
   bit HasMnemonicFirst = 0;
-//  let AllowDuplicateRegisterNames = 1;
+  let AllowDuplicateRegisterNames = 1;
 }
 def RVGPUAsmWriter : AsmWriter {
   int PassSubtarget = 1;

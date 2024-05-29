@@ -4,7 +4,7 @@ add_llvm_component_library(LLVMRVGPUAsmParser
   LINK_COMPONENTS
   RVGPUDesc
   RVGPUInfo
-#  RVGPUUtils
+  RVGPUUtils
   CodeGenTypes
   MC
   MCParser

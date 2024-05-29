@@ -233,39 +233,39 @@ def hasBF16Math: Predicate<"Subtarget->hasBF16Math()">;
 // The instructions are named "<OpcStr><Width>" (e.g. "add.s64").
 multiclass I3<bits<8> OpCode, string OpcStr, SDNode OpNode> {
   def i64rr :
-    RVGPUInstR<OpCode, 0b010,
+    RVGPUInstR<OpCode, 0b010, 0x0,
               (outs GPR64:$rd), (ins GPR64:$rs1, GPR64:$rs2),
               !strconcat(OpcStr, "64 \t$rd, $rs1, $rs2"),
               [(set (i64 GPR64:$rd), (OpNode (i64 GPR64:$rs1), (i64 GPR64:$rs2)))]>;
   def i64ri :
-    RVGPUInstI<OpCode, 0b010,
+    RVGPUInstI<OpCode, 0b010, 0x0,
               (outs GPR64:$rd), (ins GPR64:$rs1, i64imm:$imm16),
               !strconcat(OpcStr, "64 \t$rd, $rs1, $imm16"),
               [(set (i64 GPR64:$rd), (OpNode (i64 GPR64:$rs1), imm:$imm16))]>;
   def i32rr :
-    RVGPUInstR<OpCode, 0b001,
+    RVGPUInstR<OpCode, 0b001, 0x0,
               (outs GPR32:$rd), (ins GPR32:$rs1, GPR32:$rs2),
               !strconcat(OpcStr, "32 \t$rd, $rs1, $rs2"),
               [(set GPR32:$rd, (OpNode (i32 GPR32:$rs1), (i32 GPR32:$rs2)))]>;
   def i32ri :
-    RVGPUInstI<OpCode, 0b001,
+    RVGPUInstI<OpCode, 0b001, 0x0,
               (outs GPR32:$rd), (ins GPR32:$rs1, i32imm:$imm16),
               !strconcat(OpcStr, "32 \t$rd, $rs1, $imm16"),
               [(set GPR32:$rd, (OpNode (i32 GPR32:$rs1), imm:$imm16))]>;
   def i16rr :
-    RVGPUInstR<OpCode, 0b000,
+    RVGPUInstR<OpCode, 0b000, 0x0,
               (outs GPR16:$rd), (ins GPR16:$rs1, GPR16:$rs2),
               !strconcat(OpcStr, "16 \t$rd, $rs1, $rs2"),
               [(set GPR16:$rd, (OpNode GPR16:$rs1, GPR16:$rs2))]>;
   def i16ri :
-    RVGPUInstI<OpCode, 0b000,
+    RVGPUInstI<OpCode, 0b000, 0x0,
               (outs GPR16:$rd), (ins GPR16:$rs1, i16imm:$imm16),
               !strconcat(OpcStr, "16 \t$rd, $rs1, $imm16"),
               [(set GPR16:$rd, (OpNode GPR16:$rs1, (imm):$imm16))]>;
 }
 
 class I16x2<string OpcStr, SDNode OpNode> :
- RVGPUInstR<0x0, 0b000, 
+ RVGPUInstR<0x0, 0b000, 0x0,
             (outs GPR32:$rd), (ins GPR32:$rs1, GPR32:$rs2),
             !strconcat(OpcStr, "16x2 \t$rd, $rs1, $rs2"),
             [(set GPR32:$rd, (OpNode (v2i16 GPR32:$rs1), (v2i16 GPR32:$rs2)))]>;
@@ -916,49 +916,75 @@ def UMAX16x2 : I16x2<"max.u", umax>;
 def SMIN16x2 : I16x2<"min.s", smin>;
 def UMIN16x2 : I16x2<"min.u", umin>;
 
-
 //
 // Wide multiplication
 //
-def MULWIDES64 :
-  RVGPUInst<(outs GPR64:$dst), (ins GPR32:$a, GPR32:$b),
-            "mul.wide.s32 \t$dst, $a, $b", []>;
-def MULWIDES64Imm :
-  RVGPUInst<(outs GPR64:$dst), (ins GPR32:$a, i32imm:$b),
-            "mul.wide.s32 \t$dst, $a, $b", []>;
-def MULWIDES64Imm64 :
-  RVGPUInst<(outs GPR64:$dst), (ins GPR32:$a, i64imm:$b),
-            "mul.wide.s32 \t$dst, $a, $b", []>;
 
-def MULWIDEU64 :
-  RVGPUInst<(outs GPR64:$dst), (ins GPR32:$a, GPR32:$b),
-            "mul.wide.u32 \t$dst, $a, $b", []>;
-def MULWIDEU64Imm :
-  RVGPUInst<(outs GPR64:$dst), (ins GPR32:$a, i32imm:$b),
-            "mul.wide.u32 \t$dst, $a, $b", []>;
-def MULWIDEU64Imm64 :
-  RVGPUInst<(outs GPR64:$dst), (ins GPR32:$a, i64imm:$b),
-            "mul.wide.u32 \t$dst, $a, $b", []>;
+multiclass MULWIDE<bits<8> OpCode, bits<8>op2, string OpcStr> {
+  def WIDES64 :
+    RVGPUInstR<OpCode, 0b110, op2,  
+              (outs GPR64:$rd), (ins GPR32:$rs1, GPR32:$rs2),
+              !strconcat(OpcStr, ".wide.s32 \t$rd, $rs1, $rs2"),
+              []>;
+  def WIDES64Imm :
+    RVGPUInstI<OpCode, 0b110, op2, 
+              (outs GPR64:$rd), (ins GPR32:$rs1, i32imm:$imm16),
+              !strconcat(OpcStr, ".wide.s32 \t$rd, $rs1, $imm16"),
+              []>;
+  def WIDES64Imm64:
+    RVGPUInstI<OpCode, 0b110, op2,
+              (outs GPR64:$rd), (ins GPR32:$rs1, i64imm:$imm16),
+              !strconcat(OpcStr, ".wide.s32 \t$rd, $rs1, $imm16"),
+              []>;
+  def WIDEU64 :
+    RVGPUInstR<OpCode, 0b010, op2,
+              (outs GPR64:$rd), (ins GPR32:$rs1, GPR32:$rs2),
+              !strconcat(OpcStr, ".wide.u32 \t$rd, $rs1, $rs2"),
+              []>;
+  def WIDEU64Imm :
+    RVGPUInstI<OpCode, 0b010, op2,
+              (outs GPR64:$rd), (ins GPR32:$rs1, i32imm:$imm16),
+              !strconcat(OpcStr, ".wide.u32 \t$rd, $rs1, $imm16"),
+              []>;
+  def WIDEU64Imm64:
+    RVGPUInstI<OpCode, 0b010, op2,
+              (outs GPR64:$rd), (ins GPR32:$rs1, i64imm:$imm16),
+              !strconcat(OpcStr, ".wide.u32 \t$rd, $rs1, $imm16"),
+              []>;
+  def WIDES32 :
+    RVGPUInstR<OpCode, 0b101, op2,
+              (outs GPR32:$rd), (ins GPR16:$rs1, GPR16:$rs2),
+              !strconcat(OpcStr, ".wide.s16 \t$rd, $rs1, $rs2"),
+              []>;
+  def WIDES32Imm :
+    RVGPUInstI<OpCode, 0b101, op2,
+              (outs GPR32:$rd), (ins GPR16:$rs1, i16imm:$imm16),
+              !strconcat(OpcStr, ".wide.s16 \t$rd, $rs1, $imm16"),
+              []>;
+  def WIDES32Imm32 :
+    RVGPUInstI<OpCode, 0b101, op2,
+              (outs GPR32:$rd), (ins GPR16:$rs1, i32imm:$imm16),
+              !strconcat(OpcStr, ".wide.s16 \t$rd, $rs1, $imm16"),
+              []>;
+  def WIDEU32 :
+    RVGPUInstR<OpCode, 0b001, op2,
+              (outs GPR32:$rd), (ins GPR16:$rs1, GPR16:$rs2),
+              !strconcat(OpcStr, ".wide.u16 \t$rd, $rs1, $rs2"),
+              []>;
+  def WIDEU32Imm :
+    RVGPUInstI<OpCode, 0b001, op2,
+              (outs GPR32:$rd), (ins GPR16:$rs1, i16imm:$imm16),
+              !strconcat(OpcStr, ".wide.u16 \t$rd, $rs1, $imm16"),
+              []>;
+  def WIDEU32Imm32 :
+    RVGPUInstI<OpCode, 0b001, op2,
+              (outs GPR32:$rd), (ins GPR16:$rs1, i32imm:$imm16),
+              !strconcat(OpcStr, ".wide.u16 \t$rd, $rs1, $imm16"),
+              []>;
+}
 
-def MULWIDES32 :
-  RVGPUInst<(outs GPR32:$dst), (ins GPR16:$a, GPR16:$b),
-            "mul.wide.s16 \t$dst, $a, $b", []>;
-def MULWIDES32Imm :
-  RVGPUInst<(outs GPR32:$dst), (ins GPR16:$a, i16imm:$b),
-            "mul.wide.s16 \t$dst, $a, $b", []>;
-def MULWIDES32Imm32 :
-  RVGPUInst<(outs GPR32:$dst), (ins GPR16:$a, i32imm:$b),
-            "mul.wide.s16 \t$dst, $a, $b", []>;
 
-def MULWIDEU32 :
-  RVGPUInst<(outs GPR32:$dst), (ins GPR16:$a, GPR16:$b),
-            "mul.wide.u16 \t$dst, $a, $b", []>;
-def MULWIDEU32Imm :
-  RVGPUInst<(outs GPR32:$dst), (ins GPR16:$a, i16imm:$b),
-            "mul.wide.u16 \t$dst, $a, $b", []>;
-def MULWIDEU32Imm32 :
-  RVGPUInst<(outs GPR32:$dst), (ins GPR16:$a, i32imm:$b),
-            "mul.wide.u16 \t$dst, $a, $b", []>;
+defm MUL : MULWIDE<0b00000010, 0b00000010, "mul">;
 
 def SDTMulWide : SDTypeProfile<1, 2, [SDTCisSameAs<1, 2>]>;
 def mul_wide_signed : SDNode<"RVGPUISD::MUL_WIDE_SIGNED", SDTMulWide>;
@@ -1965,9 +1991,9 @@ let hasSideEffects = false in {
   multiclass SET<bits<8>op, string OpcStr, RegisterClass RC,
                  PatFrag OpNode, ValueType vt> {
     def rr :
-      CMP<op, (outs GPR32:$dst), (ins RC:$rs1, RC:$rs2),
-                !strconcat(OpcStr, " \t$dst, $rs1, $rs2"), 
-              [(set (i32 GPR32:$dst), (OpNode (vt RC:$rs1), (vt RC:$rs2)))]>;
+      CMP<op, (outs GPR32:$rd), (ins RC:$rs1, RC:$rs2),
+                !strconcat(OpcStr, " \t$rd, $rs1, $rs2"), 
+              [(set (i32 GPR32:$rd), (OpNode (vt RC:$rs1), (vt RC:$rs2)))]>;
 /*      
     def ri :
       RVGPUInst<(outs Int1Regs:$dst), (ins RC:$a, ImmCls:$b),
@@ -2117,7 +2143,6 @@ def ADDRri : ComplexPattern<i32, 2, "SelectADDRri", [frameindex],
 def ADDRri64 : ComplexPattern<i64, 2, "SelectADDRri64", [frameindex],
                               [SDNPWantRoot]>;
 def ADDRvar : ComplexPattern<iPTR, 1, "SelectDirectAddr", [], []>;
-
 def MEMri : Operand<i32> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops GPR32, i32imm);
@@ -2126,7 +2151,14 @@ def MEMri64 : Operand<i64> {
   let PrintMethod = "printMemOperand";
   let MIOperandInfo = (ops GPR64, i64imm);
 }
+/*
+class MemOperand<RegisterClass regClass> : RegisterOperand<regClass>{
+  let OperandType = "OPERAND_MEMORY";
+}
 
+def MEMri : MemOperand<GPR32>;
+def MEMri64 : MemOperand<GPR64>;
+*/
 def imem : Operand<iPTR> {
   let PrintMethod = "printOperand";
 }
@@ -2162,8 +2194,25 @@ let hasSideEffects = false in {
                                     "mov.u64 \t$d, __local_depot$num", []>;
 }
 
+multiclass MOV<bits<8>op, RegisterClass RC,
+              Operand Imm, string asmstr> {
+  def rr : UnaryR<0b11000001, 0x0, op, (outs RC:$rd), (ins RC:$rs1),
+                 !strconcat(asmstr, "\t$rd, $rs1"), []>;
+  def ri : UnaryI<0b11000001, 0x1, op, (outs RC:$rd), (ins Imm:$imm),
+                 !strconcat(asmstr, "\t$rd, $imm"), []>;
+} 
 
+let IsSimpleMove=1, hasSideEffects=0 in {
+    defm IMOV1       : MOV<0x0, Int1Regs, i1imm, "mov.i1">;
+    defm IMOV16      : MOV<0x1, GPR16,    i16imm, "mov.u16">;
+    defm IMOVB16     : MOV<0x2, GPR16, i16imm, "mov.b16">;
+    defm IMOV32      : MOV<0x3, GPR32, i32imm, "mov.u32">;
+    defm IMOVB32     : MOV<0x4, GPR32, i32imm, "mov.b32">;
+    defm IMOV64      : MOV<0x5, GPR64, i64imm, "mov.u64">;
+    defm IMOVB64     : MOV<0x6, GPR64, i64imm, "mov.b64">;
+}
 // copyPhysreg is hard-coded in RVGPUInstrInfo.cpp
+/*
 let IsSimpleMove=1, hasSideEffects=0 in {
   def IMOV1rr :  RVGPUInst<(outs Int1Regs:$dst), (ins Int1Regs:$sss),
                            "mov.pred \t$dst, $sss", []>;
@@ -2216,7 +2265,7 @@ def FMOV32ri : RVGPUInst<(outs GPR32:$dst), (ins f32imm:$src),
 def FMOV64ri : RVGPUInst<(outs GPR64:$dst), (ins f64imm:$src),
                          "mov.f64 \t$dst, $src",
                          [(set (f64 GPR64:$dst), fpimm:$src)]>;
-
+*/
 def : Pat<(i32 (Wrapper texternalsym:$dst)), (IMOV32ri texternalsym:$dst)>;
 def : Pat<(i64 (Wrapper texternalsym:$dst)), (IMOV64ri texternalsym:$dst)>;
 
