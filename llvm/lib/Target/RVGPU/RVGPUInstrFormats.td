@@ -161,9 +161,9 @@ class RVGPUInstI<bits<8> op1, bits<3> optype,
   let Inst{63-56} = op1;
   let Inst{55-53} = optype;
   let Inst{52-45} = op2;
-  let Inst{31-16} = imm16;
-  let Inst{15-8}  = rs1;
-  let Inst{7-0}   = rd;
+  let Inst{31-24} = rd;
+  let Inst{23-16} = rs1;
+  let Inst{15-0}  = imm16;
   let Inst{52} = 0b1;
 }
 
@@ -191,4 +191,18 @@ class UnaryI<bits<8> enc, bits<3> type, bits<8> op,
   let Inst{52-45} = op;
   let Inst{31-24} = rd;
   let Inst{23-0}  = imm;
+  let Inst{52} = 0b1;
+}
+
+class READ_ID<bits<6> op,bits<2> dim,
+      dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<8> rd;
+  
+  let Inst{63-56} = 0b11000001;
+  let Inst{55-53} = 0b001;
+  let Inst{52-45} = 0b00000000;
+  let Inst{31-24} = rd;
+  let Inst{23-18} = op;
+  let Inst{17-16} = dim;
 }

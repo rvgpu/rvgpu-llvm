@@ -6231,6 +6231,7 @@ class PTX_READ_SREG_R32<string regname, Intrinsic intop, list<Predicate> Preds=[
               [(set GPR32:$d, (intop))]>,
     Requires<Preds>;
 
+/*
 multiclass PTX_READ_SREG_R32V4<string regname, list<Predicate> Preds=[]> {
    foreach suffix = ["x", "y", "z", "w"] in {
       defvar reg = regname # "." # suffix;
@@ -6238,22 +6239,45 @@ multiclass PTX_READ_SREG_R32V4<string regname, list<Predicate> Preds=[]> {
       def "_"#suffix :  PTX_READ_SREG_R32<reg, intr, Preds>;
    }
 }
+*/
+multiclass PTX_READ_SREG_R32V4<bits<6> op, string regname, list<Predicate> Preds=[]> {
+    def _x : READ_ID<op, 0b00, (outs GPR32:$rd), (ins),
+                    !strconcat("read.", regname, ".x \t$rd"),
+                    [(set GPR32:$rd, 
+                     (!cast<Intrinsic>("int_rvgpu_read_ptx_sreg_" # regname # "_x")))]>,
+                    Requires<Preds>;
+    def _y : READ_ID<op, 0b01, (outs GPR32:$rd), (ins),
+                    !strconcat("read.", regname, ".y \t$rd"),
+                    [(set GPR32:$rd, 
+                     (!cast<Intrinsic>("int_rvgpu_read_ptx_sreg_" # regname # "_y")))]>,
+                    Requires<Preds>;
+    def _z : READ_ID<op, 0b10, (outs GPR32:$rd), (ins),
+                    !strconcat("read.", regname, ".z \t$rd"),
+                    [(set GPR32:$rd, 
+                     (!cast<Intrinsic>("int_rvgpu_read_ptx_sreg_" # regname # "_z")))]>,
+                    Requires<Preds>;
+    def _w : READ_ID<op, 0b11, (outs GPR32:$rd), (ins),
+                    !strconcat("read.", regname, ".w \t$rd"),
+                    [(set GPR32:$rd, 
+                     (!cast<Intrinsic>("int_rvgpu_read_ptx_sreg_" # regname # "_w")))]>,
+                    Requires<Preds>;
+}
 
 // TODO Add read vector-version of special registers
 
-defm INT_PTX_SREG_TID   : PTX_READ_SREG_R32V4<"tid">;
-defm INT_PTX_SREG_NTID  : PTX_READ_SREG_R32V4<"ntid">;
-defm INT_PTX_SREG_CTAID : PTX_READ_SREG_R32V4<"ctaid">;
-defm INT_PTX_SREG_NCTAID: PTX_READ_SREG_R32V4<"nctaid">;
+defm INT_PTX_SREG_TID   : PTX_READ_SREG_R32V4<0b100001, "tid">;
+defm INT_PTX_SREG_NTID  : PTX_READ_SREG_R32V4<0b100010, "ntid">;
+defm INT_PTX_SREG_CTAID : PTX_READ_SREG_R32V4<0b100011, "ctaid">;
+defm INT_PTX_SREG_NCTAID: PTX_READ_SREG_R32V4<0b100100, "nctaid">;
 
 defm INT_PTX_SREG_CLUSTERID :
-       PTX_READ_SREG_R32V4<"clusterid", [hasSM<90>, hasPTX<78>]>;
+       PTX_READ_SREG_R32V4<0b100101, "clusterid", [hasSM<90>, hasPTX<78>]>;
 defm INT_PTX_SREG_NCLUSTERID :
-       PTX_READ_SREG_R32V4<"nclusterid", [hasSM<90>, hasPTX<78>]>;
+       PTX_READ_SREG_R32V4<0b100110, "nclusterid", [hasSM<90>, hasPTX<78>]>;
 defm INT_PTX_SREG_CLUSTER_CTAID :
-       PTX_READ_SREG_R32V4<"cluster_ctaid", [hasSM<90>, hasPTX<78>]>;
+       PTX_READ_SREG_R32V4<0b100111, "cluster_ctaid", [hasSM<90>, hasPTX<78>]>;
 defm INT_PTX_SREG_CLUSTER_NCTAID:
-       PTX_READ_SREG_R32V4<"cluster_nctaid", [hasSM<90>, hasPTX<78>]>;
+       PTX_READ_SREG_R32V4<0b101000, "cluster_nctaid", [hasSM<90>, hasPTX<78>]>;
 
 def  INT_PTX_SREG_CLUSTER_CTARANK :
        PTX_READ_SREG_R32<"cluster_ctarank",

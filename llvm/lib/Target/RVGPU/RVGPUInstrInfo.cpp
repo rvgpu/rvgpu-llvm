@@ -43,14 +43,14 @@ void RVGPUInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   //   report_fatal_error("Copy one register into another with a different width");
 
   unsigned Op;
-  if (DestRC == &RVGPU::Int1RegsRegClass) {
+  /*if (DestRC == &RVGPU::Int1RegsRegClass) {
     Op = RVGPU::IMOV1rr;
-  } else if (DestRC == &RVGPU::GPR16RegClass) {
-    Op = RVGPU::IMOV32rr;
+  } else */if (DestRC == &RVGPU::GPR16RegClass) {
+    Op = RVGPU::IMOVB16rr;
   } else if (DestRC == &RVGPU::GPR32RegClass) {
-    Op = RVGPU::IMOV32rr;
+    Op = RVGPU::IMOVB32rr;
   } else if (DestRC == &RVGPU::GPR64RegClass) {
-    Op = RVGPU::IMOV64rr;
+    Op = RVGPU::IMOVB64rr;
   } else {
     llvm_unreachable("Bad register copy");
   }

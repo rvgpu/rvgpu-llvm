@@ -5119,7 +5119,7 @@ static SDValue PerformANDCombine(SDNode *N,
     Val = Val->getOperand(0);
   }
 
-  if (Val->isMachineOpcode() && Val->getMachineOpcode() == RVGPU::IMOV16rr) {
+  if (Val->isMachineOpcode() && Val->getMachineOpcode() == RVGPU::IMOVB16rr) {
     Val = Val->getOperand(0);
   }
 
