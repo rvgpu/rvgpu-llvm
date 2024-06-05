@@ -18,37 +18,11 @@
 #include "clang/Basic/TargetOptions.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/TargetParser/Triple.h"
+#include "llvm/Support/RVGPUAddrSpace.h"
 #include <optional>
 
 namespace clang {
 namespace targets {
-
-static const unsigned RVGPUAddrSpaceMap[] = {
-    0, // Default
-    1, // opencl_global
-    3, // opencl_local
-    4, // opencl_constant
-    0, // opencl_private
-    // FIXME: generic has to be added to the target
-    0, // opencl_generic
-    1, // opencl_global_device
-    1, // opencl_global_host
-    1, // cuda_device
-    4, // cuda_constant
-    3, // cuda_shared
-    1, // sycl_global
-    1, // sycl_global_device
-    1, // sycl_global_host
-    3, // sycl_local
-    0, // sycl_private
-    0, // ptr32_sptr
-    0, // ptr32_uptr
-    0, // ptr64
-    0, // hlsl_groupshared
-    // Wasm address space values for this target are dummy values,
-    // as it is only enabled for Wasm targets.
-    20, // wasm_funcref
-};
 
 /// The DWARF address class. Taken from
 /// https://docs.nvidia.com/cuda/archive/10.0/ptx-writers-guide-to-interoperability/index.html#cuda-specific-dwarf
@@ -65,7 +39,7 @@ class LLVM_LIBRARY_VISIBILITY RVGPUTargetInfo : public TargetInfo {
   CudaArch GPU;
   uint32_t PTXVersion;
   std::unique_ptr<TargetInfo> HostTarget;
-
+  static const LangASMap RVGPUAddrSpaceMap;
 public:
   RVGPUTargetInfo(const llvm::Triple &Triple, const TargetOptions &Opts,
                   unsigned TargetPointerWidth);

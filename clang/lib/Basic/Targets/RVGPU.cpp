@@ -32,6 +32,29 @@ static constexpr Builtin::Info BuiltinInfo[] = {
 
 const char *const RVGPUTargetInfo::GCCRegNames[] = {"r0"};
 
+const LangASMap RVGPUTargetInfo::RVGPUAddrSpaceMap = {
+    llvm::RVGPUAS::GLOBAL_ADDRESS,     // Default
+    llvm::RVGPUAS::GLOBAL_ADDRESS,   // opencl_global
+    llvm::RVGPUAS::LOCAL_ADDRESS,    // opencl_local
+    llvm::RVGPUAS::CONSTANT_ADDRESS, // opencl_constant
+    llvm::RVGPUAS::PRIVATE_ADDRESS,  // opencl_private
+    llvm::RVGPUAS::GLOBAL_ADDRESS,     // opencl_generic
+    llvm::RVGPUAS::GLOBAL_ADDRESS,   // opencl_global_device
+    llvm::RVGPUAS::GLOBAL_ADDRESS,   // opencl_global_host
+    llvm::RVGPUAS::GLOBAL_ADDRESS,   // cuda_device
+    llvm::RVGPUAS::CONSTANT_ADDRESS, // cuda_constant
+    llvm::RVGPUAS::LOCAL_ADDRESS,    // cuda_shared
+    llvm::RVGPUAS::GLOBAL_ADDRESS,   // sycl_global
+    llvm::RVGPUAS::GLOBAL_ADDRESS,   // sycl_global_device
+    llvm::RVGPUAS::GLOBAL_ADDRESS,   // sycl_global_host
+    llvm::RVGPUAS::LOCAL_ADDRESS,    // sycl_local
+    llvm::RVGPUAS::PRIVATE_ADDRESS,  // sycl_private
+    llvm::RVGPUAS::GLOBAL_ADDRESS,     // ptr32_sptr
+    llvm::RVGPUAS::GLOBAL_ADDRESS,     // ptr32_uptr
+    llvm::RVGPUAS::GLOBAL_ADDRESS,     // ptr64
+    llvm::RVGPUAS::GLOBAL_ADDRESS,     // hlsl_groupshared
+};
+
 RVGPUTargetInfo::RVGPUTargetInfo(const llvm::Triple &Triple,
                                  const TargetOptions &Opts,
                                  unsigned TargetPointerWidth)

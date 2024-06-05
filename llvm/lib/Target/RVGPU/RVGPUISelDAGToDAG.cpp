@@ -902,6 +902,7 @@ bool RVGPUDAGToDAGISel::tryLoad(SDNode *N) {
 
   // Address Space Setting
   unsigned int CodeAddrSpace = getCodeAddrSpace(LD);
+  printf("CodeAddrSpace:%d\n", CodeAddrSpace);
   if (canLowerToLDG(LD, *Subtarget, CodeAddrSpace, MF)) {
     return tryLDGLDU(N);
   }
@@ -928,7 +929,6 @@ bool RVGPUDAGToDAGISel::tryLoad(SDNode *N) {
   MVT ScalarVT = SimpleVT.getScalarType();
   // Read at least 8 bits (predicates are stored as 8-bit values)
   unsigned fromTypeWidth = std::max(8U, (unsigned)ScalarVT.getSizeInBits());
-  unsigned int fromType;
 
   // Vector Setting
   unsigned vecType = RVGPU::PTXLdStInstCode::Scalar;
@@ -938,11 +938,6 @@ bool RVGPUDAGToDAGISel::tryLoad(SDNode *N) {
     // v2f16/v2bf16/v2i16 is loaded using ld.b32
     fromTypeWidth = 32;
   }
-
-  if (PlainLoad && (PlainLoad->getExtensionType() == ISD::SEXTLOAD))
-    fromType = RVGPU::PTXLdStInstCode::Signed;
-  else
-    fromType = getLdStRegType(ScalarVT);
 
   // Create the machine instruction DAG
   SDValue Chain = N->getOperand(0);
@@ -1589,6 +1584,7 @@ bool RVGPUDAGToDAGISel::tryStore(SDNode *N) {
 
   // Address Space Setting
   unsigned int CodeAddrSpace = getCodeAddrSpace(ST);
+  printf("ST CodeAddrSpace:%d\n", CodeAddrSpace);
   unsigned int PointerSize =
       CurDAG->getDataLayout().getPointerSizeInBits(ST->getAddressSpace());
 
