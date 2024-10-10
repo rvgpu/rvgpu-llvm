@@ -481,7 +481,7 @@ void RVGPUAsmPrinter::emitFunctionEntryLabel() {
 
   VRegMapping.clear();
   // Emit open brace for function body.
-  OutStreamer->emitRawText(StringRef("{\n"));
+  // OutStreamer->emitRawText(StringRef("{\n"));
   setAndEmitFunctionVirtualRegisters(*MF);
   // Emit initial .loc debug directive for correct relocation symbol data.
   if (MMI && MMI->hasDebugInfo())
@@ -495,7 +495,7 @@ bool RVGPUAsmPrinter::runOnMachineFunction(MachineFunction &F) {
   // debug labels/data after the last basic block.
   // We need to emit the closing brace here because we don't have function that
   // finished emission of the function body.
-  OutStreamer->emitRawText(StringRef("}\n"));
+  // OutStreamer->emitRawText(StringRef("}\n"));
   return Result;
 }
 
@@ -1497,18 +1497,19 @@ void RVGPUAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
   bool hasImageHandles = STI.hasImageHandles();
 
   if (F->arg_empty() && !F->isVarArg()) {
-    O << "()";
     return;
   }
 
-  O << "(\n";
+  O << "\n";
+  O << "// Parameters:\n";
 
   for (I = F->arg_begin(), E = F->arg_end(); I != E; ++I, paramIndex++) {
     Type *Ty = I->getType();
 
     if (!first)
-      O << ",\n";
+      O << "\n";
 
+    O << "//";
     first = false;
 
     // Handle image/sampler parameters
@@ -1691,7 +1692,7 @@ void RVGPUAsmPrinter::emitFunctionParamList(const Function *F, raw_ostream &O) {
     O << TLI->getParamName(F, /* vararg */ -1) << "[]";
   }
 
-  O << "\n)";
+  O << "\n";
 }
 
 void RVGPUAsmPrinter::setAndEmitFunctionVirtualRegisters(
