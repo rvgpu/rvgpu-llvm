@@ -58,8 +58,7 @@ namespace llvm {
 
 class MCOperand;
 
-class LLVM_LIBRARY_VISIBILITY RVGPUAsmPrinter : public AsmPrinter {
-
+class RVGPUAsmPrinter final : public AsmPrinter {
   class AggBuffer {
     // Used to buffer the emitted string for initializing global aggregates.
     //
@@ -158,9 +157,6 @@ private:
 
   void emitStartOfAsmFile(Module &M) override;
   void emitBasicBlockStart(const MachineBasicBlock &MBB) override;
-  void emitFunctionEntryLabel() override;
-  void emitFunctionBodyStart() override;
-  void emitFunctionBodyEnd() override;
   void emitImplicitDef(const MachineInstr *MI) const override;
 
   void emitInstruction(const MachineInstr *) override;
@@ -264,6 +260,10 @@ public:
   // Global variables have been already emitted by the time the base AsmPrinter
   // attempts to do so in doFinalization() (see RVGPUAsmPrinter::emitGlobals()).
   void emitGlobalVariable(const GlobalVariable *GV) override {}
+
+  void emitFunctionEntryLabel() override;
+  void emitFunctionBodyStart() override;
+  void emitFunctionBodyEnd() override;
 };
 
 } // end namespace llvm

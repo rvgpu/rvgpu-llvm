@@ -53,8 +53,8 @@ RVGPUMCAsmInfo::RVGPUMCAsmInfo(const Triple &TheTriple,
   PrivateLabelPrefix = PrivateGlobalPrefix;
 
   // @TODO: Can we just disable this?
-  WeakDirective = "\t// .weak\t";
-  GlobalDirective = "\t// .globl\t";
+  // WeakDirective = "\t// .weak\t";
+  // GlobalDirective = "\t// .globl\t";
 
   UseIntegratedAssembler = false;
 

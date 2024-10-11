@@ -12,10 +12,11 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 
 namespace llvm {
 
-class RVGPUTargetObjectFile : public TargetLoweringObjectFile {
+class RVGPUTargetObjectFile : public TargetLoweringObjectFileELF {
 public:
   RVGPUTargetObjectFile() = default;
 

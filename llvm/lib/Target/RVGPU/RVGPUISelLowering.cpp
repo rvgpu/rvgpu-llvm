@@ -5907,5 +5907,5 @@ RVGPUTargetObjectFile::~RVGPUTargetObjectFile() = default;
 
 MCSection *RVGPUTargetObjectFile::SelectSectionForGlobal(
     const GlobalObject *GO, SectionKind Kind, const TargetMachine &TM) const {
-  return getDataSection();
+  return TargetLoweringObjectFileELF::SelectSectionForGlobal(GO, Kind, TM);
 }
