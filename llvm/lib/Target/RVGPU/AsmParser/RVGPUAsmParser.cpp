@@ -2475,22 +2475,6 @@ ParseStatus RVGPUAsmParser::parseVReg32OrOff(OperandVector &Operands) {
   return ParseStatus::Failure;
 }
 
-
-static ArrayRef<unsigned> getAllVariants() {
-  static const unsigned Variants[] = {
-    RVGPUAsmVariants::DEFAULT, RVGPUAsmVariants::VOP3,
-    RVGPUAsmVariants::DPP, RVGPUAsmVariants::VOP3_DPP
-  };
-
-  return ArrayRef(Variants);
-}
-
-// What asm variants we should check
-ArrayRef<unsigned> RVGPUAsmParser::getMatchedVariants() const {
-
-  return getAllVariants();
-}
-
 StringRef RVGPUAsmParser::getMatchedVariantName() const {
   return "";
 }
@@ -2529,12 +2513,13 @@ static bool RVGPUCheckMnemonic(StringRef Mnemonic,
 
 bool RVGPUAsmParser::isSupportedMnemo(StringRef Mnemo,
                                        const FeatureBitset &FBS) {
-  return isSupportedMnemo(Mnemo, FBS, getAllVariants());
+  // return isSupportedMnemo(Mnemo, FBS, getAllVariants());
+  return false;
 }
 
 bool RVGPUAsmParser::isSupportedMnemo(StringRef Mnemo,
-                                       const FeatureBitset &FBS,
-                                       ArrayRef<unsigned> Variants) {
+                                      const FeatureBitset &FBS,
+                                      ArrayRef<unsigned> Variants) {
   for (auto Variant : Variants) {
     if (RVGPUCheckMnemonic(Mnemo, FBS, Variant))
       return true;
@@ -2544,12 +2529,8 @@ bool RVGPUAsmParser::isSupportedMnemo(StringRef Mnemo,
 }
 
 bool RVGPUAsmParser::checkUnsupportedInstruction(StringRef Mnemo,
-                                                  const SMLoc &IDLoc) {
+                                                 const SMLoc &IDLoc) {
   FeatureBitset FBS = ComputeAvailableFeatures(getFeatureBits());
-
-  // Check if requested instruction variant is supported.
-  if (isSupportedMnemo(Mnemo, FBS, getMatchedVariants()))
-    return false;
 
   // This instruction is not supported.
   // Clear any other pending errors because they are no longer relevant.
@@ -2592,26 +2573,21 @@ bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                               bool MatchingInlineAsm) {
   MCInst Inst;
   unsigned Result = Match_Success;
-  for (auto Variant : getMatchedVariants()) {
-    uint64_t EI;
-    auto R = MatchInstructionImpl(Operands, Inst, EI, MatchingInlineAsm,
-                                  Variant);
-    // We order match statuses from least to most specific. We use most specific
-    // status as resulting
-    // Match_MnemonicFail < Match_InvalidOperand < Match_MissingFeature < Match_PreferE32
-    if ((R == Match_Success) ||
-        (R == Match_PreferE32) ||
-        (R == Match_MissingFeature && Result != Match_PreferE32) ||
-        (R == Match_InvalidOperand && Result != Match_MissingFeature
+  uint64_t EI;
+  auto R = MatchInstructionImpl(Operands, Inst, EI, MatchingInlineAsm, MatchingInlineAsm);
+  // We order match statuses from least to most specific. We use most specific
+  // status as resulting
+  // Match_MnemonicFail < Match_InvalidOperand < Match_MissingFeature < Match_PreferE32
+  if ((R == Match_Success) ||
+      (R == Match_PreferE32) ||
+      (R == Match_MissingFeature && Result != Match_PreferE32) ||
+      (R == Match_InvalidOperand && Result != Match_MissingFeature
                                    && Result != Match_PreferE32) ||
-        (R == Match_MnemonicFail   && Result != Match_InvalidOperand
+      (R == Match_MnemonicFail   && Result != Match_InvalidOperand
                                    && Result != Match_MissingFeature
                                    && Result != Match_PreferE32)) {
-      Result = R;
-      ErrorInfo = EI;
-    }
-    if (R == Match_Success)
-      break;
+    Result = R;
+    ErrorInfo = EI;
   }
 
   if (Result == Match_Success) {

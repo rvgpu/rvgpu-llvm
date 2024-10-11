@@ -294,17 +294,6 @@ enum EncBits : unsigned {
 } // namespace VGPRIndexMode
 } // namespace RVGPU
 
-namespace RVGPUAsmVariants {
-  enum : unsigned {
-    DEFAULT = 0,
-    VOP3 = 1,
-    SDWA = 2,
-    SDWA9 = 3,
-    DPP = 4,
-    VOP3_DPP = 5
-  };
-} // namespace RVGPUAsmVariants
-
 namespace RVGPU {
 namespace EncValues { // Encoding values of enum9/8/7 operands
 
