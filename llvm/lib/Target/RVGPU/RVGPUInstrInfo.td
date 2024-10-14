@@ -634,62 +634,52 @@ let hasSideEffects = false, isCodeGenOnly = 1 in {
     def _s8 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".s8 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_s8", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u8 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".u8 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_u8", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s16 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".s16 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_s16", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u16 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".u16 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_u16", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s32 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".s32 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_s32", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u32 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".u32 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_u32", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s64 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".s64 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_s64", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u64 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".u64 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_u64", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _f16 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".f16 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_f16", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _bf16 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:relu}${mode:sat}.",
-                ToType, ".bf16 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_bf16", "${mode:base}${mode:relu}${mode:sat}", "\t$dst, $src"), []>,
       Requires<!if(!eq(ToType, "f32"),
                    // bf16->f32 was introduced early.
                    [hasPTX<71>, hasSM<80>],
@@ -698,8 +688,7 @@ let hasSideEffects = false, isCodeGenOnly = 1 in {
     def _f32 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:relu}${mode:sat}.",
-                ToType, ".f32 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_f32", "${mode:base}${mode:relu}${mode:sat}", "\t$dst, $src"), []>,
       Requires<!if(!eq(ToType, "bf16"),
                    // f32->bf16 was introduced early.
                    [hasPTX<70>, hasSM<80>],
@@ -707,8 +696,7 @@ let hasSideEffects = false, isCodeGenOnly = 1 in {
     def _f64 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:ftz}${mode:sat}.",
-                ToType, ".f64 \t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_f64", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
       Requires<Preds>;
   }
 
