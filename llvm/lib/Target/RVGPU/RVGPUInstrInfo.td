@@ -118,8 +118,14 @@ def CvtNONE_RELU   : PatLeaf<(i32 0x40)>;
 def CvtRN_RELU   : PatLeaf<(i32 0x45)>;
 def CvtRZ_RELU   : PatLeaf<(i32 0x46)>;
 
+def RVGPUCvtModeOperand: AsmOperandClass {
+  let Name = "CvtMode";
+  let ParserMethod = "parseCvtModeOperand";
+}
+
 def CvtMode : Operand<i32> {
   let PrintMethod = "printCvtMode";
+  let ParserMatchClass = RVGPUCvtModeOperand;
 }
 
 // Compare modes

@@ -315,6 +315,9 @@ public:
     return isRegOrInline(RVGPU::VS_32RegClassID, MVT::f32);
   }
 
+  bool isCvtMode() const {
+    
+  }
 
   bool isVReg() const {
     return isRegClass(RVGPU::GPR32RegClassID) ||
