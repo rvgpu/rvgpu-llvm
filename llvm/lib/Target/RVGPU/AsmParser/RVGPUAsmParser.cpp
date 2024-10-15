@@ -876,9 +876,7 @@ public:
       return Op;
   }
 
-  static RVGPUOperand::Ptr CreateToken(const RVGPUAsmParser *AsmParser,
-          StringRef Str, SMLoc Loc,
-          bool HasExplicitEncodingSize = true) {
+  static RVGPUOperand::Ptr CreateToken(const RVGPUAsmParser *AsmParser, StringRef Str, SMLoc Loc) {
       auto Res = std::make_unique<RVGPUOperand>(Token, AsmParser);
       Res->Tok.Data = Str.data();
       Res->Tok.Length = Str.size();
@@ -1020,10 +1018,6 @@ class RVGPUAsmParser : public MCTargetAsmParser {
     enum RVGPUMatchResultTy {
         Match_PreferE32 = FIRST_TARGET_MATCH_RESULT_TY
     };
-    enum OperandMode {
-        OperandMode_Default,
-        OperandMode_NSA,
-    };
 
     using OptionalImmIndexMap = std::map<RVGPUOperand::ImmTy, unsigned>;
 
@@ -1096,8 +1090,7 @@ class RVGPUAsmParser : public MCTargetAsmParser {
             uint64_t &ErrorInfo,
             bool MatchingInlineAsm) override;
     bool ParseDirective(AsmToken DirectiveID) override;
-    ParseStatus parseOperand(OperandVector &Operands, StringRef Mnemonic,
-            OperandMode Mode = OperandMode_Default);
+    ParseStatus parseOperand(OperandVector &Operands, StringRef Mnemonic);
     StringRef parseMnemonicSuffix(StringRef Name);
     bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
             SMLoc NameLoc, OperandVector &Operands) override;
@@ -2688,9 +2681,7 @@ bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
   return true;
 }
 
-ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands,
-                                          StringRef Mnemonic,
-                                          OperandMode Mode) {
+ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   // Try to parse with a custom parser
   //ParseStatus Res = MatchOperandParserImpl(Operands, Mnemonic);
   ParseStatus Res;
@@ -2706,7 +2697,7 @@ ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands,
 
   SMLoc RBraceLoc;
   SMLoc LBraceLoc = getLoc();
-  if (Mode == OperandMode_NSA && trySkipToken(AsmToken::LBrac)) {
+  if (trySkipToken(AsmToken::LBrac)) {
     unsigned Prefix = Operands.size();
 
     for (;;) {
@@ -2753,8 +2744,7 @@ bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info,
   Operands.push_back(RVGPUOperand::CreateToken(this, Name, NameLoc));
 
   while (!trySkipToken(AsmToken::EndOfStatement)) {
-    OperandMode Mode = OperandMode_Default;
-    ParseStatus Res = parseOperand(Operands, Name, Mode);
+    ParseStatus Res = parseOperand(Operands, Name);
 
     if (!Res.isSuccess()) {
       checkUnsupportedInstruction(Name, NameLoc);
