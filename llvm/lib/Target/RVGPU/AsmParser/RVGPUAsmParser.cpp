@@ -316,7 +316,11 @@ public:
   }
 
   bool isCvtMode() const {
-    
+    return false;
+  }
+  
+  void addCvtModeOperands(MCInst &Inst, unsigned N) const {
+
   }
 
   bool isVReg() const {
@@ -1277,7 +1281,7 @@ class RVGPUAsmParser : public MCTargetAsmParser {
     public:
     void onBeginOfFile() override;
 
-//    ParseStatus parseCustomOperand(OperandVector &Operands, unsigned MCK);
+    ParseStatus parseCvtModeOperand(OperandVector &Operands);
 };
 
 } // end anonymous namespace
@@ -2040,7 +2044,6 @@ unsigned RVGPUAsmParser::ParseRegList(RegisterKind &RegKind, unsigned &RegNum,
 bool RVGPUAsmParser::ParseRVGPURegister(RegisterKind &RegKind, unsigned &Reg,
                                           unsigned &RegNum, unsigned &RegWidth,
                                           SmallVectorImpl<AsmToken> &Tokens) {
-  auto Loc = getLoc();
   Reg = RVGPU::NoRegister;
 
   if (isToken(AsmToken::Identifier)) {
@@ -2685,9 +2688,11 @@ bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
 }
 
 ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
-  // Try to parse with a custom parser
-  //ParseStatus Res = MatchOperandParserImpl(Operands, Mnemonic);
-  ParseStatus Res;
+  // Check if the current operand has a custom associated parser, if so, try to
+  // custom parse the operand, or fallback to the general approach.
+  ParseStatus Result = MatchOperandParserImpl(Operands, Mnemonic, /*ParseForAllFeatures=*/true);
+  
+  // ParseStatus Res;
 
   // If we successfully parsed the operand or if there as an error parsing,
   // we are done.
@@ -2695,8 +2700,8 @@ ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnem
   // If we are parsing after we reach EndOfStatement then this means we
   // are appending default values to the Operands list.  This is only done
   // by custom parser, so we shouldn't continue on to the generic parsing.
-//  if (Res.isSuccess() || Res.isFailure() || isToken(AsmToken::EndOfStatement))
-//    return Res;
+  //  if (Res.isSuccess() || Res.isFailure() || isToken(AsmToken::EndOfStatement))
+  //    return Res;
 
   SMLoc RBraceLoc;
   SMLoc LBraceLoc = getLoc();
@@ -2705,10 +2710,10 @@ ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnem
 
     for (;;) {
       auto Loc = getLoc();
-      Res = parseReg(Operands);
-      if (Res.isNoMatch())
+      Result = parseReg(Operands);
+      if (Result.isNoMatch())
         Error(Loc, "expected a register");
-      if (!Res.isSuccess())
+      if (!Result.isSuccess())
         return ParseStatus::Failure;
 
       RBraceLoc = getLoc();
@@ -2740,10 +2745,7 @@ ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnem
 bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info,
                                        StringRef Name,
                                        SMLoc NameLoc, OperandVector &Operands) {
-  // If the target architecture uses MnemonicAlias, call it here to parse
-  // operands correctly.
-//  applyMnemonicAliases(Name, getAvailableFeatures(), 0);
-
+  // First operand is token for instruction
   Operands.push_back(RVGPUOperand::CreateToken(this, Name, NameLoc));
 
   while (!trySkipToken(AsmToken::EndOfStatement)) {
@@ -3205,32 +3207,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUAsmParser() {
 #define GET_MNEMONIC_SPELL_CHECKER
 #define GET_MNEMONIC_CHECKER
 #include "RVGPUGenAsmMatcher.inc"
-#if 0
-ParseStatus RVGPUAsmParser::parseCustomOperand(OperandVector &Operands,
-                                                unsigned MCK) {
-  switch (MCK) {
-  case MCK_addr64:
-    return parseTokenOp("addr64", Operands);
-  case MCK_done:
-    return parseTokenOp("done", Operands);
-  case MCK_idxen:
-    return parseTokenOp("idxen", Operands);
-  case MCK_lds:
-    return parseTokenOp("lds", Operands);
-  case MCK_offen:
-    return parseTokenOp("offen", Operands);
-  case MCK_off:
-    return parseTokenOp("off", Operands);
-  case MCK_row_95_en:
-    return parseTokenOp("row_en", Operands);
-  case MCK_gds:
-    return parseNamedBit("gds", Operands, RVGPUOperand::ImmTyGDS);
-  case MCK_tfe:
-    return parseNamedBit("tfe", Operands, RVGPUOperand::ImmTyTFE);
-  }
-  return tryCustomParseOperand(Operands, MCK);
-}
-#endif 
+
 // This function should be defined after auto-generated include so that we have
 // MatchClassKind enum defined
 unsigned RVGPUAsmParser::validateTargetOperandClass(MCParsedAsmOperand &Op,
@@ -3240,52 +3217,8 @@ unsigned RVGPUAsmParser::validateTargetOperandClass(MCParsedAsmOperand &Op,
   // But MatchInstructionImpl() expects to meet token and fails to validate
   // operand. This method checks if we are given immediate operand but expect to
   // get corresponding token.
-#if 0                                                         
-  RVGPUOperand &Operand = (RVGPUOperand&)Op;
-  switch (Kind) {
-  case MCK_addr64:
-    return Operand.isAddr64() ? Match_Success : Match_InvalidOperand;
-  case MCK_gds:
-    return Operand.isGDS() ? Match_Success : Match_InvalidOperand;
-  case MCK_lds:
-    return Operand.isLDS() ? Match_Success : Match_InvalidOperand;
-  case MCK_idxen:
-    return Operand.isIdxen() ? Match_Success : Match_InvalidOperand;
-  case MCK_offen:
-    return Operand.isOffen() ? Match_Success : Match_InvalidOperand;
-  case MCK_tfe:
-    return Operand.isTFE() ? Match_Success : Match_InvalidOperand;
-  case MCK_SSrcB32:
-    // When operands have expression values, they will return true for isToken,
-    // because it is not possible to distinguish between a token and an
-    // expression at parse time. MatchInstructionImpl() will always try to
-    // match an operand as a token, when isToken returns true, and when the
-    // name of the expression is not a valid token, the match will fail,
-    // so we need to handle it here.
-    return Operand.isSSrcB32() ? Match_Success : Match_InvalidOperand;
-  case MCK_SSrcF32:
-    return Operand.isSSrcF32() ? Match_Success : Match_InvalidOperand;
-  case MCK_SOPPBrTarget:
-    return Operand.isSOPPBrTarget() ? Match_Success : Match_InvalidOperand;
-  case MCK_VReg32OrOff:
-    return Operand.isVReg32OrOff() ? Match_Success : Match_InvalidOperand;
-  case MCK_InterpSlot:
-    return Operand.isInterpSlot() ? Match_Success : Match_InvalidOperand;
-  case MCK_InterpAttr:
-    return Operand.isInterpAttr() ? Match_Success : Match_InvalidOperand;
-  case MCK_InterpAttrChan:
-    return Operand.isInterpAttrChan() ? Match_Success : Match_InvalidOperand;
-  case MCK_SReg_64:
-  case MCK_SReg_64_XEXEC:
-    // Null is defined as a 32-bit register but
-    // it should also be enabled with 64-bit operands.
-    // The following code enables it for SReg_64 operands
-    // used as source and destination. Remaining source
-    // operands are handled in isInlinableImm.
-    return Operand.isNull() ? Match_Success : Match_InvalidOperand;
-  default:
-    return Match_InvalidOperand;
-  }
-#endif 
 }
 
+ParseStatus RVGPUAsmParser::parseCvtModeOperand(OperandVector &Operands) {
+  return ParseStatus::Failure;
+}

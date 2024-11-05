@@ -120,6 +120,7 @@ def CvtRZ_RELU   : PatLeaf<(i32 0x46)>;
 
 def RVGPUCvtModeOperand: AsmOperandClass {
   let Name = "CvtMode";
+  let RenderMethod = "addCvtModeOperands";
   let ParserMethod = "parseCvtModeOperand";
 }
 
@@ -632,7 +633,7 @@ multiclass F2_Support_Half<string OpcStr, SDNode OpNode> {
 // Type Conversion
 //-----------------------------------
 
-let hasSideEffects = false, isCodeGenOnly = 1 in {
+let hasSideEffects = false in {
   // Generate a cvt to the given type from all possible types.  Each instance
   // takes a CvtMode immediate that defines the conversion mode to use.  It can
   // be CvtNONE to omit a conversion mode.
@@ -640,52 +641,52 @@ let hasSideEffects = false, isCodeGenOnly = 1 in {
     def _s8 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_s8", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_s8", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u8 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_u8", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_u8", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s16 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_s16", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_s16", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u16 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_u16", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_u16", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s32 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_s32", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_s32", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u32 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_u32", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_u32", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s64 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_s64", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_s64", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u64 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_u64", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_u64", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _f16 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_f16", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_f16", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _bf16 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_bf16", "${mode:base}${mode:relu}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_bf16", "${mode}", "\t$dst, $src"), []>,
       Requires<!if(!eq(ToType, "f32"),
                    // bf16->f32 was introduced early.
                    [hasPTX<71>, hasSM<80>],
@@ -694,7 +695,7 @@ let hasSideEffects = false, isCodeGenOnly = 1 in {
     def _f32 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_f32", "${mode:base}${mode:relu}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_f32", "${mode}", "\t$dst, $src"), []>,
       Requires<!if(!eq(ToType, "bf16"),
                    // f32->bf16 was introduced early.
                    [hasPTX<70>, hasSM<80>],
@@ -702,7 +703,7 @@ let hasSideEffects = false, isCodeGenOnly = 1 in {
     def _f64 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_f64", "${mode:base}${mode:sat}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", ToType, "_f64", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
   }
 
@@ -739,7 +740,7 @@ let hasSideEffects = false, isCodeGenOnly = 1 in {
     def _f32 :
       RVGPUInst<(outs RC:$dst),
                 (ins GPR32:$src1, GPR32:$src2,  CvtMode:$mode),
-                !strconcat("cvt${mode:base}${mode:relu}.",
+                !strconcat("cvt${mode}.",
                 FromName, ".f32 \t$dst, $src1, $src2"), []>,
     Requires<[hasPTX<70>, hasSM<80>]>;
   }

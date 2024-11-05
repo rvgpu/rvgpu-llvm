@@ -98,19 +98,13 @@ void RVGPUInstPrinter::printCvtMode(const MCInst *MI, int OpNum,
   const MCOperand &MO = MI->getOperand(OpNum);
   int64_t Imm = MO.getImm();
 
-  if (strcmp(Modifier, "ftz") == 0) {
-    // FTZ flag
-    if (Imm & RVGPU::PTXCvtMode::FTZ_FLAG)
+  if (Imm & RVGPU::PTXCvtMode::FTZ_FLAG) {
       O << ".ftz";
-  } else if (strcmp(Modifier, "sat") == 0) {
-    // SAT flag
-    if (Imm & RVGPU::PTXCvtMode::SAT_FLAG)
+  } else if (Imm & RVGPU::PTXCvtMode::SAT_FLAG) {
       O << ".sat";
-  } else if (strcmp(Modifier, "relu") == 0) {
-    // RELU flag
-    if (Imm & RVGPU::PTXCvtMode::RELU_FLAG)
+  } else if (Imm & RVGPU::PTXCvtMode::RELU_FLAG) {
       O << ".relu";
-  } else if (strcmp(Modifier, "base") == 0) {
+  } else if (Imm & RVGPU::PTXCvtMode::BASE_MASK) {
     // Default operand
     switch (Imm & RVGPU::PTXCvtMode::BASE_MASK) {
     default:
@@ -148,6 +142,8 @@ void RVGPUInstPrinter::printCvtMode(const MCInst *MI, int OpNum,
   } else {
     llvm_unreachable("Invalid conversion modifier");
   }
+
+  return;
 }
 
 void RVGPUInstPrinter::printCmpMode(const MCInst *MI, int OpNum,
