@@ -122,248 +122,128 @@ public:
     return isRegOrInline(RCID, type);
   }
 
-  bool isVCSrcB64() const {
-      return isRegOrInlineNoMods(RVGPU::VS_64RegClassID, MVT::i64);
-  }
-
-  bool isVCSrcTB16() const {
-      return isRegOrInlineNoMods(RVGPU::VS_16RegClassID, MVT::i16);
-  }
-
-  bool isVCSrcTB16_Lo128() const {
-      return isRegOrInlineNoMods(RVGPU::VS_16_Lo128RegClassID, MVT::i16);
-  }
-
-  bool isVCSrcFake16B16_Lo128() const {
-      return isRegOrInlineNoMods(RVGPU::VS_32_Lo128RegClassID, MVT::i16);
-  }
-
-  bool isVCSrcB16() const {
-      return isRegOrInlineNoMods(RVGPU::VS_32RegClassID, MVT::i16);
-  }
-
-  bool isVCSrcV2B16() const {
-      return isVCSrcB16();
-  }
-
-  bool isVCSrcF32() const {
-      return isRegOrInlineNoMods(RVGPU::VS_32RegClassID, MVT::f32);
-  }
-
-  bool isVCSrcF64() const {
-      return isRegOrInlineNoMods(RVGPU::VS_64RegClassID, MVT::f64);
-  }
-
-  bool isVCSrcTF16() const {
-      return isRegOrInlineNoMods(RVGPU::VS_16RegClassID, MVT::f16);
-  }
-
-  bool isVCSrcTF16_Lo128() const {
-      return isRegOrInlineNoMods(RVGPU::VS_16_Lo128RegClassID, MVT::f16);
-  }
-
-  bool isVCSrcFake16F16_Lo128() const {
-      return isRegOrInlineNoMods(RVGPU::VS_32_Lo128RegClassID, MVT::f16);
-  }
-
-  bool isVCSrcF16() const {
-      return isRegOrInlineNoMods(RVGPU::VS_32RegClassID, MVT::f16);
-  }
-
-  bool isVCSrcV2F16() const {
-      return isVCSrcF16();
-  }
-
-  bool isVSrcB32() const {
-      return isVCSrcF32() || isExpr();
-  }
-
-  bool isVSrcB64() const {
-      return isVCSrcF64();
-  }
-
-  bool isVSrcTB16() const { return isVCSrcTB16(); }
-
-  bool isVSrcTB16_Lo128() const {
-      return isVCSrcTB16_Lo128();
-  }
-
-  bool isVSrcFake16B16_Lo128() const {
-      return isVCSrcFake16B16_Lo128();
-  }
-
-  bool isVSrcB16() const {
-      return isVCSrcB16();
-  }
-
-  bool isVSrcV2B16() const {
-      return isVSrcB16();
-  }
-
-  bool isVCSrcV2FP32() const {
-      return isVCSrcF64();
-  }
-
-  bool isVSrcV2FP32() const {
-      return isVSrcF64();
-  }
-
-  bool isVCSrcV2INT32() const {
-      return isVCSrcB64();
-  }
-
-  bool isVSrcV2INT32() const {
-      return isVSrcB64();
-  }
-
-  bool isVSrcF32() const {
-      return isVCSrcF32() || isExpr();
-  }
-
-  bool isVSrcF64() const {
-      return isVCSrcF64();
-  }
-
-  bool isVSrcTF16() const { return isVCSrcTF16(); }
-
-  bool isVSrcTF16_Lo128() const {
-      return isVCSrcTF16_Lo128();
-  }
-
-  bool isVSrcFake16F16_Lo128() const {
-      return isVCSrcFake16F16_Lo128();
-  }
-
-  bool isVSrcF16() const {
-      return isVCSrcF16();
-  }
-
-  bool isVSrcV2F16() const {
-      return isVSrcF16();
-  }
-
-  bool isVISrcB32() const {
+  bool isRVSrcB32() const {
       return isRegOrInlineNoMods(RVGPU::GPR32RegClassID, MVT::i32);
   }
 
-  bool isVISrcB16() const {
+  bool isRVSrcB16() const {
       return isRegOrInlineNoMods(RVGPU::GPR32RegClassID, MVT::i16);
   }
 
-  bool isVISrcV2B16() const {
-      return isVISrcB16();
+  bool isRVSrcV2B16() const {
+      return isRVSrcB16();
   }
 
-  bool isVISrcF32() const {
+  bool isRVSrcF32() const {
       return isRegOrInlineNoMods(RVGPU::GPR32RegClassID, MVT::f32);
   }
 
-  bool isVISrcF16() const {
+  bool isRVSrcF16() const {
       return isRegOrInlineNoMods(RVGPU::GPR32RegClassID, MVT::f16);
   }
 
-  bool isVISrc_64B64() const {
+  bool isRVSrc_64B64() const {
       return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::i64);
   }
 
-  bool isVISrc_64F64() const {
+  bool isRVSrc_64F64() const {
       return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::f64);
   }
 
-  bool isVISrc_64V2FP32() const {
+  bool isRVSrc_64V2FP32() const {
       return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::f32);
   }
 
-  bool isVISrc_64V2INT32() const {
+  bool isRVSrc_64V2INT32() const {
       return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::i32);
   }
 
-  bool isVISrc_256B64() const {
+  bool isRVSrc_256B64() const {
       return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::i64);
   }
 
-  bool isVISrc_256F64() const {
+  bool isRVSrc_256F64() const {
       return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::f64);
   }
 
-  bool isVISrc_128B16() const {
+  bool isRVSrc_128B16() const {
       return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::i16);
   }
 
-  bool isVISrc_128V2B16() const {
-      return isVISrc_128B16();
+  bool isRVSrc_128V2B16() const {
+      return isRVSrc_128B16();
   }
 
-  bool isVISrc_128B32() const {
+  bool isRVSrc_128B32() const {
       return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::i32);
   }
 
-  bool isVISrc_128F32() const {
+  bool isRVSrc_128F32() const {
       return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::f32);
   }
 
-  bool isVISrc_256V2FP32() const {
+  bool isRVSrc_256V2FP32() const {
       return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::f32);
   }
 
-  bool isVISrc_256V2INT32() const {
+  bool isRVSrc_256V2INT32() const {
       return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::i32);
   }
 
-  bool isVISrc_512B32() const {
+  bool isRVSrc_512B32() const {
       return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::i32);
   }
 
-  bool isVISrc_512B16() const {
+  bool isRVSrc_512B16() const {
       return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::i16);
   }
 
-  bool isVISrc_512V2B16() const {
-      return isVISrc_512B16();
+  bool isRVSrc_512V2B16() const {
+      return isRVSrc_512B16();
   }
 
-  bool isVISrc_512F32() const {
+  bool isRVSrc_512F32() const {
       return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::f32);
   }
 
-  bool isVISrc_512F16() const {
+  bool isRVSrc_512F16() const {
       return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::f16);
   }
 
-  bool isVISrc_512V2F16() const {
-      return isVISrc_512F16() || isVISrc_512B32();
+  bool isRVSrc_512V2F16() const {
+      return isRVSrc_512F16() || isRVSrc_512B32();
   }
 
-  bool isVISrc_1024B32() const {
+  bool isRVSrc_1024B32() const {
       return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::i32);
   }
 
-  bool isVISrc_1024B16() const {
+  bool isRVSrc_1024B16() const {
       return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::i16);
   }
 
-  bool isVISrc_1024V2B16() const {
-      return isVISrc_1024B16();
+  bool isRVSrc_1024V2B16() const {
+      return isRVSrc_1024B16();
   }
 
-  bool isVISrc_1024F32() const {
+  bool isRVSrc_1024F32() const {
       return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::f32);
   }
 
-  bool isVISrc_1024F16() const {
+  bool isRVSrc_1024F16() const {
       return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::f16);
   }
 
-  bool isVISrc_1024V2F16() const {
-      return isVISrc_1024F16() || isVISrc_1024B32();
+  bool isRVSrc_1024V2F16() const {
+      return isRVSrc_1024F16() || isRVSrc_1024B32();
   }
 
-  bool isVISrc_128F16() const {
+  bool isRVSrc_128F16() const {
       return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::f16);
   }
 
-  bool isVISrc_128V2F16() const {
-      return isVISrc_128F16() || isVISrc_128B32();
+  bool isRVSrc_128V2F16() const {
+      return isRVSrc_128F16() || isRVSrc_128B32();
   }
 
   bool isExpr() const {
@@ -564,6 +444,8 @@ bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info,
     if (Res.isSuccess()) {
       break;
     }
+
+    break;
   }
 
   return false;

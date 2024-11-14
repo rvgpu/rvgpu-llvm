@@ -71,16 +71,6 @@ RVGPURegisterInfo::getCalleeSavedRegs(const MachineFunction *) const {
 
 BitVector RVGPURegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-#if 0 
-  for (unsigned Reg = RVGPU::ENVREG0; Reg <= RVGPU::ENVREG31; ++Reg) {
-    markSuperRegs(Reserved, Reg);
-  }
-  markSuperRegs(Reserved, RVGPU::VRFrame32);
-  markSuperRegs(Reserved, RVGPU::VRFrameLocal32);
-  markSuperRegs(Reserved, RVGPU::VRFrame64);
-  markSuperRegs(Reserved, RVGPU::VRFrameLocal64);
-  markSuperRegs(Reserved, RVGPU::VRDepot);
-#endif   
   return Reserved;
 }
 
@@ -103,11 +93,6 @@ bool RVGPURegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 Register RVGPURegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-#if 0
-  const RVGPUTargetMachine &TM =
-      static_cast<const RVGPUTargetMachine &>(MF.getTarget());
-  return TM.is64Bit() ? RVGPU::VRFrame64 : RVGPU::VRFrame32;
-#endif
   return RVGPU::SP_REG;
 }
 
