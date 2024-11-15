@@ -15,17 +15,22 @@ let Namespace = "RVGPU" in {
 def lo16 : SubRegIndex<16, 0>;
 def hi16 : SubRegIndex<16, 16>;
 
-foreach Index = 0...31 in {
-  def sub#Index : SubRegIndex<32, !shl(Index, 5)>;
-}
+def sub0 : SubRegIndex<32, 0>;
+def sub1 : SubRegIndex<32, 32>;
+def sub2 : SubRegIndex<32, 64>;
+def sub3 : SubRegIndex<32, 128>;
 
-foreach Index = 1...31 in {
-  def sub#Index#_lo16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub#Index), lo16>;
-  def sub#Index#_hi16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub#Index), hi16>;
-}
+def sub0_lo16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub0), lo16>;
+def sub0_hi16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub0), hi16>;
+def sub1_lo16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub1), lo16>;
+def sub1_hi16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub1), hi16>;
+def sub2_lo16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub2), lo16>;
+def sub2_hi16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub2), hi16>;
+def sub3_lo16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub3), lo16>;
+def sub3_hi16 : ComposedSubRegIndex<!cast<SubRegIndex>(sub3), hi16>;
 
-foreach Size = {2...6,8,16} in {
-  foreach Index = !range(!sub(33, Size)) in {
+foreach Size = {2, 3, 4} in {
+  foreach Index = !range(!sub(4, Size)) in {
     def !interleave(!foreach(cur, !range(Size), "sub"#!add(cur, Index)), "_") :
       SubRegIndex<!mul(Size, 32), !shl(Index, 5)> {
       let CoveringSubRegIndices =
@@ -44,46 +49,9 @@ class getSubRegs<int size> {
   list<SubRegIndex> ret2 = [sub0, sub1];
   list<SubRegIndex> ret3 = [sub0, sub1, sub2];
   list<SubRegIndex> ret4 = [sub0, sub1, sub2, sub3];
-  list<SubRegIndex> ret5 = [sub0, sub1, sub2, sub3, sub4];
-  list<SubRegIndex> ret6 = [sub0, sub1, sub2, sub3, sub4, sub5];
-  list<SubRegIndex> ret7 = [sub0, sub1, sub2, sub3, sub4, sub5, sub6];
-  list<SubRegIndex> ret8 = [sub0, sub1, sub2, sub3, sub4, sub5, sub6, sub7];
-  list<SubRegIndex> ret9 = [sub0, sub1, sub2, sub3, sub4, sub5, sub6, sub7, sub8];
-  list<SubRegIndex> ret10 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9];
-  list<SubRegIndex> ret11 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9, sub10];
-  list<SubRegIndex> ret12 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9, sub10, sub11];
-  list<SubRegIndex> ret16 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9, sub10, sub11,
-                             sub12, sub13, sub14, sub15];
-  list<SubRegIndex> ret32 = [sub0, sub1, sub2, sub3,
-                             sub4, sub5, sub6, sub7,
-                             sub8, sub9, sub10, sub11,
-                             sub12, sub13, sub14, sub15,
-                             sub16, sub17, sub18, sub19,
-                             sub20, sub21, sub22, sub23,
-                             sub24, sub25, sub26, sub27,
-                             sub28, sub29, sub30, sub31];
 
   list<SubRegIndex> ret = !if(!eq(size, 2), ret2,
-                              !if(!eq(size, 3), ret3,
-                                  !if(!eq(size, 4), ret4,
-                                      !if(!eq(size, 5), ret5,
-                                          !if(!eq(size, 6), ret6,
-                                              !if(!eq(size, 7), ret7,
-                                                  !if(!eq(size, 8), ret8,
-                                                      !if(!eq(size, 9), ret9,
-                                                          !if(!eq(size, 10), ret10,
-                                                              !if(!eq(size, 11), ret11,
-                                                                  !if(!eq(size, 12), ret12,
-                                                                      !if(!eq(size, 16), ret16,
-                                                                          ret32))))))))))));
+                              !if(!eq(size, 3), ret3, ret4));
 }
 
 // Generates list of sequential register tuple names.
@@ -94,7 +62,7 @@ class RegSeqNames<int last_reg, int stride, int size, string prefix,
   int end_reg = !add(start, size, -1);
   list<string> ret =
     !if(!le(end_reg, last_reg),
-        !listconcat([prefix # "[" # start # ":" # end_reg # "]"],
+        !listconcat([prefix # start],
                     RegSeqNames<last_reg, stride, size, prefix, next>.ret),
                     []);
 }
@@ -238,43 +206,14 @@ def GPR32_Lo128 : RVGPURegClass<!listconcat(Reg32Types.types, Reg16Types.types),
 }
 
 // GPR 64-bit registers
-def VReg64 : RVGPURegisterTuples<getSubRegs<2>.ret, GPR32, 127, 1, 2, "r">;
+def VReg64 : RVGPURegisterTuples<getSubRegs<2>.ret, GPR32, 127, 1, 2, "dr">;
 
 // GPR 96-bit registers
-def VReg96 : RVGPURegisterTuples<getSubRegs<3>.ret, GPR32, 127, 1, 3, "r">;
+def VReg96 : RVGPURegisterTuples<getSubRegs<3>.ret, GPR32, 127, 1, 3, "tr">;
 
 // GPR 128-bit registers
-def VReg128 : RVGPURegisterTuples<getSubRegs<4>.ret, GPR32, 127, 1, 4, "r">;
+def VReg128 : RVGPURegisterTuples<getSubRegs<4>.ret, GPR32, 127, 1, 4, "qr">;
 
-// GPR 160-bit registers
-def VReg160 : RVGPURegisterTuples<getSubRegs<5>.ret, GPR32, 127, 1, 5, "r">;
-
-// GPR 192-bit registers
-def VReg192 : RVGPURegisterTuples<getSubRegs<6>.ret, GPR32, 127, 1, 6, "r">;
-
-// GPR 224-bit registers
-def VReg224 : RVGPURegisterTuples<getSubRegs<7>.ret, GPR32, 127, 1, 7, "r">;
-
-// GPR 256-bit registers
-def VReg256 : RVGPURegisterTuples<getSubRegs<8>.ret, GPR32, 127, 1, 8, "r">;
-
-// GPR 288-bit registers
-def VReg288 : RVGPURegisterTuples<getSubRegs<9>.ret, GPR32, 127, 1, 9, "r">;
-
-// GPR 320-bit registers
-def VReg320 : RVGPURegisterTuples<getSubRegs<10>.ret, GPR32, 127, 1, 10, "r">;
-
-// GPR 352-bit registers
-def VReg352 : RVGPURegisterTuples<getSubRegs<11>.ret, GPR32, 127, 1, 11, "r">;
-
-// GPR 384-bit registers
-def VReg384 : RVGPURegisterTuples<getSubRegs<12>.ret, GPR32, 127, 1, 12, "r">;
-
-// GPR 512-bit registers
-def VReg512 : RVGPURegisterTuples<getSubRegs<16>.ret, GPR32, 127, 1, 16, "r">;
-
-// GPR 1024-bit registers
-def VReg1024 : RVGPURegisterTuples<getSubRegs<32>.ret, GPR32, 127, 1, 32, "r">;
 
 // Register class for all vector registers (VGPRs + Interpolation Registers)
 class RegClassBase<int numRegs, list<ValueType> regTypes, dag regList> :
@@ -306,20 +245,6 @@ multiclass VRegClass<int numRegs, list<ValueType> regTypes, dag regList> {
 defm GPR64 : VRegClass<2, [i64, f64, v2i32, v2f32, v4f16, v4i16, p0, p1, p4], (add VReg64)>;
 defm GPR96 : VRegClass<3, [v3i32, v3f32], (add VReg96)>;
 defm GPR128 : VRegClass<4, [v4i32, v4f32, v2i64, v2f64, v8i16, v8f16], (add VReg128)>;
-defm GPR160 : VRegClass<5, [v5i32, v5f32], (add VReg160)>;
-
-defm GPR192 : VRegClass<6, [v6i32, v6f32, v3i64, v3f64], (add VReg192)>;
-defm GPR224 : VRegClass<7, [v7i32, v7f32], (add VReg224)>;
-defm GPR256 : VRegClass<8, [v8i32, v8f32, v4i64, v4f64, v16i16, v16f16], (add VReg256)>;
-defm GPR288 : VRegClass<9, [v9i32, v9f32], (add VReg288)>;
-defm GPR320 : VRegClass<10, [v10i32, v10f32], (add VReg320)>;
-defm GPR352 : VRegClass<11, [v11i32, v11f32], (add VReg352)>;
-defm GPR384 : VRegClass<12, [v12i32, v12f32], (add VReg384)>;
-
-let GlobalPriority = true in {
-defm GPR512 : VRegClass<16, [v16i32, v16f32, v8i64, v8f64, v32i16, v32f16], (add VReg512)>;
-defm GPR1024 : VRegClass<32, [v32i32, v32f32, v16i64, v16f64], (add VReg1024)>;
-}
 
 // 定义1个Predicate Register
 def PREG : RVGPUReg<"%p">;

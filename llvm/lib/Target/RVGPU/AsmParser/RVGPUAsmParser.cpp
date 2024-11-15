@@ -158,14 +158,6 @@ public:
       return isRegOrInlineNoMods(RVGPU::GPR64RegClassID, MVT::i32);
   }
 
-  bool isRVSrc_256B64() const {
-      return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::i64);
-  }
-
-  bool isRVSrc_256F64() const {
-      return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::f64);
-  }
-
   bool isRVSrc_128B16() const {
       return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::i16);
   }
@@ -180,62 +172,6 @@ public:
 
   bool isRVSrc_128F32() const {
       return isRegOrInlineNoMods(RVGPU::GPR128RegClassID, MVT::f32);
-  }
-
-  bool isRVSrc_256V2FP32() const {
-      return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::f32);
-  }
-
-  bool isRVSrc_256V2INT32() const {
-      return isRegOrInlineNoMods(RVGPU::GPR256RegClassID, MVT::i32);
-  }
-
-  bool isRVSrc_512B32() const {
-      return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::i32);
-  }
-
-  bool isRVSrc_512B16() const {
-      return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::i16);
-  }
-
-  bool isRVSrc_512V2B16() const {
-      return isRVSrc_512B16();
-  }
-
-  bool isRVSrc_512F32() const {
-      return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::f32);
-  }
-
-  bool isRVSrc_512F16() const {
-      return isRegOrInlineNoMods(RVGPU::GPR512RegClassID, MVT::f16);
-  }
-
-  bool isRVSrc_512V2F16() const {
-      return isRVSrc_512F16() || isRVSrc_512B32();
-  }
-
-  bool isRVSrc_1024B32() const {
-      return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::i32);
-  }
-
-  bool isRVSrc_1024B16() const {
-      return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::i16);
-  }
-
-  bool isRVSrc_1024V2B16() const {
-      return isRVSrc_1024B16();
-  }
-
-  bool isRVSrc_1024F32() const {
-      return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::f32);
-  }
-
-  bool isRVSrc_1024F16() const {
-      return isRegOrInlineNoMods(RVGPU::GPR1024RegClassID, MVT::f16);
-  }
-
-  bool isRVSrc_1024V2F16() const {
-      return isRVSrc_1024F16() || isRVSrc_1024B32();
   }
 
   bool isRVSrc_128F16() const {
@@ -429,9 +365,7 @@ ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnem
   return Result;
 }
 
-bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info,
-                                      StringRef Name,
-                                      SMLoc NameLoc, OperandVector &Operands) {
+bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name, SMLoc NameLoc, OperandVector &Operands) {
   // First operand is token for instruction
   Operands.push_back(RVGPUOperand::CreateToken(this, Name, NameLoc));
 
