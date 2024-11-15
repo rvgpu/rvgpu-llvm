@@ -6224,7 +6224,7 @@ class PTX_READ_SREG_R64<string regname, Intrinsic intop, list<Predicate> Preds=[
 
 class PTX_READ_SREG_R32<string regname, Intrinsic intop, list<Predicate> Preds=[]>
   : RVGPUInst<(outs GPR32:$d), (ins),
-              !strconcat("mov.u32 \t$d, %", regname, ""),
+              !strconcat("ldsreg \t$d, %", regname, ""),
               [(set GPR32:$d, (intop))]>,
     Requires<Preds>;
 
