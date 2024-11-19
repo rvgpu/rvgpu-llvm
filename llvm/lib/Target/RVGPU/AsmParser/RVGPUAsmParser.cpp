@@ -51,7 +51,8 @@ class RVGPUOperand : public MCParsedAsmOperand {
     Token,
     Immediate,
     Register,
-    Expression
+    Expression,
+    Modifier
   } Kind;
 
   SMLoc StartLoc, EndLoc;
@@ -98,10 +99,15 @@ private:
     unsigned RegNo;
   };
 
+  struct ModOp {
+    uint32_t ModNo;
+  };
+
   union {
     TokOp Tok;
     ImmOp Imm;
     RegOp Reg;
+    ModOp Mod;
     const MCExpr *Expr;
   };
 
@@ -213,12 +219,28 @@ public:
   }
 
   static RVGPUOperand::Ptr CreateToken(const RVGPUAsmParser *AsmParser, StringRef Str, SMLoc Loc) {
-      auto Res = std::make_unique<RVGPUOperand>(Token, AsmParser);
-      Res->Tok.Data = Str.data();
-      Res->Tok.Length = Str.size();
-      Res->StartLoc = Loc;
-      Res->EndLoc = Loc;
-      return Res;
+    auto Res = std::make_unique<RVGPUOperand>(KindTy::Token, AsmParser);
+    Res->Tok.Data = Str.data();
+    Res->Tok.Length = Str.size();
+    Res->StartLoc = Loc;
+    Res->EndLoc = Loc;
+    return Res;
+  }
+
+  static RVGPUOperand::Ptr CreateReg(const RVGPUAsmParser *AsmParser, unsigned RegNo, SMLoc SLoc, SMLoc ELoc) {
+    auto Res = std::make_unique<RVGPUOperand>(KindTy::Register, AsmParser);
+    Res->Reg.RegNo = RegNo;
+    Res->StartLoc = SLoc;
+    Res->EndLoc = ELoc;
+    return Res;
+  }
+
+  static RVGPUOperand::Ptr CreateMode(const RVGPUAsmParser *AsmParser, unsigned ModNo, SMLoc SLoc, SMLoc ELoc) {
+    auto Res = std::make_unique<RVGPUOperand>(KindTy::Modifier, AsmParser);
+    Res->Mod.ModNo = ModNo;
+    Res->StartLoc = SLoc;
+    Res->EndLoc = ELoc;
+    return Res;
   }
 
   void addImmOperands(MCInst &Inst, unsigned N, bool ApplyModifiers = true) const;
@@ -234,6 +256,23 @@ public:
 };
 
 //===----------------------------------------------------------------------===//
+// Operand
+//===----------------------------------------------------------------------===//
+
+bool RVGPUOperand::isRegClass(unsigned RCID) const {
+  return false;
+}
+
+void RVGPUOperand::addImmOperands(MCInst &Inst, unsigned N, bool ApplyModifiers) const {
+  return;
+}
+
+void RVGPUOperand::addRegOperands(MCInst &Inst, unsigned N) const {
+  //Inst.addOperand(MCOperand::createReg(RVGPU::getMCReg(getReg(), AsmParser->getSTI())));
+  Inst.addOperand(MCOperand::createReg(getReg()));
+}
+
+//===----------------------------------------------------------------------===//
 // AsmParser
 //===----------------------------------------------------------------------===//
 
@@ -241,11 +280,10 @@ class RVGPUAsmParser : public MCTargetAsmParser {
   private:
     MCAsmParser &Parser;
 
-    bool isToken(const AsmToken::TokenKind Kind) const;
-    bool trySkipToken(const AsmToken::TokenKind Kind);
-
     AsmToken::TokenKind getTokenKind() const;
-    void lex();
+
+    StringRef parseMnemonicSuffix(StringRef Name);
+    bool parseRegister(OperandVector &Operands);
 
   public:
     RVGPUAsmParser(const MCSubtargetInfo &STI, MCAsmParser &_Parser,
@@ -282,7 +320,7 @@ class RVGPUAsmParser : public MCTargetAsmParser {
     unsigned validateTargetOperandClass(MCParsedAsmOperand &Op, unsigned Kind) override;
     bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode, OperandVector &Operands, MCStreamer &Out, uint64_t &ErrorInfo, bool MatchingInlineAsm) override;
     bool ParseDirective(AsmToken DirectiveID) override;
-    ParseStatus parseOperand(OperandVector &Operands, StringRef Mnemonic);
+    bool parseOperand(OperandVector &Operands, StringRef Mnemonic);
     bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name, SMLoc NameLoc, OperandVector &Operands) override;
 
     void onBeginOfFile() override;
@@ -296,22 +334,11 @@ class RVGPUAsmParser : public MCTargetAsmParser {
 
 } // end anonymous namespace
 
-//===----------------------------------------------------------------------===//
-// Operand
-//===----------------------------------------------------------------------===//
-
-bool RVGPUOperand::isRegClass(unsigned RCID) const {
-  return false;
-}
-
-void RVGPUOperand::addImmOperands(MCInst &Inst, unsigned N, bool ApplyModifiers) const {
-  return;
-}
-
-void RVGPUOperand::addRegOperands(MCInst &Inst, unsigned N) const {
-  //Inst.addOperand(MCOperand::createReg(RVGPU::getMCReg(getReg(), AsmParser->getSTI())));
-  Inst.addOperand(MCOperand::createReg(getReg()));
-}
+#define GET_REGISTER_MATCHER
+#define GET_MATCHER_IMPLEMENTATION
+#define GET_MNEMONIC_SPELL_CHECKER
+#define GET_MNEMONIC_CHECKER
+#include "RVGPUGenAsmMatcher.inc"
 
 //===----------------------------------------------------------------------===//
 // AsmParser
@@ -329,13 +356,15 @@ constexpr unsigned MAX_SRC_OPERANDS_NUM = 6;
 using OperandIndices = SmallVector<int16_t, MAX_SRC_OPERANDS_NUM>;
 
 bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
-                                              OperandVector &Operands,
-                                              MCStreamer &Out,
-                                              uint64_t &ErrorInfo,
-                                              bool MatchingInlineAsm) {
+                                             OperandVector &Operands,
+                                             MCStreamer &Out,
+                                             uint64_t &ErrorInfo,
+                                             bool MatchingInlineAsm) {
   MCInst Inst;
   unsigned Result = Match_Success;
   uint64_t EI;
+
+  int size = Operands.size();
   auto R = MatchInstructionImpl(Operands, Inst, EI, MatchingInlineAsm, MatchingInlineAsm);
   // We order match statuses from least to most specific. We use most specific
   // status as resulting
@@ -357,29 +386,84 @@ bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
   return true;
 }
 
-ParseStatus RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
+bool RVGPUAsmParser::parseRegister(OperandVector &Operands) {
+  bool ret = true;
+
+  if (getLexer().getKind() == AsmToken::Identifier) {
+    StringRef Name = getLexer().getTok().getIdentifier();
+    MCRegister RegNo = MatchRegisterName(Name);
+    if (RegNo == 0) {
+      // 没有匹配到寄存器号
+      return false;
+    }
+
+    SMLoc S = getParser().getTok().getLoc();
+    SMLoc E = SMLoc::getFromPointer(S.getPointer() + Name.size());
+    getLexer().Lex();
+    Operands.push_back(RVGPUOperand::CreateReg(this, RegNo, S, E));
+  } else {
+    ret = false;
+  }
+
+  return ret;
+}
+
+bool RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   // Check if the current operand has a custom associated parser, if so, try to
   // custom parse the operand, or fallback to the general approach.
   ParseStatus Result = MatchOperandParserImpl(Operands, Mnemonic, /*ParseForAllFeatures=*/true);
+  if (Result.isFailure()) {
+    return false;
+  }
 
-  return Result;
+  if (Result.isSuccess()) {
+    return true;
+  }
+
+  if (parseRegister(Operands)) {
+    return true;
+  }
+
+  return false;
+}
+
+StringRef RVGPUAsmParser::parseMnemonicSuffix(StringRef Name) {
+  if (Name.ends_with(".rn")) {
+    return Name.substr(0, Name.size() - 3);
+  }
+
+  return Name;
 }
 
 bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name, SMLoc NameLoc, OperandVector &Operands) {
+  // 处理CVT指令的后缀
+  Name = parseMnemonicSuffix(Name);
+
   // First operand is token for instruction
   Operands.push_back(RVGPUOperand::CreateToken(this, Name, NameLoc));
 
-  while (!trySkipToken(AsmToken::EndOfStatement)) {
-    ParseStatus Res = parseOperand(Operands, Name);
+  // If there are no more operands, then finish
+  if (getLexer().is(AsmToken::EndOfStatement)) {
+    // Consume the EndOfStatement.
+    getParser().Lex();
+    return false;
+  }
 
-    // Eat the comma or space if there is one.
-    trySkipToken(AsmToken::Comma);
+  // Parse first operand
+  if (parseOperand(Operands, Name) == false) {
+    return true;
+  }
 
-    if (Res.isSuccess()) {
-      break;
-    }
+  while (parseOptionalToken(AsmToken::Comma)) {
+    // Parse next operand
+    if (parseOperand(Operands, Name) == false) {
+      return true;
+    } 
+  }
 
-    break;
+  if (getParser().parseEOL("unexpected token")) {
+    getParser().eatToEndOfStatement();
+    return true;
   }
 
   return false;
@@ -389,32 +473,12 @@ bool RVGPUAsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name
 // parser helpers
 //===----------------------------------------------------------------------===//
 
-bool
-RVGPUAsmParser::isToken(const AsmToken::TokenKind Kind) const {
-  return getTokenKind() == Kind;
-}
-
-bool
-RVGPUAsmParser::trySkipToken(const AsmToken::TokenKind Kind) {
-  if (isToken(Kind)) {
-    lex();
-    return true;
-  }
-  return false;
-}
-
 void RVGPUAsmParser::onBeginOfFile() {
     getTargetStreamer().EmitDirectiveRVGPUTarget();
 }
 
-AsmToken::TokenKind
-RVGPUAsmParser::getTokenKind() const {
+AsmToken::TokenKind RVGPUAsmParser::getTokenKind() const {
   return getLexer().getKind();
-}
-
-void
-RVGPUAsmParser::lex() {
-  Parser.Lex();
 }
 
 /// Force static initialization.
@@ -422,16 +486,9 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeRVGPUAsmParser() {
   RegisterMCAsmParser<RVGPUAsmParser> B(getTheRVGPUTarget64());
 }
 
-#define GET_REGISTER_MATCHER
-#define GET_MATCHER_IMPLEMENTATION
-#define GET_MNEMONIC_SPELL_CHECKER
-#define GET_MNEMONIC_CHECKER
-#include "RVGPUGenAsmMatcher.inc"
-
 // This function should be defined after auto-generated include so that we have
 // MatchClassKind enum defined
-unsigned RVGPUAsmParser::validateTargetOperandClass(MCParsedAsmOperand &Op,
-                                                     unsigned Kind) {
+unsigned RVGPUAsmParser::validateTargetOperandClass(MCParsedAsmOperand &Op, unsigned Kind) {
   return Match_Success;                                                         
   // Tokens like "glc" would be parsed as immediate operands in ParseOperand().
   // But MatchInstructionImpl() expects to meet token and fails to validate
@@ -440,5 +497,25 @@ unsigned RVGPUAsmParser::validateTargetOperandClass(MCParsedAsmOperand &Op,
 }
 
 ParseStatus RVGPUAsmParser::parseCvtModeOperand(OperandVector &Operands) {
-  return ParseStatus::Failure;
+  // CVT.mod dst, rs0
+
+  // 处理modifier
+  if ()
+
+  // 处理第一个目的寄存器
+  if (parseRegister(Operands) == false) {
+    return ParseStatus::Failure;
+  }
+
+  // 处理 ','
+  if (parseOptionalToken(AsmToken::Comma) == false) {
+    return ParseStatus::Failure;
+  }
+
+  // 处理第二个源寄存器
+  if (parseRegister(Operands) == false) {
+    return ParseStatus::Failure;
+  }
+  
+  return ParseStatus::Success;
 }
