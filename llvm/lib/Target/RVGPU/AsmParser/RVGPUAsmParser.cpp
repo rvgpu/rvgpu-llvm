@@ -10,6 +10,7 @@
 #include "RVKernelCodeT.h"
 #include "MCTargetDesc/RVGPUMCTargetDesc.h"
 #include "MCTargetDesc/RVGPUTargetStreamer.h"
+#include "MCTargetDesc/RVGPUInstPrinter.h"
 #include "RVDefines.h"
 #include "RVGPUInstrInfo.h"
 #include "RVGPURegisterInfo.h"
@@ -215,7 +216,23 @@ public:
   }
 
   void print(raw_ostream &OS) const override {
-    OS << "RVGPUOperand Print TODO";
+    switch (Kind)
+    {
+    case KindTy::Token:
+      OS << "<token '" << getToken() << "'";
+      break;
+    case KindTy::Register: {
+      auto RegName = RVGPUInstPrinter::getRegisterName(getReg());
+      OS << "<register " << RegName << ">";
+      break;
+    }
+    case KindTy::Modifier:
+      OS << "<modifier " << StartLoc.getPointer() << ">";
+      break;
+    default:
+      OS << "RVGPUOperand Print TODO";
+      break;
+    }
   }
 
   static RVGPUOperand::Ptr CreateToken(const RVGPUAsmParser *AsmParser, StringRef Str, SMLoc Loc) {
