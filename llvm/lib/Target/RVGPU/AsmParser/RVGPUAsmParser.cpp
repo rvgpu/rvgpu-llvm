@@ -47,27 +47,7 @@ class RVGPUAsmParser;
 // Operand
 //===----------------------------------------------------------------------===//
 class RVGPUOperand : public MCParsedAsmOperand {
-  enum KindTy {
-    Token,
-    Immediate,
-    Register,
-    Expression,
-    Modifier
-  } Kind;
-
-  SMLoc StartLoc, EndLoc;
-  const RVGPUAsmParser *AsmParser;
-
-public:
-  RVGPUOperand(KindTy Kind_, const RVGPUAsmParser *AsmParser_)
-      : Kind(Kind_), AsmParser(AsmParser_) {}
-
-  using Ptr = std::unique_ptr<RVGPUOperand>;
-
-  enum ImmTy {
-    ImmTyNone,
-  };
-
+private:
   // Immediate operand kind.
   // It helps to identify the location of an offending operand after an error.
   // Note that regular literals and mandatory literals (KImm) must be handled
@@ -82,7 +62,18 @@ public:
     ImmKindTyConst,
   };
 
-private:
+  enum ImmTy {
+    ImmTyNone,
+  };
+
+  enum KindTy {
+    Token,
+    Immediate,
+    Register,
+    Expression,
+    Modifier
+  } Kind;
+
   struct TokOp {
     const char *Data;
     unsigned Length;
@@ -111,10 +102,19 @@ private:
     const MCExpr *Expr;
   };
 
+  SMLoc StartLoc, EndLoc;
+  const RVGPUAsmParser *AsmParser;
+
 public:
-  bool isToken() const override { return Kind == Token; }
-  bool isImm() const override { return Kind == Immediate; }
-  bool isReg() const override { return Kind == Register; }
+  RVGPUOperand(KindTy Kind_, const RVGPUAsmParser *AsmParser_)
+      : Kind(Kind_), AsmParser(AsmParser_) {}
+
+  using Ptr = std::unique_ptr<RVGPUOperand>;
+
+  bool isToken() const override { return Kind == KindTy::Token; }
+  bool isImm() const override { return Kind == KindTy::Immediate; }
+  bool isReg() const override { return Kind == KindTy::Register; }
+  bool isCvtMode() const { return Kind == KindTy::Modifier; }
 
   bool isRegOrInline(unsigned RCID, MVT type) const {
     return isRegClass(RCID);
@@ -215,7 +215,7 @@ public:
   }
 
   void print(raw_ostream &OS) const override {
-    OS << "TODO\n";
+    OS << "RVGPUOperand Print TODO";
   }
 
   static RVGPUOperand::Ptr CreateToken(const RVGPUAsmParser *AsmParser, StringRef Str, SMLoc Loc) {
@@ -245,13 +245,8 @@ public:
 
   void addImmOperands(MCInst &Inst, unsigned N, bool ApplyModifiers = true) const;
   void addRegOperands(MCInst &Inst, unsigned N) const;
-
-  bool isCvtMode() const {
-    return false;
-  }
   
   void addCvtModeOperands(MCInst &Inst, unsigned N) const {
-
   }
 };
 
@@ -279,6 +274,7 @@ void RVGPUOperand::addRegOperands(MCInst &Inst, unsigned N) const {
 class RVGPUAsmParser : public MCTargetAsmParser {
   private:
     MCAsmParser &Parser;
+    StringRef ModifierStr;
 
     AsmToken::TokenKind getTokenKind() const;
 
@@ -366,15 +362,6 @@ bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 
   int size = Operands.size();
   auto R = MatchInstructionImpl(Operands, Inst, EI, MatchingInlineAsm, MatchingInlineAsm);
-  // We order match statuses from least to most specific. We use most specific
-  // status as resulting
-  // Match_MnemonicFail < Match_InvalidOperand < Match_MissingFeature < Match_PreferE32
-  if (R == Match_Success) {
-    Result = R;
-    ErrorInfo = EI;
-  }
-
-  llvm_unreachable("Implement any new match types added!");
 
   return (Result == Match_Success);
 }
@@ -429,6 +416,7 @@ bool RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 
 StringRef RVGPUAsmParser::parseMnemonicSuffix(StringRef Name) {
   if (Name.ends_with(".rn")) {
+    ModifierStr = Name.substr(Name.size()-3, Name.size());
     return Name.substr(0, Name.size() - 3);
   }
 
@@ -500,7 +488,9 @@ ParseStatus RVGPUAsmParser::parseCvtModeOperand(OperandVector &Operands) {
   // CVT.mod dst, rs0
 
   // 处理modifier
-  if ()
+  SMLoc S = SMLoc::getFromPointer(ModifierStr.data());
+  SMLoc E = SMLoc::getFromPointer(S.getPointer() + ModifierStr.size());
+  Operands.push_back(RVGPUOperand::CreateMode(this, 0, S, E));
 
   // 处理第一个目的寄存器
   if (parseRegister(Operands) == false) {
