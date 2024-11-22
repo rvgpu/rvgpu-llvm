@@ -41,7 +41,9 @@ let Namespace = "RVGPU" in {
 //===----------------------------------------------------------------------===//
 //  Helpers
 //===----------------------------------------------------------------------===//
-
+// size为2时，表示64位寄存器：[dr0, dr1, dr2, ... , dr126]
+// size为3时，表示96位寄存器: [tr0, tr1, tr2, ... , tr125]
+// size为4时，表示128位寄存器：[qr0, qr1, qr2, ... , qr124]
 class RegSeqNames<int last_reg, int stride, int size, string prefix, int start = 0> {
   int next = !add(start, stride);
   int end_reg = !add(start, size, -1);
@@ -172,7 +174,6 @@ def VReg96 : RVGPURegisterTuples<[sub0, sub1, sub2], GPR32, 127, 1, 3, "tr">;
 // GPR 128-bit registers
 def VReg128 : RVGPURegisterTuples<[sub0, sub1, sub2, sub3], GPR32, 127, 1, 4, "qr">;
 
-
 // Register class for all vector registers (VGPRs + Interpolation Registers)
 class RegClassBase<int numRegs, list<ValueType> regTypes, dag regList> :
     RVGPURegClass<regTypes, 32, regList> {
@@ -207,10 +208,12 @@ defm GPR128 : VRegClass<4, [v4i32, v4f32, v2i64, v2f64, v8i16, v8f16], (add VReg
 // 定义1个Predicate Register
 def PREG : RVGPUReg<"%p">;
 
-// 定义 GR0 ~ GR127，共128个32位的通用寄存器
-foreach i = 0...31 in {
-  def ENVREG#i : RVGPUReg<"%sreg"#i>;
-}
+// 定义Special Registers
+def SREG0 : RVGPUReg<"tid.x">;
+def SREG1 : RVGPUReg<"tid.y">;
+def SREG2 : RVGPUReg<"tid.z">;
+def SREG3 : RVGPUReg<"tid.w">;
+
 
 //===----------------------------------------------------------------------===//
 //  Register classes: 为128个通用寄存器定义
@@ -218,4 +221,4 @@ foreach i = 0...31 in {
 def Int1Regs : RVGPURegClass<[i1], 32, (add PREG)>;
 
 // Read RVGPURegisterInfo.cpp to see how VRFrame and VRDepot are used.
-def SpecialRegs : RVGPURegClass<[i32], 32, (add (sequence "ENVREG%u", 0, 31))>;
+def SpecialRegs : RVGPURegClass<[i32], 32, (add (sequence "SREG%u", 0, 3))>;
