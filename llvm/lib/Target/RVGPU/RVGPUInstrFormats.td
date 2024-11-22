@@ -29,12 +29,7 @@ def VOPDstOperand_t16 : VOPDstOperand <GPR16> {
   let DecoderMethod = "DecodeGPR_16RegisterClass";
 }
 
-def VOPDstOperand_t16Lo128 : VOPDstOperand <GPR16_Lo128> {
-  let EncoderMethod = "getMachineOpValueT16Lo128";
-  let DecoderMethod = "DecodeGPR16_Lo128RegisterClass";
-}
 // Generic RVGPU Format
-
 class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   : Instruction {
   field bits<64> Inst = 0;
