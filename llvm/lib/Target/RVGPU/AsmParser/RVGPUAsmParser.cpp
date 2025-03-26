@@ -386,7 +386,8 @@ bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
   StringRef IDVal = DirectiveID.getString();
 
-  printf("ParseDirective: %s\n", IDVal.data());
+  // 打印未知directive用于调试
+  printf("RVGPU::ParseDirective: %s\n", DirectiveID.getString().str().c_str());
   return true;
 }
 
@@ -508,21 +509,11 @@ ParseStatus RVGPUAsmParser::parseCvtModeOperand(OperandVector &Operands) {
   SMLoc S = SMLoc::getFromPointer(ModifierStr.data());
   SMLoc E = SMLoc::getFromPointer(S.getPointer() + ModifierStr.size());
   Operands.push_back(RVGPUOperand::CreateMode(this, 0, S, E));
-
-  // 处理第一个目的寄存器
-  if (parseRegister(Operands) == false) {
-    return ParseStatus::Failure;
-  }
-
-  // 处理 ','
-  if (parseOptionalToken(AsmToken::Comma) == false) {
-    return ParseStatus::Failure;
-  }
-
-  // 处理第二个源寄存器
-  if (parseRegister(Operands) == false) {
-    return ParseStatus::Failure;
-  }
   
+  // 处理第一个目的寄存器，这里还是需要处理第一个目的寄存器，因为从在 parseInstruction 中的第一个parseOperand调用过来。
+  if (parseRegister(Operands) == false) {
+    return ParseStatus::Failure;
+  }
+
   return ParseStatus::Success;
 }
