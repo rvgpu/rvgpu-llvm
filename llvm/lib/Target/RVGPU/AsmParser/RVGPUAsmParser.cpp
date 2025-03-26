@@ -379,8 +379,13 @@ bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 
   int size = Operands.size();
   auto R = MatchInstructionImpl(Operands, Inst, EI, MatchingInlineAsm, MatchingInlineAsm);
+  if (R == Match_Success) {
+    Inst.setLoc(IDLoc);
+    Out.emitInstruction(Inst, getSTI());
+    return false;
+  }
 
-  return (Result == Match_Success);
+  return true;
 }
 
 bool RVGPUAsmParser::ParseDirective(AsmToken DirectiveID) {
