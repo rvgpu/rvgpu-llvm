@@ -17,11 +17,6 @@ class VecInstTypeEnum<bits<4> val> {
 }
 def VecNOP : VecInstTypeEnum<0>;
 
-class Enc64 {
-  field bits<64> Inst;
-  int Size = 8;
-}
-
 class VOPDstOperand <RegisterClass rc> : RegisterOperand <rc, "printVOPDst">;
 
 def VOPDstOperand_t16 : VOPDstOperand <GPR16> {
@@ -32,7 +27,7 @@ def VOPDstOperand_t16 : VOPDstOperand <GPR16> {
 // Generic RVGPU Format
 class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   : Instruction {
-  field bits<64> Inst = 0;
+  field bits<32> Inst = 0;
 
   let Namespace = "RVGPU";
   dag OutOperandList = outs;
@@ -40,7 +35,6 @@ class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   let AsmString = asmstr;
   let Pattern = pattern;
 
-  // TSFlagFields
   bits<4> VecInstType = VecNOP.Value;
   bit IsSimpleMove = false;
   bit IsLoad = false;
@@ -56,29 +50,15 @@ class RVGPUInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   // if IsSuld == 2, then the instruction is a suld instruction with vector size
   // 2**(2-1) = 2.
   bits<2> IsSuld = 0;
-
-  let TSFlags{3...0}   = VecInstType;
-  let TSFlags{4...4}   = IsSimpleMove;
-  let TSFlags{5...5}   = IsLoad;
-  let TSFlags{6...6}   = IsStore;
-  let TSFlags{7}       = IsTex;
-  let TSFlags{9...8}   = IsSuld;
-  let TSFlags{10}      = IsSust;
-  let TSFlags{11}      = IsSurfTexQuery;
-  let TSFlags{12}      = IsTexModeUnified;
 }
 
 class RVGPUInstR<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmstr, list<dag> pattern>
     : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<8> rd = 0;
-  bits<8> rs1 = 0;
-  bits<8> rs2 = 0;
+  bits<7> rd = 0;
+  bits<7> rs1 = 0;
+  bits<7> rs2 = 0;
 
-  let Inst{63-56} = opcode;
-  let Inst{55-53} = optype;
-  let Inst{23-16} = rs2;
-  let Inst{15-8}  = rs1;
-  let Inst{7-0}   = rd;
+  let Inst{31-24} = opcode;
 }
 
 class CMP<bits<8> opcode, dag outs, dag ins, string asmstr, list<dag> pattern>
@@ -87,12 +67,7 @@ class CMP<bits<8> opcode, dag outs, dag ins, string asmstr, list<dag> pattern>
   bits<8> rs1 = 0;
   bits<8> rs2 = 0;
 
-  let Inst{63-56} = 0b11000000;
-  let Inst{55-53} = 0b000;
-  let Inst{52-45} = opcode;
-  let Inst{23-16} = rs2;
-  let Inst{15-8}  = rs1;
-  let Inst{7-0}   = rd;
+  let Inst{31-24} = opcode;
 }
 
 class RVGPULDrr<bits<8> op1, bits<3> type, bits<8> op2,
@@ -101,12 +76,21 @@ class RVGPULDrr<bits<8> op1, bits<3> type, bits<8> op2,
   bits<8> dst = 0;
   bits<8> addr = 0;
 
-  let Inst{63-56} = op1;
-  let Inst{55-53} = type;
-  let Inst{52-45} = op2;
-  let Inst{31-24} = dst;
-  let Inst{23-16} = addr;
-  let Inst{15-0} = 0;
+  let Inst{31-24} = op1;
+}
+
+class RVGPUInst_CVT<bits<4> op, bits<5> dtype, bits<5> stype, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<7> src = 0;
+  bits<7> dst = 0;
+  bits<4> mode = 0;
+
+  let Inst{31-28} = op;      // 4-bit opcode
+  let Inst{27-23} = dtype;   // 5-bit destination type
+  let Inst{22-18} = stype;   // 5-bit source type
+  let Inst{17-14} = mode;    // 4-bit conversion mode
+  let Inst{13-7} = src;      // 7-bit source register
+  let Inst{6-0} = dst;       // 7-bit destination register
 }
 
 class RVGPULDri<bits<8> op1, bits<3> type, bits<8> op2,
@@ -116,12 +100,7 @@ class RVGPULDri<bits<8> op1, bits<3> type, bits<8> op2,
   bits<8> addr = 0;
   bits<16> offset = 0;
 
-  let Inst{63-56} = op1;
-  let Inst{55-53} = type;
-  let Inst{52-45} = op2;
-  let Inst{31-24} = dst;
-  let Inst{23-16} = addr;
-  let Inst{15-0}  = offset;
+  let Inst{31-24} = op1;
 }
 
 class RVGPUSTrr<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
@@ -129,12 +108,7 @@ class RVGPUSTrr<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
   bits<8> addr = 0;
   bits<8> src1 = 0;
 
-  let Inst{63-56} = 0b11000110;
-  let Inst{55-53} = 0b000;
-  let Inst{52-45} = op;
-  let Inst{31-24} = src1;
-  let Inst{23-16} = addr;
-  let Inst{15-0} = 0;
+  let Inst{31-24} = op;
 }
 
 class RVGPUSTri<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
@@ -143,12 +117,7 @@ class RVGPUSTri<bits<8> op, dag outs, dag ins, string asmstr, list<dag> pattern>
   bits<8> addr = 0;
   bits<16> offset = 0;
 
-  let Inst{63-56} = 0b11000110;
-  let Inst{55-53} = 0b000;
-  let Inst{52-45} = op;
-  let Inst{31-24} = src1;
-  let Inst{23-16} = addr;
-  let Inst{15-0}  = offset;
+  let Inst{31-24} = 0b11000110;
 }
 
 class RVGPUInstI<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmstr, list<dag> pattern>
@@ -157,9 +126,5 @@ class RVGPUInstI<bits<8> opcode, bits<3> optype, dag outs, dag ins, string asmst
   bits<8> rs1 = 0;
   bits<16> imm16 = 0;
 
-  let Inst{63-56} = opcode;
-  let Inst{55-53} = optype;
-  let Inst{31-16} = imm16;
-  let Inst{15-8}  = rs1;
-  let Inst{7-0}   = rd;
+  let Inst{31-24} = opcode;
 }

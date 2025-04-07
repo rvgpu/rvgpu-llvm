@@ -637,54 +637,54 @@ let hasSideEffects = false in {
   // Generate a cvt to the given type from all possible types.  Each instance
   // takes a CvtMode immediate that defines the conversion mode to use.  It can
   // be CvtNONE to omit a conversion mode.
-  multiclass CVT_FROM_ALL<string ToType, RegisterClass RC, list<Predicate> Preds = []> {
+  multiclass CVT_FROM_ALL<bits<5> stype, string ToType, RegisterClass RC, list<Predicate> Preds = []> {
     def _s8 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b00000, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_s8", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u8 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b00001, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_u8", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s16 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b00010, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_s16", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u16 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b00011, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_u16", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s32 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b00100, (outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_s32", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u32 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b00101, (outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_u32", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s64 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b00110, (outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_s64", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u64 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b00111, (outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_u64", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _f16 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b10000, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_f16", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _bf16 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b10011, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_bf16", "${mode}", "\t$dst, $src"), []>,
       Requires<!if(!eq(ToType, "f32"),
@@ -693,7 +693,7 @@ let hasSideEffects = false in {
                    // bf16->everything else needs sm90/ptx78
                    [hasPTX<78>, hasSM<90>])>; 
     def _f32 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b10001, (outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_f32", "${mode}", "\t$dst, $src"), []>,
       Requires<!if(!eq(ToType, "bf16"),
@@ -701,25 +701,25 @@ let hasSideEffects = false in {
                    [hasPTX<70>, hasSM<80>],
                    Preds)>;
     def _f64 :
-      RVGPUInst<(outs RC:$dst),
+      RVGPUInst_CVT<0b0001, stype, 0b10010, (outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
                 !strconcat("cvt_", ToType, "_f64", "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
   }
 
   // Generate cvts from all types to all types.
-  defm CVT_s8  : CVT_FROM_ALL<"s8",  GPR16>;
-  defm CVT_u8  : CVT_FROM_ALL<"u8",  GPR16>;
-  defm CVT_s16 : CVT_FROM_ALL<"s16", GPR16>;
-  defm CVT_u16 : CVT_FROM_ALL<"u16", GPR16>;
-  defm CVT_s32 : CVT_FROM_ALL<"s32", GPR32>;
-  defm CVT_u32 : CVT_FROM_ALL<"u32", GPR32>;
-  defm CVT_s64 : CVT_FROM_ALL<"s64", GPR64>;
-  defm CVT_u64 : CVT_FROM_ALL<"u64", GPR64>;
-  defm CVT_f16 : CVT_FROM_ALL<"f16", GPR16>;
-  defm CVT_bf16 : CVT_FROM_ALL<"bf16", GPR16, [hasPTX<78>, hasSM<90>]>;
-  defm CVT_f32 : CVT_FROM_ALL<"f32", GPR32>;
-  defm CVT_f64 : CVT_FROM_ALL<"f64", GPR64>;
+  defm CVT_s8  : CVT_FROM_ALL<0b00000, "s8",  GPR16>;
+  defm CVT_u8  : CVT_FROM_ALL<0b00001, "u8",  GPR16>;
+  defm CVT_s16 : CVT_FROM_ALL<0b00010, "s16", GPR16>;
+  defm CVT_u16 : CVT_FROM_ALL<0b00011, "u16", GPR16>;
+  defm CVT_s32 : CVT_FROM_ALL<0b00100, "s32", GPR32>;
+  defm CVT_u32 : CVT_FROM_ALL<0b00101, "u32", GPR32>;
+  defm CVT_s64 : CVT_FROM_ALL<0b00110, "s64", GPR64>;
+  defm CVT_u64 : CVT_FROM_ALL<0b00111, "u64", GPR64>;
+  defm CVT_f16 : CVT_FROM_ALL<0b10000, "f16", GPR16>;
+  defm CVT_bf16 : CVT_FROM_ALL<0b10011, "bf16", GPR16, [hasPTX<78>, hasSM<90>]>;
+  defm CVT_f32 : CVT_FROM_ALL<0b10001, "f32", GPR32>;
+  defm CVT_f64 : CVT_FROM_ALL<0b10010, "f64", GPR64>;
 
   // These cvts are different from those above: The source and dest registers
   // are of the same type.
