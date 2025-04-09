@@ -79,10 +79,10 @@ class RVGPULDrr<bits<8> op1, bits<3> type, bits<8> op2,
   let Inst{31-24} = op1;
 }
 
-class RVGPUInst_CVT<bits<4> op, bits<5> dtype, bits<5> stype, dag outs, dag ins, string asmstr, list<dag> pattern>
+class RVGPUInst_CVT <bits<4> op, bits<5> dtype, bits<5> stype, dag outs, dag ins, string asmstr, list<dag> pattern>
     : RVGPUInst<outs, ins, asmstr, pattern> {
-  bits<7> src = 0;
-  bits<7> dst = 0;
+  bits<7> src;
+  bits<7> dst;
   bits<4> mode = 0;
 
   let Inst{31-28} = op;      // 4-bit opcode
@@ -90,7 +90,7 @@ class RVGPUInst_CVT<bits<4> op, bits<5> dtype, bits<5> stype, dag outs, dag ins,
   let Inst{22-18} = stype;   // 5-bit source type
   let Inst{17-14} = mode;    // 4-bit conversion mode
   let Inst{13-7} = src;      // 7-bit source register
-  let Inst{6-0} = dst;       // 7-bit destination register
+  let Inst{6-0} = dst;        // 7-bit destination register
 }
 
 class RVGPULDri<bits<8> op1, bits<3> type, bits<8> op2,

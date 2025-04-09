@@ -46,14 +46,14 @@ public:
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override;
 
-  void getMachineOpValue(const MCInst &MI, const MCOperand &MO, APInt &Op,
+  unsigned getMachineOpValue(const MCInst &MI, const MCOperand &MO,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const;
 
 private:
   uint64_t getImplicitOpSelHiEncoding(int Opcode) const;
   void getMachineOpValueCommon(const MCInst &MI, const MCOperand &MO,
-                               unsigned OpNo, APInt &Op,
+                               unsigned OpNo, 
                                SmallVectorImpl<MCFixup> &Fixups,
                                const MCSubtargetInfo &STI) const;
 
@@ -61,11 +61,7 @@ private:
   std::optional<uint32_t> getLitEncoding(const MCOperand &MO,
                                          const MCOperandInfo &OpInfo,
                                          const MCSubtargetInfo &STI) const;
-#if 0
-  void getBinaryCodeForInstr(const MCInst &MI, SmallVectorImpl<MCFixup> &Fixups,
-                             APInt &Inst, APInt &Scratch,
-                             const MCSubtargetInfo &STI) const;
-#endif 
+
   /// TableGen'erated function for getting the binary encoding for an
   /// instruction.
   uint64_t getBinaryCodeForInstr(const MCInst &MI,
@@ -280,49 +276,10 @@ void RVGPUMCCodeEmitter::encodeInstruction(const MCInst &MI,
                                             SmallVectorImpl<MCFixup> &Fixups,
                                             const MCSubtargetInfo &STI) const {
   int Opcode = MI.getOpcode();
-#if 0                                              
-  APInt Encoding, Scratch;
-  getBinaryCodeForInstr(MI, Fixups, Encoding, Scratch,  STI);
-#else                                              
-  uint64_t Binary;                                              
+  uint32_t Binary;                                              
   Binary = getBinaryCodeForInstr(MI, Fixups, STI);
   support::endian::write(CB, Binary, llvm::endianness::little);
-#endif                                               
   const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
-#if 0                                              
-  unsigned bytes = Desc.getSize();
-  for (unsigned i = 0; i < bytes; i++) {
-    CB.push_back((uint8_t)Encoding.extractBitsAsZExtValue(8, 8 * i));
-  }
-  // Check for additional literals
-  for (unsigned i = 0, e = Desc.getNumOperands(); i < e; ++i) {
-
-    // Is this operand a literal immediate?
-    const MCOperand &Op = MI.getOperand(i);
-    auto Enc = getLitEncoding(Op, Desc.operands()[i], STI);
-    if (!Enc || *Enc != 255)
-      continue;
-    // Yes! Encode it
-    int64_t Imm = 0;
-
-    if (Op.isImm())
-      Imm = Op.getImm();
-    else if (Op.isExpr()) {
-      if (const auto *C = dyn_cast<MCConstantExpr>(Op.getExpr()))
-        Imm = C->getValue();
-
-    } else if (!Op.isExpr()) // Exprs will be replaced with a fixup value.
-      llvm_unreachable("Must be immediate or expr");
-
-    //if (Desc.operands()[i].OperandType == RVGPU::OPERAND_REG_IMM_FP64)
-     // Imm = Hi_32(Imm);
-
-    support::endian::write<uint32_t>(CB, Imm, llvm::endianness::little);
-
-    // Only one literal value allowed
-    break;
-  }
-#endif 
 }
 
 static bool needsPCRel(const MCExpr *Expr) {
@@ -348,27 +305,21 @@ static bool needsPCRel(const MCExpr *Expr) {
   llvm_unreachable("invalid kind");
 }
 
-void RVGPUMCCodeEmitter::getMachineOpValue(const MCInst &MI,
-                                            const MCOperand &MO, APInt &Op,
+unsigned RVGPUMCCodeEmitter::getMachineOpValue(const MCInst &MI,
+                                            const MCOperand &MO,
                                             SmallVectorImpl<MCFixup> &Fixups,
                                             const MCSubtargetInfo &STI) const {
   if (MO.isReg()){
     unsigned Enc = MRI.getEncodingValue(MO.getReg());
-#if 0    
-//    unsigned Idx = Enc & RVGPU::HWEncoding::REG_IDX_MASK;
-//    bool IsVGPR = Enc & RVGPU::HWEncoding::IS_VGPR_OR_AGPR;
-//    Op = Idx | (IsVGPR << 8);
-#else
-    Op = Enc;
-#endif 
-    return;
+
+    return Enc;
   }
-  unsigned OpNo = &MO - MI.begin();
-  getMachineOpValueCommon(MI, MO, OpNo, Op, Fixups, STI);
+
+  return 123;
 }
 
 void RVGPUMCCodeEmitter::getMachineOpValueCommon(
-    const MCInst &MI, const MCOperand &MO, unsigned OpNo, APInt &Op,
+    const MCInst &MI, const MCOperand &MO, unsigned OpNo,
     SmallVectorImpl<MCFixup> &Fixups, const MCSubtargetInfo &STI) const {
 
   if (MO.isExpr() && MO.getExpr()->getKind() != MCExpr::Constant) {
@@ -397,20 +348,9 @@ void RVGPUMCCodeEmitter::getMachineOpValueCommon(
 
   const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
   if (MO.isImm()) {
-    Op = MO.getImm();
     return;
   }
-  #if 0
-  if (RVGPU::isSISrcOperand(Desc, OpNo)) {
-    if (auto Enc = getLitEncoding(MO, Desc.operands()[OpNo], STI)) {
-      Op = *Enc;
-      return;
-    }
-  } else if (MO.isImm()) {
-    Op = MO.getImm();
-    return;
-  }
-#endif 
+
   llvm_unreachable("Encoding of this operand type is not supported yet.");
 }
 
