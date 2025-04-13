@@ -2519,11 +2519,6 @@ defm isspace_shared_cluster : ISSPACEP<"shared::cluster",
                                        int_rvgpu_isspacep_shared_cluster,
                                        [hasPTX<78>, hasSM<90>]>;
 
-// Special register reads
-def LOAD_SPECIAL : RVGPUInst<(outs GPR32:$d),
-                            (ins SpecialRegs:$r),
-                            "ldsreg.b32 \t$d, $r", []>;
-
 // rotate builtin support
 
 def ROTATE_B32_HW_IMM

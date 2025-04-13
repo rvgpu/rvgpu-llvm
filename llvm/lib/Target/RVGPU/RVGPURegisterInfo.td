@@ -73,20 +73,25 @@ class RVGPURegisterTuples<list<SubRegIndex> Indices, RegisterClass RC,
                  RegSeqNames<last_reg, stride, size, prefix>.ret>;
 
 //===----------------------------------------------------------------------===//
-//  Declarations that describe the SI registers
+//  定义寄存器描述
 //===----------------------------------------------------------------------===//
-class RVGPUReg <string n, bits<8> regIdx = 0, bit isHi = 0> : Register<n> {
+// GPR
+class RVGPUGPR <string n, bits<7> regIdx, bit isHi = 0> : Register<n> {
   let Namespace = "RVGPU";
 
-  // These are generic helper values we use to form actual register
-  // codes. They should not be assumed to match any particular register
-  // encodings on any particular subtargets.
-  let HWEncoding{7-0} = regIdx;
-  let HWEncoding{8} = 0b1;
-  let HWEncoding{9} = isHi;
+  let HWEncoding{6-0} = regIdx;
 
   int Index = !cast<int>(regIdx);
 }
+
+class RVGPUSREG <string n, bits<7> regIdx = 0, bit isHi = 0> : Register<n> {
+  let Namespace = "RVGPU";
+
+  let HWEncoding{6-0} = regIdx;
+
+  int Index = !cast<int>(regIdx);
+}
+
 // For register classes that use TSFlags.
 class RVGPURegClass <list<ValueType> rTypes, int Align, dag rList>
   : RegisterClass <"RVGPU", rTypes, Align, rList> {
@@ -101,9 +106,9 @@ class RVGPURegClass <list<ValueType> rTypes, int Align, dag rList>
 //  Registers
 //===----------------------------------------------------------------------===//
 
-multiclass RVGPURegLoHi16 <string n, bits<8> regIdx, bit ArtificialHigh = 1> {
-  def _LO16 : RVGPUReg<n#".l", regIdx >;
-  def _HI16 : RVGPUReg<!if(ArtificialHigh, "", n#".h"), regIdx,
+multiclass RVGPURegLoHi16 <string n, bits<7> regIdx, bit ArtificialHigh = 1> {
+  def _LO16 : RVGPUGPR<n#".l", regIdx >;
+  def _HI16 : RVGPUGPR<!if(ArtificialHigh, "", n#".h"), regIdx,
                     /* isHi */ 1> {
     let isArtificial = ArtificialHigh;
   }
@@ -112,7 +117,7 @@ multiclass RVGPURegLoHi16 <string n, bits<8> regIdx, bit ArtificialHigh = 1> {
     let Namespace = "RVGPU";
     let SubRegIndices = [lo16, hi16];
     let CoveredBySubRegs = !not(ArtificialHigh);
-    let HWEncoding{7-0} = regIdx;
+    let HWEncoding{6-0} = regIdx;
 
     int Index = !cast<int>(regIdx);
   }
@@ -125,8 +130,8 @@ foreach Index = 0...127 in {
 
 // Pseudo-registers: Used as placeholders during isel and immediately
 // replaced, never seeing the verifier.
-def FP_REG : RVGPUReg<"fp", 0>;
-def SP_REG : RVGPUReg<"sp", 0>;
+def FP_REG : RVGPUGPR<"fp", 0>;
+def SP_REG : RVGPUGPR<"sp", 0>;
 
 class RegisterTypes<list<ValueType> reg_types> {
   list<ValueType> types = reg_types;
@@ -206,13 +211,13 @@ defm GPR96 : VRegClass<3, [v3i32, v3f32], (add VReg96)>;
 defm GPR128 : VRegClass<4, [v4i32, v4f32, v2i64, v2f64, v8i16, v8f16], (add VReg128)>;
 
 // 定义1个Predicate Register
-def PREG : RVGPUReg<"%p">;
+def PREG : RVGPUSREG<"%p", 127>;
 
 // 定义Special Registers
-def SREG0 : RVGPUReg<"tid.x">;
-def SREG1 : RVGPUReg<"tid.y">;
-def SREG2 : RVGPUReg<"tid.z">;
-def SREG3 : RVGPUReg<"tid.w">;
+def SREG0 : RVGPUSREG<"tid.x", 0>;
+def SREG1 : RVGPUSREG<"tid.y", 1>;
+def SREG2 : RVGPUSREG<"tid.z", 2>;
+def SREG3 : RVGPUSREG<"tid.w", 3>;
 
 
 //===----------------------------------------------------------------------===//
