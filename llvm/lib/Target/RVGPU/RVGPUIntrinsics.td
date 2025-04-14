@@ -6176,86 +6176,78 @@ def : Pat<(int_rvgpu_sust_p_3d_v4i32_trap
 //-----------------------------------
 // Read Special Registers
 //-----------------------------------
-
 class PTX_READ_SREG_R64<string regname, Intrinsic intop, list<Predicate> Preds=[]>
   : RVGPUInst<(outs GPR64:$d), (ins),
               !strconcat("mov.u64 \t$d, %", regname, ""),
               [(set GPR64:$d, (intop))]>,
     Requires<Preds>;
 
-class PTX_READ_SREG_R32<string regname, Intrinsic intop, list<Predicate> Preds=[]>
-  : RVGPUInst<(outs GPR32:$d), (ins),
-              !strconcat("ldsreg \t$d, ", regname, ""),
-              [(set GPR32:$d, (intop))]>,
-    Requires<Preds>;
-
-multiclass PTX_READ_SREG_R32V4<string regname, list<Predicate> Preds=[]> {
-   foreach suffix = ["x", "y", "z", "w"] in {
-      defvar reg = regname # "." # suffix;
-      defvar intr = !cast<Intrinsic>("int_rvgpu_read_ptx_sreg_" # regname # "_" # suffix);
-      def "_"#suffix :  PTX_READ_SREG_R32<reg, intr, Preds>;
-   }
+class PTX_READ_SREG_R32<Register sreg, Intrinsic intop, list<Predicate> Preds=[]>
+  : RVGPUInst_R<0b110111, 0b000000000000,
+              (outs GPR32:$dst), (ins),
+              !strconcat("ldsreg.b32 \t$dst, ", sreg.AsmName, ""),
+              [(set GPR32:$dst, (intop))]>, Requires<Preds> {
+    let src = sreg.HWEncoding{6-0};  // 使用sreg的编码
 }
 
 // TODO Add read vector-version of special registers
+def INT_PTX_SREG_TID_X : PTX_READ_SREG_R32<SREG0, int_rvgpu_read_ptx_sreg_tid_x>;
+def INT_PTX_SREG_TID_Y : PTX_READ_SREG_R32<SREG1, int_rvgpu_read_ptx_sreg_tid_y>;
+def INT_PTX_SREG_TID_Z : PTX_READ_SREG_R32<SREG2, int_rvgpu_read_ptx_sreg_tid_z>;
+def INT_PTX_SREG_TID_W : PTX_READ_SREG_R32<SREG3, int_rvgpu_read_ptx_sreg_tid_w>;
+def INT_PTX_SREG_NTID_X : PTX_READ_SREG_R32<SREG4, int_rvgpu_read_ptx_sreg_ntid_x>;
+def INT_PTX_SREG_NTID_Y : PTX_READ_SREG_R32<SREG5, int_rvgpu_read_ptx_sreg_ntid_y>;
+def INT_PTX_SREG_NTID_Z : PTX_READ_SREG_R32<SREG6, int_rvgpu_read_ptx_sreg_ntid_z>;
+def INT_PTX_SREG_NTID_W : PTX_READ_SREG_R32<SREG7, int_rvgpu_read_ptx_sreg_ntid_w>;
+def INT_PTX_SREG_CTAID_X : PTX_READ_SREG_R32<SREG8, int_rvgpu_read_ptx_sreg_ctaid_x>;
+def INT_PTX_SREG_CTAID_Y : PTX_READ_SREG_R32<SREG9, int_rvgpu_read_ptx_sreg_ctaid_y>;
+def INT_PTX_SREG_CTAID_Z : PTX_READ_SREG_R32<SREG10, int_rvgpu_read_ptx_sreg_ctaid_z>;
+def INT_PTX_SREG_CTAID_W : PTX_READ_SREG_R32<SREG11, int_rvgpu_read_ptx_sreg_ctaid_w>;
+def INT_PTX_SREG_NCTAID_X : PTX_READ_SREG_R32<SREG12, int_rvgpu_read_ptx_sreg_nctaid_x>;
+def INT_PTX_SREG_NCTAID_Y : PTX_READ_SREG_R32<SREG13, int_rvgpu_read_ptx_sreg_nctaid_y>;
+def INT_PTX_SREG_NCTAID_Z : PTX_READ_SREG_R32<SREG14, int_rvgpu_read_ptx_sreg_nctaid_z>;
+def INT_PTX_SREG_NCTAID_W : PTX_READ_SREG_R32<SREG15, int_rvgpu_read_ptx_sreg_nctaid_w>;
 
-defm INT_PTX_SREG_TID   : PTX_READ_SREG_R32V4<"tid">;
-defm INT_PTX_SREG_NTID  : PTX_READ_SREG_R32V4<"ntid">;
-defm INT_PTX_SREG_CTAID : PTX_READ_SREG_R32V4<"ctaid">;
-defm INT_PTX_SREG_NCTAID: PTX_READ_SREG_R32V4<"nctaid">;
+def INT_PTX_SREG_CLUSTERID_X : PTX_READ_SREG_R32<SREG16, int_rvgpu_read_ptx_sreg_clusterid_x, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTERID_Y : PTX_READ_SREG_R32<SREG17, int_rvgpu_read_ptx_sreg_clusterid_y, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTERID_Z : PTX_READ_SREG_R32<SREG18, int_rvgpu_read_ptx_sreg_clusterid_z, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTERID_W : PTX_READ_SREG_R32<SREG19, int_rvgpu_read_ptx_sreg_clusterid_w, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_NCLUSTERID_X : PTX_READ_SREG_R32<SREG20, int_rvgpu_read_ptx_sreg_nclusterid_x, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_NCLUSTERID_Y : PTX_READ_SREG_R32<SREG21, int_rvgpu_read_ptx_sreg_nclusterid_y, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_NCLUSTERID_Z : PTX_READ_SREG_R32<SREG22, int_rvgpu_read_ptx_sreg_nclusterid_z, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_NCLUSTERID_W : PTX_READ_SREG_R32<SREG23, int_rvgpu_read_ptx_sreg_nclusterid_w, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTER_CTAID_X : PTX_READ_SREG_R32<SREG24, int_rvgpu_read_ptx_sreg_cluster_ctaid_x, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTER_CTAID_Y : PTX_READ_SREG_R32<SREG25, int_rvgpu_read_ptx_sreg_cluster_ctaid_y, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTER_CTAID_Z : PTX_READ_SREG_R32<SREG26, int_rvgpu_read_ptx_sreg_cluster_ctaid_z, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTER_CTAID_W : PTX_READ_SREG_R32<SREG27, int_rvgpu_read_ptx_sreg_cluster_ctaid_w, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTER_NCTAID_X : PTX_READ_SREG_R32<SREG28, int_rvgpu_read_ptx_sreg_cluster_nctaid_x, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTER_NCTAID_Y : PTX_READ_SREG_R32<SREG29, int_rvgpu_read_ptx_sreg_cluster_nctaid_y, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTER_NCTAID_Z : PTX_READ_SREG_R32<SREG30, int_rvgpu_read_ptx_sreg_cluster_nctaid_z, [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_CLUSTER_NCTAID_W : PTX_READ_SREG_R32<SREG31, int_rvgpu_read_ptx_sreg_cluster_nctaid_w, [hasSM<90>, hasPTX<78>]>;
 
-defm INT_PTX_SREG_CLUSTERID :
-       PTX_READ_SREG_R32V4<"clusterid", [hasSM<90>, hasPTX<78>]>;
-defm INT_PTX_SREG_NCLUSTERID :
-       PTX_READ_SREG_R32V4<"nclusterid", [hasSM<90>, hasPTX<78>]>;
-defm INT_PTX_SREG_CLUSTER_CTAID :
-       PTX_READ_SREG_R32V4<"cluster_ctaid", [hasSM<90>, hasPTX<78>]>;
-defm INT_PTX_SREG_CLUSTER_NCTAID:
-       PTX_READ_SREG_R32V4<"cluster_nctaid", [hasSM<90>, hasPTX<78>]>;
+def  INT_PTX_SREG_CLUSTER_CTARANK : PTX_READ_SREG_R32<SREG32, int_rvgpu_read_ptx_sreg_cluster_ctarank, [hasSM<90>, hasPTX<78>]>;
+def  INT_PTX_SREG_CLUSTER_NCTARANK : PTX_READ_SREG_R32<SREG33, int_rvgpu_read_ptx_sreg_cluster_nctarank, [hasSM<90>, hasPTX<78>]>;
 
-def  INT_PTX_SREG_CLUSTER_CTARANK :
-       PTX_READ_SREG_R32<"cluster_ctarank",
-                         int_rvgpu_read_ptx_sreg_cluster_ctarank,
-                         [hasSM<90>, hasPTX<78>]>;
-def  INT_PTX_SREG_CLUSTER_NCTARANK:
-       PTX_READ_SREG_R32<"cluster_nctarank",
-                         int_rvgpu_read_ptx_sreg_cluster_nctarank,
-                         [hasSM<90>, hasPTX<78>]>;
+def INT_PTX_SREG_LANEID : PTX_READ_SREG_R32<SREG34, int_rvgpu_read_ptx_sreg_laneid>;
+def INT_PTX_SREG_WARPID : PTX_READ_SREG_R32<SREG35, int_rvgpu_read_ptx_sreg_warpid>;
+def INT_PTX_SREG_NWARPID : PTX_READ_SREG_R32<SREG36, int_rvgpu_read_ptx_sreg_nwarpid>;
+def INT_PTX_SREG_SMID : PTX_READ_SREG_R32<SREG37, int_rvgpu_read_ptx_sreg_smid>;
+def INT_PTX_SREG_NSMID : PTX_READ_SREG_R32<SREG38, int_rvgpu_read_ptx_sreg_nsmid>;
+def INT_PTX_SREG_GRIDID : PTX_READ_SREG_R32<SREG39, int_rvgpu_read_ptx_sreg_gridid>;
 
+def INT_PTX_SREG_LANEMASK_EQ : PTX_READ_SREG_R32<SREG40, int_rvgpu_read_ptx_sreg_lanemask_eq>;
+def INT_PTX_SREG_LANEMASK_LE : PTX_READ_SREG_R32<SREG41, int_rvgpu_read_ptx_sreg_lanemask_le>;
+def INT_PTX_SREG_LANEMASK_LT : PTX_READ_SREG_R32<SREG42, int_rvgpu_read_ptx_sreg_lanemask_lt>;
+def INT_PTX_SREG_LANEMASK_GE : PTX_READ_SREG_R32<SREG43, int_rvgpu_read_ptx_sreg_lanemask_ge>;
+def INT_PTX_SREG_LANEMASK_GT : PTX_READ_SREG_R32<SREG44, int_rvgpu_read_ptx_sreg_lanemask_gt>;
 
-def INT_PTX_SREG_LANEID :
-    PTX_READ_SREG_R32<"laneid", int_rvgpu_read_ptx_sreg_laneid>;
-def INT_PTX_SREG_WARPID :
-    PTX_READ_SREG_R32<"warpid", int_rvgpu_read_ptx_sreg_warpid>;
-def INT_PTX_SREG_NWARPID :
-    PTX_READ_SREG_R32<"nwarpid", int_rvgpu_read_ptx_sreg_nwarpid>;
-def INT_PTX_SREG_SMID :
-    PTX_READ_SREG_R32<"smid", int_rvgpu_read_ptx_sreg_smid>;
-def INT_PTX_SREG_NSMID :
-    PTX_READ_SREG_R32<"nsmid", int_rvgpu_read_ptx_sreg_nsmid>;
-def INT_PTX_SREG_GRIDID :
-    PTX_READ_SREG_R32<"gridid", int_rvgpu_read_ptx_sreg_gridid>;
+def INT_PTX_SREG_CLOCK : PTX_READ_SREG_R32<SREG45, int_rvgpu_read_ptx_sreg_clock>;
+def INT_PTX_SREG_CLOCK64 : PTX_READ_SREG_R64<"clock64", int_rvgpu_read_ptx_sreg_clock64>;
 
-def INT_PTX_SREG_LANEMASK_EQ :
-    PTX_READ_SREG_R32<"lanemask_eq", int_rvgpu_read_ptx_sreg_lanemask_eq>;
-def INT_PTX_SREG_LANEMASK_LE :
-    PTX_READ_SREG_R32<"lanemask_le", int_rvgpu_read_ptx_sreg_lanemask_le>;
-def INT_PTX_SREG_LANEMASK_LT :
-    PTX_READ_SREG_R32<"lanemask_lt", int_rvgpu_read_ptx_sreg_lanemask_lt>;
-def INT_PTX_SREG_LANEMASK_GE :
-    PTX_READ_SREG_R32<"lanemask_ge", int_rvgpu_read_ptx_sreg_lanemask_ge>;
-def INT_PTX_SREG_LANEMASK_GT :
-    PTX_READ_SREG_R32<"lanemask_gt", int_rvgpu_read_ptx_sreg_lanemask_gt>;
-
-def INT_PTX_SREG_CLOCK :
-    PTX_READ_SREG_R32<"clock", int_rvgpu_read_ptx_sreg_clock>;
-def INT_PTX_SREG_CLOCK64 :
-    PTX_READ_SREG_R64<"clock64", int_rvgpu_read_ptx_sreg_clock64>;
-
-def INT_PTX_SREG_PM0 : PTX_READ_SREG_R32<"pm0", int_rvgpu_read_ptx_sreg_pm0>;
-def INT_PTX_SREG_PM1 : PTX_READ_SREG_R32<"pm1", int_rvgpu_read_ptx_sreg_pm1>;
-def INT_PTX_SREG_PM2 : PTX_READ_SREG_R32<"pm2", int_rvgpu_read_ptx_sreg_pm2>;
-def INT_PTX_SREG_PM3 : PTX_READ_SREG_R32<"pm3", int_rvgpu_read_ptx_sreg_pm3>;
+def INT_PTX_SREG_PM0 : PTX_READ_SREG_R32<SREG46, int_rvgpu_read_ptx_sreg_pm0>;
+def INT_PTX_SREG_PM1 : PTX_READ_SREG_R32<SREG47, int_rvgpu_read_ptx_sreg_pm1>;
+def INT_PTX_SREG_PM2 : PTX_READ_SREG_R32<SREG48, int_rvgpu_read_ptx_sreg_pm2>;
+def INT_PTX_SREG_PM3 : PTX_READ_SREG_R32<SREG49, int_rvgpu_read_ptx_sreg_pm3>;
 
 // TODO: It would be nice to use PTX_READ_SREG here, but it doesn't
 // handle the constant.

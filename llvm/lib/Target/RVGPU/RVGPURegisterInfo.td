@@ -218,7 +218,54 @@ def SREG0 : RVGPUSREG<"tid.x", 0>;
 def SREG1 : RVGPUSREG<"tid.y", 1>;
 def SREG2 : RVGPUSREG<"tid.z", 2>;
 def SREG3 : RVGPUSREG<"tid.w", 3>;
+def SREG4 : RVGPUSREG<"ntid.x", 4>;
+def SREG5 : RVGPUSREG<"ntid.y", 5>;
+def SREG6 : RVGPUSREG<"ntid.z", 6>;
+def SREG7 : RVGPUSREG<"ntid.w", 7>;
+def SREG8 : RVGPUSREG<"ctaid.x", 8>;
+def SREG9 : RVGPUSREG<"ctaid.y", 9>;
+def SREG10 : RVGPUSREG<"ctaid.z", 10>;
+def SREG11 : RVGPUSREG<"ctaid.w", 11>;
+def SREG12 : RVGPUSREG<"nctaid.x", 12>;
+def SREG13 : RVGPUSREG<"nctaid.y", 13>;
+def SREG14 : RVGPUSREG<"nctaid.z", 14>;
+def SREG15 : RVGPUSREG<"nctaid.w", 15>;
+def SREG16 : RVGPUSREG<"clusterid.x", 16>;
+def SREG17 : RVGPUSREG<"clusterid.y", 17>;
+def SREG18 : RVGPUSREG<"clusterid.z", 18>;
+def SREG19 : RVGPUSREG<"clusterid.w", 19>;
+def SREG20 : RVGPUSREG<"nclusterid.x", 20>;
+def SREG21 : RVGPUSREG<"nclusterid.y", 21>;
+def SREG22 : RVGPUSREG<"nclusterid.z", 22>;
+def SREG23 : RVGPUSREG<"nclusterid.w", 23>;
+def SREG24 : RVGPUSREG<"cluster_ctaid.x", 24>;
+def SREG25 : RVGPUSREG<"cluster_ctaid.y", 25>;
+def SREG26 : RVGPUSREG<"cluster_ctaid.z", 26>;
+def SREG27 : RVGPUSREG<"cluster_ctaid.w", 27>;
+def SREG28 : RVGPUSREG<"cluster_nctaid.x", 28>;
+def SREG29 : RVGPUSREG<"cluster_nctaid.y", 29>;
+def SREG30 : RVGPUSREG<"cluster_nctaid.z", 30>;
+def SREG31 : RVGPUSREG<"cluster_nctaid.w", 31>;
 
+def SREG32 : RVGPUSREG<"cluster_ctarank", 32>;
+def SREG33 : RVGPUSREG<"cluster_nctarank", 33>;
+
+def SREG34 : RVGPUSREG<"laneid", 34>;
+def SREG35 : RVGPUSREG<"warpid", 35>;
+def SREG36 : RVGPUSREG<"nwarpid", 36>;
+def SREG37 : RVGPUSREG<"smid", 37>;
+def SREG38 : RVGPUSREG<"nsmid", 38>;
+def SREG39 : RVGPUSREG<"gridid", 39>;
+def SREG40 : RVGPUSREG<"lanemask_eq", 40>;
+def SREG41 : RVGPUSREG<"lanemask_le", 41>;
+def SREG42 : RVGPUSREG<"lanemask_lt", 42>;
+def SREG43 : RVGPUSREG<"lanemask_ge", 43>;
+def SREG44 : RVGPUSREG<"lanemask_gt", 44>;
+def SREG45 : RVGPUSREG<"clock", 45>;
+def SREG46 : RVGPUSREG<"pm0", 46>;
+def SREG47 : RVGPUSREG<"pm1", 47>;
+def SREG48 : RVGPUSREG<"pm2", 48>;
+def SREG49 : RVGPUSREG<"pm3", 49>;
 
 //===----------------------------------------------------------------------===//
 //  Register classes: 为128个通用寄存器定义
@@ -226,4 +273,4 @@ def SREG3 : RVGPUSREG<"tid.w", 3>;
 def Int1Regs : RVGPURegClass<[i1], 32, (add PREG)>;
 
 // Read RVGPURegisterInfo.cpp to see how VRFrame and VRDepot are used.
-def SpecialRegs : RVGPURegClass<[i32], 32, (add (sequence "SREG%u", 0, 3))>;
+def SpecialRegs : RVGPURegClass<[i32], 32, (add (sequence "SREG%u", 0, 49))>;
