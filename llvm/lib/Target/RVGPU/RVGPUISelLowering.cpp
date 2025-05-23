@@ -5354,15 +5354,16 @@ static SDValue PerformMULCombine(SDNode *N,
   return SDValue();
 }
 
-/// PerformSHLCombine - Runs PTX-specific DAG combine patterns on SHL nodes.
+/// PerformSHLCombine - Runs RVGPU-specific DAG combine patterns on SHL nodes.
 static SDValue PerformSHLCombine(SDNode *N,
                                  TargetLowering::DAGCombinerInfo &DCI,
                                  CodeGenOptLevel OptLevel) {
-  if (OptLevel > CodeGenOptLevel::None) {
-    // Try mul.wide combining at OptLevel > 0
-    if (SDValue Ret = TryMULWIDECombine(N, DCI))
-      return Ret;
-  }
+  // 这里暂时不处理 SHL 到MULWIDE的转换                               
+  // if (OptLevel > CodeGenOptLevel::None) {
+  //   // Try mul.wide combining at OptLevel > 0
+  //   if (SDValue Ret = TryMULWIDECombine(N, DCI))
+  //     return Ret;
+  // }
 
   return SDValue();
 }
