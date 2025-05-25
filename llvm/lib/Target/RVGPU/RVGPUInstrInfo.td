@@ -767,8 +767,8 @@ class UImmAsmOperand<int width, string suffix = "">
     : ImmAsmOperand<"U", width, suffix> {
 }
 
-// 定义立即数操作数基类（继承Operand<i64>）
-class RVGPUUImmOp<int bitsNum> : Operand<i64> {
+// 定义立即数操作数基类（继承Operand<i32>）
+class RVGPUUImmOp<int bitsNum> : Operand<i32> {
   let ParserMatchClass = UImmAsmOperand<bitsNum>;
   let DecoderMethod = "decodeUImmOperand<" # bitsNum # ">";
   let OperandType = "OPERAND_UIMM" # bitsNum;
@@ -777,15 +777,15 @@ class RVGPUUImmOp<int bitsNum> : Operand<i64> {
 
 // 立即数叶子节点类
 class RVGPUUImmLeafOp<int bitsNum> :
-  RVGPUUImmOp<bitsNum>, ImmLeaf<i64, "return isUInt<" # bitsNum # ">(Imm);">;
+  RVGPUUImmOp<bitsNum>, ImmLeaf<i32, "return isUInt<" # bitsNum # ">(Imm);">;
 
 // 定义具体的立即数类型
 def uimm5 : RVGPUUImmLeafOp<5>;
 def uimm6 : RVGPUUImmLeafOp<6>;
 
 // 定义立即数匹配谓词
-def immZExt5 : PatLeaf<(i64 imm), [{ return isUInt<5>(N->getSExtValue()); }]>;
-def immZExt6 : PatLeaf<(i64 imm), [{ return isUInt<6>(N->getSExtValue()); }]>;
+def immZExt5 : PatLeaf<(i32 imm), [{ return isUInt<5>(N->getSExtValue()); }]>;
+def immZExt6 : PatLeaf<(i32 imm), [{ return isUInt<6>(N->getSExtValue()); }]>;
 
 // 32位移位指令基类
 class Shift32ImmInst<bits<6> funcid, string opstr, SDNode OpNode> 
