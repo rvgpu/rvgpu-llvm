@@ -139,6 +139,8 @@ void RVGPUInstPrinter::printCvtMode(const MCInst *MI, int OpNum,
       O << ".rna";
       break;
     }
+  } else if (Imm == RVGPU::PTXCvtMode::NONE) {
+    O << ".none";
   } else {
     llvm_unreachable("Invalid conversion modifier");
   }
