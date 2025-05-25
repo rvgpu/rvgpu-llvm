@@ -193,6 +193,7 @@ enum PrmtMode {
   RC16,
 };
 }
+
 }
 void initializeRVGPUDAGToDAGISelPass(PassRegistry &);
 } // namespace llvm

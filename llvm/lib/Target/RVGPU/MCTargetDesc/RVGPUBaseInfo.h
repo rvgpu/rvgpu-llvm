@@ -16,6 +16,8 @@
 #ifndef LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUBASEINFO_H
 #define LLVM_LIB_TARGET_RVGPU_MCTARGETDESC_RVGPUBASEINFO_H
 
+#include "llvm/MC/MCInstrDesc.h"
+
 namespace llvm {
 
 enum AddressSpace {
@@ -40,6 +42,15 @@ enum {
   IsTexModeUnifiedFlag = 0x1000
 };
 } // namespace RVGPUII
+
+namespace RVGPUUImmOp {
+// 操作数类型定义
+enum OperandType {
+  OPERAND_FIRST_TARGET = MCOI::OPERAND_FIRST_TARGET,
+  OPERAND_UIMM5 = OPERAND_FIRST_TARGET,
+  OPERAND_UIMM6
+};
+} // end namespace RVGPUUImmOp
 
 } // namespace llvm
 #endif

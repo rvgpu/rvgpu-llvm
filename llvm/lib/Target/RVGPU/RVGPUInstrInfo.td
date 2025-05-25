@@ -186,11 +186,9 @@ def PrmtMode : Operand<i32> {
   let PrintMethod = "printPrmtMode";
 }
 
-
 //===----------------------------------------------------------------------===//
 // RVGPU Instruction Predicate Definitions
 //===----------------------------------------------------------------------===//
-
 
 def hasAtomAddF64 : Predicate<"Subtarget->hasAtomAddF64()">;
 def hasAtomScope : Predicate<"Subtarget->hasAtomScope()">;
@@ -750,6 +748,85 @@ let hasSideEffects = false in {
 }
 
 //-----------------------------------
+// 位移指令
+// 包含：
+// shl.b32/shr.u32/shr.s32
+// shl.b64/shr.u64/shr.s64
+// shli.b32/shri.u32/shri.s32
+// shli.b64/shri.u64/shri.s64
+//-----------------------------------
+
+class ImmAsmOperand<string prefix, int width, string suffix> : AsmOperandClass {
+  let Name = prefix # "Imm" # width # suffix;
+  let RenderMethod = "addImmOperands";
+  let DiagnosticType = !strconcat("Invalid", Name);
+}
+
+// 定义汇编基础操作数类
+class UImmAsmOperand<int width, string suffix = "">
+    : ImmAsmOperand<"U", width, suffix> {
+}
+
+// 定义立即数操作数基类（继承Operand<i64>）
+class RVGPUUImmOp<int bitsNum> : Operand<i64> {
+  let ParserMatchClass = UImmAsmOperand<bitsNum>;
+  let DecoderMethod = "decodeUImmOperand<" # bitsNum # ">";
+  let OperandType = "OPERAND_UIMM" # bitsNum;
+  let OperandNamespace = "RVGPUUImmOp"; 
+}
+
+// 立即数叶子节点类
+class RVGPUUImmLeafOp<int bitsNum> :
+  RVGPUUImmOp<bitsNum>, ImmLeaf<i64, "return isUInt<" # bitsNum # ">(Imm);">;
+
+// 定义具体的立即数类型
+def uimm5 : RVGPUUImmLeafOp<5>;
+def uimm6 : RVGPUUImmLeafOp<6>;
+
+// 定义立即数匹配谓词
+def immZExt5 : PatLeaf<(i64 imm), [{ return isUInt<5>(N->getSExtValue()); }]>;
+def immZExt6 : PatLeaf<(i64 imm), [{ return isUInt<6>(N->getSExtValue()); }]>;
+
+// 32位移位指令基类
+class Shift32ImmInst<bits<6> funcid, string opstr, SDNode OpNode> 
+    : RVGPUInst_RI<0b110111, 
+                   (outs GPR32:$dst), (ins GPR32:$src, uimm5:$shamt), 
+                   opstr#"\t$dst, $src, $shamt", 
+                   [(set (i32 GPR32:$dst), (OpNode (i32 GPR32:$src), immZExt5:$shamt))]> {
+  bits<5> shamt;
+  let imm12{11-6} = funcid;
+  let imm12{5} = 0;    // 32位移位的pad位
+  let imm12{4-0} = shamt;
+}
+
+// 32位移位指令定义
+def SLLI_32 : Shift32ImmInst<0b000001, "slli.b32", shl>;
+def SRLI_32 : Shift32ImmInst<0b000010, "srli.b32", srl>;
+def SRAI_32 : Shift32ImmInst<0b000011, "srai.b32", sra>;
+
+// 64位移位指令基类
+class Shift64ImmInst<bits<6> funcid, string opstr, SDNode OpNode> 
+    : RVGPUInst_RI<0b110111, 
+                   (outs GPR64:$dst), (ins GPR64:$src, uimm6:$shamt), 
+                   opstr#"\t$dst, $src, $shamt", 
+                   [(set (i64 GPR64:$dst), (OpNode (i64 GPR64:$src), immZExt6:$shamt))]> {
+  bits<6> shamt;
+  let imm12{11-6} = funcid;
+  let imm12{5-0} = shamt;  // 64位移位使用全部6位
+}
+
+// 64位移位指令定义
+def SLLI_64 : Shift64ImmInst<0b000100, "slli.b64", shl>;
+def SRLI_64 : Shift64ImmInst<0b000101, "srli.b64", srl>;
+def SRAI_64 : Shift64ImmInst<0b000110, "srai.b64", sra>;
+
+// 定义指令模式匹配规则
+// 匹配 zero_extend + shl 序列
+// 使用 CVT 指令来处理 32位到64位的转换和移位
+def : Pat<(shl (zext i32:$rs1), immZExt6:$shamt), (SLLI_64 (CVT_u64_u32 GPR32:$rs1, CvtNONE), immZExt6:$shamt)>;
+// TODO. 添加ShiftRR类型
+
+//-----------------------------------
 // Selection instructions (selp)
 //-----------------------------------
 
@@ -1032,19 +1109,19 @@ def SHL2MUL16 : SDNodeXForm<imm, [{
 }]>;
 
 // Convert "sign/zero-extend, then shift left by an immediate" to mul.wide.
-def : Pat<(shl (sext (i32 GPR32:$a)), (i32 IntConst_0_30:$b)),
-          (MULWIDES64Imm (i32 GPR32:$a), (SHL2MUL32 node:$b))>,
-      Requires<[doMulWide]>;
-def : Pat<(shl (zext (i32 GPR32:$a)), (i32 IntConst_0_30:$b)),
-          (MULWIDEU64Imm GPR32:$a, (SHL2MUL32 node:$b))>,
-      Requires<[doMulWide]>;
+// def : Pat<(shl (sext (i32 GPR32:$a)), (i32 IntConst_0_30:$b)),
+//           (MULWIDES64Imm (i32 GPR32:$a), (SHL2MUL32 node:$b))>,
+//       Requires<[doMulWide]>;
+// def : Pat<(shl (zext (i32 GPR32:$a)), (i32 IntConst_0_30:$b)),
+//           (MULWIDEU64Imm GPR32:$a, (SHL2MUL32 node:$b))>,
+//       Requires<[doMulWide]>;
 
-def : Pat<(shl (sext GPR16:$a), (i16 IntConst_0_14:$b)),
-          (MULWIDES32Imm GPR16:$a, (SHL2MUL16 node:$b))>,
-      Requires<[doMulWide]>;
-def : Pat<(shl (zext GPR16:$a), (i16 IntConst_0_14:$b)),
-          (MULWIDEU32Imm GPR16:$a, (SHL2MUL16 node:$b))>,
-      Requires<[doMulWide]>;
+// def : Pat<(shl (sext GPR16:$a), (i16 IntConst_0_14:$b)),
+//           (MULWIDES32Imm GPR16:$a, (SHL2MUL16 node:$b))>,
+//       Requires<[doMulWide]>;
+// def : Pat<(shl (zext GPR16:$a), (i16 IntConst_0_14:$b)),
+//           (MULWIDEU32Imm GPR16:$a, (SHL2MUL16 node:$b))>,
+//       Requires<[doMulWide]>;
 
 // Convert "sign/zero-extend then multiply" to mul.wide.
 def : Pat<(mul (sext (i32 GPR32:$a)), (sext (i32 GPR32:$b))),
@@ -1634,9 +1711,9 @@ multiclass SHIFT<string OpcStr, SDNode OpNode> {
                [(set GPR16:$dst, (OpNode GPR16:$a, (i32 imm:$b)))]>;
 }
 
-defm SHL : SHIFT<"shl.b", shl>;
-defm SRA : SHIFT<"shr.s", sra>;
-defm SRL : SHIFT<"shr.u", srl>;
+// defm SHL : SHIFT<"shl.b", shl>;
+// defm SRA : SHIFT<"shr.s", sra>;
+// defm SRL : SHIFT<"shr.u", srl>;
 
 // Bit-reverse
 def BREV32 :

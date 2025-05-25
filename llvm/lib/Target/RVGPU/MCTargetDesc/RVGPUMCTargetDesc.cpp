@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RVGPUMCTargetDesc.h"
+#include "RVGPUBaseInfo.h"
 #include "RVGPUELFStreamer.h"
 #include "RVGPUInstPrinter.h"
 #include "RVGPUMCAsmInfo.h"

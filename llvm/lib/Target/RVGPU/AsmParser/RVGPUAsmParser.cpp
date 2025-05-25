@@ -38,11 +38,11 @@
 
 using namespace llvm;
 using namespace llvm::RVGPU;
-//using namespace llvm::amdhsa;
 
 namespace {
 
 class RVGPUAsmParser;
+
 
 //===----------------------------------------------------------------------===//
 // Operand
@@ -187,6 +187,20 @@ public:
 
   bool isRVSrc_128V2F16() const {
       return isRVSrc_128F16() || isRVSrc_128B32();
+  }
+
+  bool isUImm5() const {
+      if (!isImm())
+          return false;
+      int64_t Val = Imm.Val;
+      return isUInt<5>(Val);
+  }
+
+  bool isUImm6() const {
+      if (!isImm())
+          return false;
+      int64_t Val = Imm.Val;
+      return isUInt<6>(Val);
   }
 
   bool isExpr() const {
@@ -343,6 +357,14 @@ class RVGPUAsmParser : public MCTargetAsmParser {
 #include "RVGPUGenAsmMatcher.inc"
 
     ParseStatus parseCvtModeOperand(OperandVector &Operands);
+
+    enum RVGPUMatchResultTy {
+        Match_Dummy = FIRST_TARGET_MATCH_RESULT_TY,
+        Match_RequiresEvenGPRs,
+    #define GET_OPERAND_DIAGNOSTIC_TYPES
+    #include "RVGPUGenAsmMatcher.inc"
+    #undef GET_OPERAND_DIAGNOSTIC_TYPES
+    };
 };
 
 } // end anonymous namespace
