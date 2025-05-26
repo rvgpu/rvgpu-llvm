@@ -315,7 +315,11 @@ unsigned RVGPUMCCodeEmitter::getMachineOpValue(const MCInst &MI,
     return Enc;
   }
 
-  return 123;
+  if (MO.isImm()) {
+    return MO.getImm();
+  }
+
+  return 0xffffffff;
 }
 
 void RVGPUMCCodeEmitter::getMachineOpValueCommon(

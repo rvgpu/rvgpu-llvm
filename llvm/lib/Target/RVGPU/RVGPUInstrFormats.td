@@ -83,7 +83,7 @@ class RVGPUInst_CVT <bits<4> op, bits<5> dtype, bits<5> stype, dag outs, dag ins
     : RVGPUInst<outs, ins, asmstr, pattern> {
   bits<7> src;
   bits<7> dst;
-  bits<4> mode = 0;
+  bits<4> mode;
 
   let Inst{31-28} = op;      // 4-bit opcode
   let Inst{27-23} = dtype;   // 5-bit destination type

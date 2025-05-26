@@ -278,6 +278,7 @@ public:
   void addRegOperands(MCInst &Inst, unsigned N) const;
   
   void addCvtModeOperands(MCInst &Inst, unsigned N) const {
+    Inst.addOperand(MCOperand::createImm(Mod.ModNo));
   }
 };
 
@@ -532,10 +533,20 @@ unsigned RVGPUAsmParser::validateTargetOperandClass(MCParsedAsmOperand &Op, unsi
 ParseStatus RVGPUAsmParser::parseCvtModeOperand(OperandVector &Operands) {
   // CVT.mod dst, rs0
 
+  unsigned ModNo = StringSwitch<unsigned>(ModifierStr)
+    .Case(".rn", RVGPU::PTXCvtMode::RN)
+    .Case(".rz", RVGPU::PTXCvtMode::RZ)
+    .Case(".rm", RVGPU::PTXCvtMode::RM)
+    .Case(".rp", RVGPU::PTXCvtMode::RP)
+    .Case(".sat", RVGPU::PTXCvtMode::SAT_FLAG)
+    .Case(".ftz", RVGPU::PTXCvtMode::FTZ_FLAG)
+    .Case("", RVGPU::PTXCvtMode::NONE)
+    .Default(RVGPU::PTXCvtMode::NONE);
+
   // 处理modifier
   SMLoc S = SMLoc::getFromPointer(ModifierStr.data());
   SMLoc E = SMLoc::getFromPointer(S.getPointer() + ModifierStr.size());
-  Operands.push_back(RVGPUOperand::CreateMode(this, 0, S, E));
+  Operands.push_back(RVGPUOperand::CreateMode(this, ModNo, S, E));
   
   // 处理第一个目的寄存器，这里还是需要处理第一个目的寄存器，因为从在 parseInstruction 中的第一个parseOperand调用过来。
   if (parseRegister(Operands) == false) {
