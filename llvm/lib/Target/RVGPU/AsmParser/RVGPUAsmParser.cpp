@@ -400,7 +400,6 @@ bool RVGPUAsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
   unsigned Result = Match_Success;
   uint64_t EI;
 
-  int size = Operands.size();
   auto R = MatchInstructionImpl(Operands, Inst, EI, MatchingInlineAsm, MatchingInlineAsm);
   if (R == Match_Success) {
     Inst.setLoc(IDLoc);
@@ -461,9 +460,26 @@ bool RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 }
 
 StringRef RVGPUAsmParser::parseMnemonicSuffix(StringRef Name) {
-  if (Name.ends_with(".rn")) {
-    ModifierStr = Name.substr(Name.size()-3, Name.size());
-    return Name.substr(0, Name.size() - 3);
+  // 定义Modifier的后缀
+  static const StringRef suffixes[] = {
+    ".none",
+    ".rni", 
+    ".rzi", 
+    ".rmi", 
+    ".rpi",
+    ".rn",
+    ".rz", 
+    ".rm", 
+    ".rp",
+    ".rna"
+  };
+  
+  // 遍历指令中是否以Modifier后缀结束
+  for (StringRef suffix : suffixes) {
+    if (Name.ends_with(suffix)) {
+      ModifierStr = suffix;
+      return Name.substr(0, Name.size() - suffix.size());
+    }
   }
 
   return Name;
@@ -534,13 +550,16 @@ ParseStatus RVGPUAsmParser::parseCvtModeOperand(OperandVector &Operands) {
   // CVT.mod dst, rs0
 
   unsigned ModNo = StringSwitch<unsigned>(ModifierStr)
+    .Case(".none", RVGPU::PTXCvtMode::NONE)
+    .Case(".rni", RVGPU::PTXCvtMode::RNI)
+    .Case(".rzi", RVGPU::PTXCvtMode::RZI)
+    .Case(".rmi", RVGPU::PTXCvtMode::RMI)
+    .Case(".rpi", RVGPU::PTXCvtMode::RPI)
     .Case(".rn", RVGPU::PTXCvtMode::RN)
     .Case(".rz", RVGPU::PTXCvtMode::RZ)
     .Case(".rm", RVGPU::PTXCvtMode::RM)
     .Case(".rp", RVGPU::PTXCvtMode::RP)
-    .Case(".sat", RVGPU::PTXCvtMode::SAT_FLAG)
-    .Case(".ftz", RVGPU::PTXCvtMode::FTZ_FLAG)
-    .Case("", RVGPU::PTXCvtMode::NONE)
+    .Case(".rna", RVGPU::PTXCvtMode::RNA)
     .Default(RVGPU::PTXCvtMode::NONE);
 
   // 处理modifier
