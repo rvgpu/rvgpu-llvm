@@ -243,6 +243,9 @@ public:
     case KindTy::Modifier:
       OS << "<modifier " << StartLoc.getPointer() << ">";
       break;
+    case KindTy::Immediate:
+      OS << "<immediate " << Imm.Val << ">";
+      break;
     default:
       OS << "RVGPUOperand Print TODO";
       break;
@@ -274,7 +277,18 @@ public:
     return Res;
   }
 
-  void addImmOperands(MCInst &Inst, unsigned N, bool ApplyModifiers = true) const;
+  static RVGPUOperand::Ptr CreateImm(const RVGPUAsmParser *AsmParser, int64_t Val, SMLoc SLoc, SMLoc ELoc) {
+    auto Res = std::make_unique<RVGPUOperand>(KindTy::Immediate, AsmParser);
+    Res->Imm.Val = Val;
+    Res->Imm.Type = ImmTyNone;
+    Res->Imm.IsFPImm = false;
+    Res->Imm.Kind = ImmKindTyLiteral;
+    Res->StartLoc = SLoc;
+    Res->EndLoc = ELoc;
+    return Res;
+  }
+
+  void addImmOperands(MCInst &Inst, unsigned N) const;
   void addRegOperands(MCInst &Inst, unsigned N) const;
   
   void addCvtModeOperands(MCInst &Inst, unsigned N) const {
@@ -290,8 +304,10 @@ bool RVGPUOperand::isRegClass(unsigned RCID) const {
   return false;
 }
 
-void RVGPUOperand::addImmOperands(MCInst &Inst, unsigned N, bool ApplyModifiers) const {
-  return;
+void RVGPUOperand::addImmOperands(MCInst &Inst, unsigned N) const {
+  assert(isImm() && "Operand is not an immediate");
+  assert(N == 1 && "Invalid number of operands");
+  Inst.addOperand(MCOperand::createImm(Imm.Val));
 }
 
 void RVGPUOperand::addRegOperands(MCInst &Inst, unsigned N) const {
@@ -312,6 +328,7 @@ class RVGPUAsmParser : public MCTargetAsmParser {
 
     StringRef parseMnemonicSuffix(StringRef Name);
     bool parseRegister(OperandVector &Operands);
+    bool parseImmediate(OperandVector &Operands);
 
   public:
     RVGPUAsmParser(const MCSubtargetInfo &STI, MCAsmParser &_Parser,
@@ -423,9 +440,11 @@ bool RVGPUAsmParser::parseRegister(OperandVector &Operands) {
 
   if (getLexer().getKind() == AsmToken::Identifier) {
     StringRef Name = getLexer().getTok().getIdentifier();
+    
     MCRegister RegNo = MatchRegisterName(Name);
     if (RegNo == 0) {
       // 没有匹配到寄存器号
+      llvm::errs() << "Failed to match register: " << Name << "\n";
       return false;
     }
 
@@ -440,9 +459,48 @@ bool RVGPUAsmParser::parseRegister(OperandVector &Operands) {
   return ret;
 }
 
+bool RVGPUAsmParser::parseImmediate(OperandVector &Operands) {
+  bool ret = true;
+
+  if (getLexer().getKind() == AsmToken::Integer) {
+    int64_t IntVal = getLexer().getTok().getIntVal();
+    SMLoc S = getParser().getTok().getLoc();
+    SMLoc E = SMLoc::getFromPointer(S.getPointer() + getLexer().getTok().getString().size());
+    
+    getLexer().Lex(); // 消费这个token
+    
+    // 创建立即数操作数
+    Operands.push_back(RVGPUOperand::CreateImm(this, IntVal, S, E));
+    ret = true;
+  } else if (getLexer().getKind() == AsmToken::Minus) {
+    // 处理负数
+    getLexer().Lex(); // 消费 '-' token
+    
+    if (getLexer().getKind() == AsmToken::Integer) {
+      int64_t IntVal = -getLexer().getTok().getIntVal();
+      SMLoc S = getParser().getTok().getLoc();
+      SMLoc E = SMLoc::getFromPointer(S.getPointer() + getLexer().getTok().getString().size());
+      
+      getLexer().Lex(); // 消费数字token
+      
+      Operands.push_back(RVGPUOperand::CreateImm(this, IntVal, S, E));
+      ret = true;
+    } else {
+      ret = false;
+    }
+  } else {
+    ret = false;
+  }
+
+  return ret;
+}
+
 bool RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   // Check if the current operand has a custom associated parser, if so, try to
   // custom parse the operand, or fallback to the general approach.
+  // 这里是匹配自定义的operand，自定义是实现了 parseXXXOperand 的函数。
+  // 如果匹配到了，则返回 true，否则返回 false。
+  // 如果未在自定义的匹配列表则返回 NoMached.
   ParseStatus Result = MatchOperandParserImpl(Operands, Mnemonic, /*ParseForAllFeatures=*/true);
   if (Result.isFailure()) {
     return false;
@@ -453,6 +511,10 @@ bool RVGPUAsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   }
 
   if (parseRegister(Operands)) {
+    return true;
+  }
+
+  if (parseImmediate(Operands)) {
     return true;
   }
 
