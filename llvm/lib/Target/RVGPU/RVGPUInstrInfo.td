@@ -874,6 +874,28 @@ def : Pat<(add i8:$src1, i8:$src2), (ADD_s32 $src1, $src2)>;
 def : Pat<(add i16:$src1, i16:$src2), (ADD_s32 $src1, $src2)>;
 
 //-----------------------------------
+// 浮点运算
+//-----------------------------------
+// 32位 RR 类型算术逻辑运算 class
+class Float32RRInst<bits<6> opcode, bits<5> func, string opstr, SDNode OpNode>
+  : RVGPUInst_RR<opcode, func, (outs GPR32:$dst), (ins GPR32:$src1, GPR32:$src2), 
+                 !strconcat(opstr, " \t$dst, $src1, $src2"), 
+                 [(set f32:$dst, (OpNode f32:$src1, f32:$src2))]>;
+
+// 64位 RR 类型算术逻辑运算 class
+class Float64RRInst<bits<6> opcode, bits<5> func, string opstr, SDNode OpNode>
+  : RVGPUInst_RR<opcode, func, (outs GPR64:$dst), (ins GPR64:$src1, GPR64:$src2), 
+                 !strconcat(opstr, "\t$dst, $src1, $src2"), 
+                 [(set f64:$dst, (OpNode f64:$src1, f64:$src2))]>;
+
+// 指令的定义                 
+def FMUL_f32 : Float32RRInst<0b000000, 0b10000, "fmul.f32\t", fmul>, Requires<[allowFMA]>;
+def FMUL_f32_rn : Float32RRInst<0b000000, 0b10000, "fmul.f32.rn", fmul>, Requires<[noFMA]>;
+
+def FMUL_f64 : Float32RRInst<0b000000, 0b11000, "fmul.f64\t", fmul>, Requires<[allowFMA]>;
+def FMUL_f64_rn : Float32RRInst<0b000000, 0b11000, "fmul.f64.rn", fmul>, Requires<[allowFMA]>;
+
+//-----------------------------------
 // Selection instructions (selp)
 //-----------------------------------
 
@@ -1311,7 +1333,7 @@ def LOAD_CONST_BF16 :
             "mov.b16 \t$dst, $a", []>;
 defm FADD : F3_fma_component<"add", fadd>;
 defm FSUB : F3_fma_component<"sub", fsub>;
-defm FMUL : F3_fma_component<"mul", fmul>;
+// defm FMUL : F3_fma_component<"mul", fmul>;
 
 defm FMIN : F3<"min", fminnum>;
 defm FMAX : F3<"max", fmaxnum>;
@@ -1565,85 +1587,85 @@ def COSF:  RVGPUInst<(outs GPR32:$dst), (ins GPR32:$src),
 // semantics of LLVM's frem.
 
 // frem - f32 FTZ
-def : Pat<(frem (f32 GPR32:$x), (f32 GPR32:$y)),
-          (FSUBf32rr_ftz GPR32:$x, (FMULf32rr_ftz (CVT_f32_f32
-            (FDIV32rr_prec_ftz GPR32:$x, GPR32:$y), CvtRZI_FTZ),
-             GPR32:$y))>,
-          Requires<[doF32FTZ, allowUnsafeFPMath]>;
-def : Pat<(frem (f32 GPR32:$x), fpimm:$y),
-          (FSUBf32rr_ftz GPR32:$x, (FMULf32ri_ftz (CVT_f32_f32
-            (FDIV32ri_prec_ftz GPR32:$x, fpimm:$y), CvtRZI_FTZ),
-             fpimm:$y))>,
-          Requires<[doF32FTZ, allowUnsafeFPMath]>;
+// def : Pat<(frem (f32 GPR32:$x), (f32 GPR32:$y)),
+//          (FSUBf32rr_ftz GPR32:$x, (FMULf32rr_ftz (CVT_f32_f32
+//            (FDIV32rr_prec_ftz GPR32:$x, GPR32:$y), CvtRZI_FTZ),
+//             GPR32:$y))>,
+//          Requires<[doF32FTZ, allowUnsafeFPMath]>;
+// def : Pat<(frem (f32 GPR32:$x), fpimm:$y),
+//          (FSUBf32rr_ftz GPR32:$x, (FMULf32ri_ftz (CVT_f32_f32
+//            (FDIV32ri_prec_ftz GPR32:$x, fpimm:$y), CvtRZI_FTZ),
+//             fpimm:$y))>,
+//          Requires<[doF32FTZ, allowUnsafeFPMath]>;
 
-def : Pat<(frem (f32 GPR32:$x), (f32 GPR32:$y)),
-          (SELP_f32rr GPR32:$x,
-            (FSUBf32rr_ftz GPR32:$x, (FMULf32rr_ftz (CVT_f32_f32
-              (FDIV32rr_prec_ftz GPR32:$x, GPR32:$y), CvtRZI_FTZ),
-              GPR32:$y)),
-            (TESTINF_f32r GPR32:$y))>,
-          Requires<[doF32FTZ, noUnsafeFPMath]>;
-def : Pat<(frem (f32 GPR32:$x), fpimm:$y),
-          (SELP_f32rr GPR32:$x,
-            (FSUBf32rr_ftz GPR32:$x, (FMULf32ri_ftz (CVT_f32_f32
-              (FDIV32ri_prec_ftz GPR32:$x, fpimm:$y), CvtRZI_FTZ),
-              fpimm:$y)),
-            (TESTINF_f32i fpimm:$y))>,
-          Requires<[doF32FTZ, noUnsafeFPMath]>;
+// def : Pat<(frem (f32 GPR32:$x), (f32 GPR32:$y)),
+//          (SELP_f32rr GPR32:$x,
+//            (FSUBf32rr_ftz GPR32:$x, (FMULf32rr_ftz (CVT_f32_f32
+//              (FDIV32rr_prec_ftz GPR32:$x, GPR32:$y), CvtRZI_FTZ),
+//              GPR32:$y)),
+//            (TESTINF_f32r GPR32:$y))>,
+//          Requires<[doF32FTZ, noUnsafeFPMath]>;
+// def : Pat<(frem (f32 GPR32:$x), fpimm:$y),
+//           (SELP_f32rr GPR32:$x,
+//             (FSUBf32rr_ftz GPR32:$x, (FMULf32ri_ftz (CVT_f32_f32
+//               (FDIV32ri_prec_ftz GPR32:$x, fpimm:$y), CvtRZI_FTZ),
+//               fpimm:$y)),
+//             (TESTINF_f32i fpimm:$y))>,
+//           Requires<[doF32FTZ, noUnsafeFPMath]>;
 
 // frem - f32
-def : Pat<(frem (f32 GPR32:$x), (f32 GPR32:$y)),
-          (FSUBf32rr GPR32:$x, (FMULf32rr (CVT_f32_f32
-            (FDIV32rr_prec GPR32:$x, GPR32:$y), CvtRZI),
-             GPR32:$y))>,
-          Requires<[allowUnsafeFPMath]>;
-def : Pat<(frem (f32 GPR32:$x), fpimm:$y),
-          (FSUBf32rr GPR32:$x, (FMULf32ri (CVT_f32_f32
-            (FDIV32ri_prec GPR32:$x, fpimm:$y), CvtRZI),
-             fpimm:$y))>,
-          Requires<[allowUnsafeFPMath]>;
+// def : Pat<(frem (f32 GPR32:$x), (f32 GPR32:$y)),
+//           (FSUBf32rr GPR32:$x, (FMULf32rr (CVT_f32_f32
+//             (FDIV32rr_prec GPR32:$x, GPR32:$y), CvtRZI),
+//              GPR32:$y))>,
+//           Requires<[allowUnsafeFPMath]>;
+// def : Pat<(frem (f32 GPR32:$x), fpimm:$y),
+//           (FSUBf32rr GPR32:$x, (FMULf32ri (CVT_f32_f32
+//             (FDIV32ri_prec GPR32:$x, fpimm:$y), CvtRZI),
+//              fpimm:$y))>,
+//           Requires<[allowUnsafeFPMath]>;
 
-def : Pat<(frem (f32 GPR32:$x), (f32 GPR32:$y)),
-          (SELP_f32rr GPR32:$x,
-            (FSUBf32rr GPR32:$x, (FMULf32rr (CVT_f32_f32
-              (FDIV32rr_prec GPR32:$x, GPR32:$y), CvtRZI),
-              GPR32:$y)),
-            (TESTINF_f32r GPR32:$y))>,
-          Requires<[noUnsafeFPMath]>;
-def : Pat<(frem (f32 GPR32:$x), fpimm:$y),
-          (SELP_f32rr GPR32:$x,
-            (FSUBf32rr GPR32:$x, (FMULf32ri (CVT_f32_f32
-              (FDIV32ri_prec GPR32:$x, fpimm:$y), CvtRZI),
-              fpimm:$y)),
-            (TESTINF_f32i fpimm:$y))>,
-          Requires<[noUnsafeFPMath]>;
+// def : Pat<(frem (f32 GPR32:$x), (f32 GPR32:$y)),
+//           (SELP_f32rr GPR32:$x,
+//             (FSUBf32rr GPR32:$x, (FMULf32rr (CVT_f32_f32
+//               (FDIV32rr_prec GPR32:$x, GPR32:$y), CvtRZI),
+//               GPR32:$y)),
+//             (TESTINF_f32r GPR32:$y))>,
+//           Requires<[noUnsafeFPMath]>;
+// def : Pat<(frem (f32 GPR32:$x), fpimm:$y),
+//           (SELP_f32rr GPR32:$x,
+//             (FSUBf32rr GPR32:$x, (FMULf32ri (CVT_f32_f32
+//               (FDIV32ri_prec GPR32:$x, fpimm:$y), CvtRZI),
+//               fpimm:$y)),
+//             (TESTINF_f32i fpimm:$y))>,
+//           Requires<[noUnsafeFPMath]>;
 
-// frem - f64
-def : Pat<(frem (f64 GPR64:$x), (f64 GPR64:$y)),
-          (FSUBf64rr GPR64:$x, (FMULf64rr (CVT_f64_f64
-            (FDIV64rr GPR64:$x, GPR64:$y), CvtRZI),
-             GPR64:$y))>,
-          Requires<[allowUnsafeFPMath]>;
-def : Pat<(frem (f64 GPR64:$x), fpimm:$y),
-          (FSUBf64rr GPR64:$x, (FMULf64ri (CVT_f64_f64
-            (FDIV64ri GPR64:$x, fpimm:$y), CvtRZI),
-             fpimm:$y))>,
-          Requires<[allowUnsafeFPMath]>;
-
-def : Pat<(frem (f64 GPR64:$x), (f64 GPR64:$y)),
-          (SELP_f64rr GPR64:$x,
-            (FSUBf64rr GPR64:$x, (FMULf64rr (CVT_f64_f64
-              (FDIV64rr GPR64:$x, GPR64:$y), CvtRZI),
-               GPR64:$y)),
-            (TESTINF_f64r GPR64:$y))>,
-          Requires<[noUnsafeFPMath]>;
-def : Pat<(frem (f64 GPR64:$x), fpimm:$y),
-          (SELP_f64rr GPR64:$x,
-            (FSUBf64rr GPR64:$x, (FMULf64ri (CVT_f64_f64
-              (FDIV64ri GPR64:$x, fpimm:$y), CvtRZI),
-              fpimm:$y)),
-            (TESTINF_f64r GPR64:$y))>,
-          Requires<[noUnsafeFPMath]>;
+// // frem - f64
+// def : Pat<(frem (f64 GPR64:$x), (f64 GPR64:$y)),
+//           (FSUBf64rr GPR64:$x, (FMULf64rr (CVT_f64_f64
+//             (FDIV64rr GPR64:$x, GPR64:$y), CvtRZI),
+//              GPR64:$y))>,
+//           Requires<[allowUnsafeFPMath]>;
+// def : Pat<(frem (f64 GPR64:$x), fpimm:$y),
+//           (FSUBf64rr GPR64:$x, (FMULf64ri (CVT_f64_f64
+//             (FDIV64ri GPR64:$x, fpimm:$y), CvtRZI),
+//              fpimm:$y))>,
+//           Requires<[allowUnsafeFPMath]>;
+// 
+// def : Pat<(frem (f64 GPR64:$x), (f64 GPR64:$y)),
+//           (SELP_f64rr GPR64:$x,
+//             (FSUBf64rr GPR64:$x, (FMULf64rr (CVT_f64_f64
+//               (FDIV64rr GPR64:$x, GPR64:$y), CvtRZI),
+//                GPR64:$y)),
+//             (TESTINF_f64r GPR64:$y))>,
+//           Requires<[noUnsafeFPMath]>;
+// def : Pat<(frem (f64 GPR64:$x), fpimm:$y),
+//           (SELP_f64rr GPR64:$x,
+//             (FSUBf64rr GPR64:$x, (FMULf64ri (CVT_f64_f64
+//               (FDIV64ri GPR64:$x, fpimm:$y), CvtRZI),
+//               fpimm:$y)),
+//             (TESTINF_f64r GPR64:$y))>,
+//           Requires<[noUnsafeFPMath]>;
 
 //-----------------------------------
 // Bitwise operations
