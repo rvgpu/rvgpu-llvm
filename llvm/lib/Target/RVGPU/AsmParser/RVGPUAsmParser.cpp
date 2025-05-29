@@ -203,6 +203,13 @@ public:
       return isUInt<6>(Val);
   }
 
+  bool isSImm12() const {
+    if (!isImm())
+      return false;
+    int64_t Val = Imm.Val;
+    return isInt<12>(Val);  // 检查是否在 -2048 到 2047 范围内
+  }
+
   bool isExpr() const {
       return Kind == Expression;
   }

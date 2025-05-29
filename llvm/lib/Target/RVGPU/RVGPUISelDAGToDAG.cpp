@@ -828,6 +828,30 @@ void RVGPUDAGToDAGISel::SelectAddrSpaceCast(SDNode *N) {
   }
 }
 
+// 根据VT选择LD指令的opcode
+static std::optional<unsigned>
+pickLDOpcodeForVT(MVT::SimpleValueType VT, bool IsSignExtend) {
+  switch (VT) {
+  case MVT::i1:
+  case MVT::i8:
+    return IsSignExtend ? RVGPU::LD_s8 : RVGPU::LD_u8;
+  case MVT::i16:
+    return IsSignExtend ? RVGPU::LD_s16 : RVGPU::LD_u16;
+  case MVT::i32:
+    return RVGPU::LD_b32;
+  case MVT::i64:
+    return RVGPU::LD_b64;
+  case MVT::f16:
+    return RVGPU::LD_s16;
+  case MVT::f32:
+    return RVGPU::LD_b32;
+  case MVT::f64:
+    return RVGPU::LD_b64;
+  default:
+    return std::nullopt;
+  }
+}
+
 // Helper function template to reduce amount of boilerplate code for
 // opcode selection.
 static std::optional<unsigned>
@@ -978,13 +1002,26 @@ bool RVGPUDAGToDAGISel::tryLoad(SDNode *N) {
     SDValue Ops[] = {Base, Offset, Chain };
     RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
   } else {
-    Opcode =
-          pickOpcodeForVT(TargetVT, RVGPU::LD_i8_areg_64, RVGPU::LD_i16_areg_64,
-                          RVGPU::LD_b32_areg_64, RVGPU::LD_b64_areg_64,
-                          RVGPU::LD_b32_areg_64, RVGPU::LD_b64_areg_64);
+    SDValue IndexOrOffset = N->getOperand(2);
+    Opcode = pickLDOpcodeForVT(TargetVT, PlainLoad->getExtensionType() == ISD::SEXTLOAD);
     if (!Opcode)
       return false;
-    SDValue Ops[] = {N1, Chain };
+
+    if (IndexOrOffset.isUndef()) {
+      Offset = CurDAG->getConstant(0, dl, MVT::i32);
+    } else if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(IndexOrOffset)) {
+      int64_t imm = C->getSExtValue();
+      if (isInt<32>(imm)) {
+        Offset = CurDAG->getTargetConstant(imm, dl, MVT::i32);
+      } else {
+        // 立即数超出12位的范围，返回
+        return false;
+      }
+    } else {
+      return false;
+    }
+
+    SDValue Ops[] = {N1, Offset, Chain};
     RVGPULD = CurDAG->getMachineNode(*Opcode, dl, TargetVT, MVT::Other, Ops);
   }
 

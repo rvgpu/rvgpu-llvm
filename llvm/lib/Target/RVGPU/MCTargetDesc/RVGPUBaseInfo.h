@@ -43,12 +43,15 @@ enum {
 };
 } // namespace RVGPUII
 
-namespace RVGPUUImmOp {
+namespace RVGPUImmOp {
 // 操作数类型定义
 enum OperandType {
   OPERAND_FIRST_TARGET = MCOI::OPERAND_FIRST_TARGET,
   OPERAND_UIMM5 = OPERAND_FIRST_TARGET,
-  OPERAND_UIMM6
+  OPERAND_UIMM6,
+  OPERAND_SIMM12,
+  OPERAND_LAST_RISCV_IMM = OPERAND_SIMM12,
+  OPERAND_AVL,
 };
 } // end namespace RVGPUUImmOp
 

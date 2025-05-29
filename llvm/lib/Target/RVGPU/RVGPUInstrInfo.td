@@ -231,6 +231,62 @@ def useShortPtr : Predicate<"useShortPointers()">;
 def useFP16Math: Predicate<"Subtarget->allowFP16Math()">;
 def hasBF16Math: Predicate<"Subtarget->hasBF16Math()">;
 
+// 立即数
+class ImmAsmOperand<string prefix, int width, string suffix> : AsmOperandClass {
+  let Name = prefix # "Imm" # width # suffix;
+  let RenderMethod = "addImmOperands";
+  let DiagnosticType = !strconcat("Invalid", Name);
+}
+
+// 定义汇编基础操作数类
+class UImmAsmOperand<int width, string suffix = "">
+    : ImmAsmOperand<"U", width, suffix> {
+}
+
+class SImmAsmOperand<int width, string suffix = "">
+    : ImmAsmOperand<"S", width, suffix> {
+}
+
+// 定义立即数操作数基类（继承Operand<i32>）
+class RVGPUUImmOp<int bitsNum> : Operand<i32> {
+  let ParserMatchClass = UImmAsmOperand<bitsNum>;
+  let DecoderMethod = "decodeUImmOperand<" # bitsNum # ">";
+  let OperandType = "OPERAND_UIMM" # bitsNum;
+  let OperandNamespace = "RVGPUImmOp"; 
+}
+
+class RVGPUSImmOp<int bitsNum> : Operand<i32> {
+  let ParserMatchClass = SImmAsmOperand<bitsNum>;
+  let DecoderMethod = "decodeSImmOperand<" # bitsNum # ">";
+  let OperandType = "OPERAND_SIMM" # bitsNum;
+  let OperandNamespace = "RVGPUImmOp";
+}
+
+// 立即数叶子节点类
+class RVGPUUImmLeafOp<int bitsNum> :
+  RVGPUUImmOp<bitsNum>, ImmLeaf<i32, "return isUInt<" # bitsNum # ">(Imm);">;
+class RVGPUSImmLeafOp<int bitsNum> :
+  RVGPUSImmOp<bitsNum>, ImmLeaf<i32, "return isInt<" # bitsNum # ">(Imm);">;
+
+// 定义具体的立即数类型
+def uimm5 : RVGPUUImmLeafOp<5>;
+def uimm6 : RVGPUUImmLeafOp<6>;
+def simm12 : RVGPUSImmLeafOp<12> {
+  // 运行时验证函数，用于在机器码生成阶段验证操作数的有效性。
+  let MCOperandPredicate = [{
+    int64_t Imm;
+    if (MCOp.evaluateAsConstantImm(Imm))
+      return isInt<12>(Imm); // 如果是常量，检查是否在12位有符号范围内
+    return MCOp.isBareSymbolRef(); // 如果是符号引用，也允许
+  }];
+}
+
+// 定义立即数匹配谓词
+def immZExt5 : PatLeaf<(i32 imm), [{ return isUInt<5>(N->getSExtValue()); }]>;
+def immZExt6 : PatLeaf<(i32 imm), [{ return isUInt<6>(N->getSExtValue()); }]>;
+
+def immSExt12 : PatLeaf<(i32 imm), [{ return isInt<12>(N->getSExtValue()); }]>;
+
 //include "RVGPUInstructions"
 //include "RVGPUInstrBaseInfo.td"
 
@@ -755,38 +811,6 @@ let hasSideEffects = false in {
 // shli.b32/shri.u32/shri.s32
 // shli.b64/shri.u64/shri.s64
 //-----------------------------------
-
-class ImmAsmOperand<string prefix, int width, string suffix> : AsmOperandClass {
-  let Name = prefix # "Imm" # width # suffix;
-  let RenderMethod = "addImmOperands";
-  let DiagnosticType = !strconcat("Invalid", Name);
-}
-
-// 定义汇编基础操作数类
-class UImmAsmOperand<int width, string suffix = "">
-    : ImmAsmOperand<"U", width, suffix> {
-}
-
-// 定义立即数操作数基类（继承Operand<i32>）
-class RVGPUUImmOp<int bitsNum> : Operand<i32> {
-  let ParserMatchClass = UImmAsmOperand<bitsNum>;
-  let DecoderMethod = "decodeUImmOperand<" # bitsNum # ">";
-  let OperandType = "OPERAND_UIMM" # bitsNum;
-  let OperandNamespace = "RVGPUUImmOp"; 
-}
-
-// 立即数叶子节点类
-class RVGPUUImmLeafOp<int bitsNum> :
-  RVGPUUImmOp<bitsNum>, ImmLeaf<i32, "return isUInt<" # bitsNum # ">(Imm);">;
-
-// 定义具体的立即数类型
-def uimm5 : RVGPUUImmLeafOp<5>;
-def uimm6 : RVGPUUImmLeafOp<6>;
-
-// 定义立即数匹配谓词
-def immZExt5 : PatLeaf<(i32 imm), [{ return isUInt<5>(N->getSExtValue()); }]>;
-def immZExt6 : PatLeaf<(i32 imm), [{ return isUInt<6>(N->getSExtValue()); }]>;
-
 // 32位移位指令基类
 class Shift32ImmInst<bits<6> funcid, string opstr, SDNode OpNode> 
     : RVGPUInst_RI<0b110111, 
@@ -3016,6 +3040,30 @@ foreach vt = [f16, bf16] in {
 foreach vt = [v2f16, v2bf16, v2i16, v4i8] in {
   def: Pat<(vt (ProxyReg  vt:$src)), (ProxyRegI32 GPR32:$src)>;
 }
+
+// Load / Store 指令的定义
+class RVGPUInst_LD<bits<6> op, string suffix, RVGPURegClass dstRC>
+    : RVGPUInst_RI<op, (outs dstRC:$dst), (ins GPR64:$src, simm12:$imm12), "ld." # suffix # "\t\t$dst, $src, $imm12", []> {
+  let mayLoad = 1;
+  let hasSideEffects = 0;
+}
+
+// 格式: ld.type dst, src, imm12
+// ld.s8  - 加载8位有符号数据并符号扩展到32位  
+// ld.u8  - 加载8位无符号数据并零扩展到32位
+// ld.s16 - 加载16位有符号数据并符号扩展到32位
+// ld.u16 - 加载16位无符号数据并零扩展到32位
+// ld.b32 - 加载32位数据
+// ld.b64 - 加载64位数据  
+// ld.b128 - 加载128位数据
+def LD_s8   : RVGPUInst_LD<0b000100, "s8",   GPR32>;   // 0x04
+def LD_u8   : RVGPUInst_LD<0b000101, "u8",   GPR32>;   // 0x05  
+def LD_s16  : RVGPUInst_LD<0b000110, "s16",  GPR32>;   // 0x06
+def LD_u16  : RVGPUInst_LD<0b000111, "u16",  GPR32>;   // 0x07
+def LD_b32  : RVGPUInst_LD<0b001000, "b32",  GPR32>;   // 0x08
+def LD_b64  : RVGPUInst_LD<0b001001, "b64",  GPR64>;   // 0x09
+def LD_b128 : RVGPUInst_LD<0b001010, "b128", GPR128>;  // 0x0A
+
 //
 // Load / Store Handling
 //
@@ -3051,11 +3099,11 @@ let mayLoad=1, hasSideEffects=0 in {
   defm LD_u8         : LD_G<"ld_u8",         0x0, GPR32>;
   defm LD_d16_u8     : LD_G<"ld_d16_u8",     0x1, GPR32>;
   defm LD_d16_hi_u8  : LD_G<"ld_d16_hi_u8",  0x2, GPR32>;
-  
+
   defm LD_i8         : LD_G<"ld_i8",         0x3, GPR32>;
   defm LD_d16_i8     : LD_G<"ld_d16_i8",     0x4, GPR32>;
   defm LD_d16_hi_i8  : LD_G<"ld_d16_hi_i8",  0x5, GPR32>;
-  
+
   defm LD_i16        : LD_G<"ld_i16",        0x6, GPR32>;
   defm LD_u16        : LD_G<"ld_u16",        0x7, GPR32>;
   defm LD_d16_b16    : LD_G<"ld_d16_b16",    0x8, GPR32>;
