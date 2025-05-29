@@ -829,8 +829,7 @@ void RVGPUDAGToDAGISel::SelectAddrSpaceCast(SDNode *N) {
 }
 
 // 根据VT选择LD指令的opcode
-static std::optional<unsigned>
-pickLDOpcodeForVT(MVT::SimpleValueType VT, bool IsSignExtend) {
+static std::optional<unsigned> pickLDOpcodeForVT(MVT::SimpleValueType VT, bool IsSignExtend) {
   switch (VT) {
   case MVT::i1:
   case MVT::i8:
@@ -849,6 +848,25 @@ pickLDOpcodeForVT(MVT::SimpleValueType VT, bool IsSignExtend) {
     return RVGPU::LD_b64;
   default:
     return std::nullopt;
+  }
+}
+
+static std::optional<unsigned> pickSTOpcodeForVT(MVT::SimpleValueType TargetVT) {
+  switch (TargetVT) {
+    case MVT::i8:
+      return RVGPU::ST_b8;
+    case MVT::i16:
+      return RVGPU::ST_b16;
+    case MVT::i32:
+    case MVT::f32:
+      return RVGPU::ST_b32;
+    case MVT::i64:
+    case MVT::f64:
+      return RVGPU::ST_b64;
+    case MVT::v4i32:
+      return RVGPU::ST_b128;
+    default:
+      return std::nullopt;
   }
 }
 
@@ -1701,15 +1719,42 @@ bool RVGPUDAGToDAGISel::tryStore(SDNode *N) {
                      Chain};
     RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
   } else {
-    Opcode =
-          pickOpcodeForVT(SourceVT, RVGPU::ST_b8_areg_64, RVGPU::ST_b16_areg_64,
-                          RVGPU::ST_b32_areg_64, RVGPU::ST_b64_areg_64,
-                          RVGPU::ST_b32_areg_64, RVGPU::ST_b64_areg_64);
+    SDValue IndexOrOffset;
+
+    // Store指令的操作数结构是：
+    // plainStore: [Chain, Value, BasePtr ...]
+    // 检查是否存在第四个操作时作为offset
+    if (ST->getNumOperands() > 3) {
+      IndexOrOffset = ST->getOperand(3);
+    } else {
+      // 如果没有偏移量操作数，创建一个 undef
+      IndexOrOffset = SDValue();
+    }
+
+    // 选择适当的 Store 指令操作码（带立即数的版本）
+    Opcode = pickSTOpcodeForVT(SourceVT);
     if (!Opcode)
       return false;
-    SDValue Ops[] = {Value,                     
-                     BasePtr,
-                     Chain};
+
+    SDValue Offset;
+    if (IndexOrOffset.getNode() == nullptr || IndexOrOffset.isUndef()) {
+        // 如果没有偏移量或者是 undef，设置为 0
+        Offset = CurDAG->getTargetConstant(0, dl, MVT::i32);
+    } else if (ConstantSDNode *C = dyn_cast<ConstantSDNode>(IndexOrOffset)) {
+        int64_t imm = C->getSExtValue();
+        if (isInt<12>(imm)) {  // 检查是否在 12 位立即数范围内
+            Offset = CurDAG->getTargetConstant(imm, dl, MVT::i32);
+        } else {
+            // 立即数超出12位的范围，返回 false
+            return false;
+        }
+    } else {
+        // 不是常量，无法处理
+        return false;
+    }
+
+    // 创建操作数数组：[Value, BasePtr, Offset, Chain]
+    SDValue Ops[] = {Value, BasePtr, Offset, Chain};
     RVGPUST = CurDAG->getMachineNode(*Opcode, dl, MVT::Other, Ops);
   }
 

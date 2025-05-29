@@ -3087,6 +3087,7 @@ foreach vt = [v2f16, v2bf16, v2i16, v4i8] in {
 }
 
 // Load / Store 指令的定义
+// Load 指令的基类
 class RVGPUInst_LD<bits<6> op, string suffix, RVGPURegClass dstRC>
     : RVGPUInst_RI<op, (outs dstRC:$dst), (ins GPR64:$src, simm12:$imm12), "ld." # suffix # "\t\t$dst, $src, $imm12", []> {
   let mayLoad = 1;
@@ -3109,6 +3110,26 @@ def LD_b32  : RVGPUInst_LD<0b001000, "b32",  GPR32>;   // 0x08
 def LD_b64  : RVGPUInst_LD<0b001001, "b64",  GPR64>;   // 0x09
 def LD_b128 : RVGPUInst_LD<0b001010, "b128", GPR128>;  // 0x0A
 
+// Store 指令的基类
+class RVGPUInst_ST<bits<6> op, string suffix, RVGPURegClass srcRC>
+    : RVGPUInst_RI<op, (outs), (ins srcRC:$src, GPR64:$dst, simm12:$imm12), "st." # suffix # "\t\t$dst, $src, $imm12", []> {
+  let mayStore = 1;
+  let hasSideEffects = 0;
+}
+
+// Store 指令定义
+// 格式: st.type dst, src, imm12
+// st.b8   - 存储8位数据
+// st.b16  - 存储16位数据  
+// st.b32  - 存储32位数据
+// st.b64  - 存储64位数据
+// st.b128 - 存储128位数据
+def ST_b8   : RVGPUInst_ST<0b001100, "b8",   GPR32>;   // 0x0C
+def ST_b16  : RVGPUInst_ST<0b001101, "b16",  GPR32>;   // 0x0D  
+def ST_b32  : RVGPUInst_ST<0b001110, "b32",  GPR32>;   // 0x0E
+def ST_b64  : RVGPUInst_ST<0b001111, "b64",  GPR64>;   // 0x0F
+def ST_b128 : RVGPUInst_ST<0b010000, "b128", GPR128>;  // 0x10
+
 //
 // Load / Store Handling
 //
@@ -3129,16 +3150,6 @@ multiclass LD<string OpcStr, bits<8> op, bits<3> type, bits<8> mode, RVGPURegCla
 
 multiclass LD_G<string OpcStr, bits<8>op, RVGPURegClass regclass>
 : LD<OpcStr, 0b11000100, 0b000, op, regclass>;
-/*
-let mayLoad=1, hasSideEffects=0 in {
-  defm LD_i8  : LD<GPR16>;
-  defm LD_i16 : LD<GPR16>;
-  defm LD_i32 : LD<GPR32>;
-  defm LD_i64 : LD<GPR64>;
-  defm LD_f32 : LD<GPR32>;
-  defm LD_f64 : LD<GPR64>;
-}
-*/
 
 let mayLoad=1, hasSideEffects=0 in {
   defm LD_u8         : LD_G<"ld_u8",         0x0, GPR32>;
