@@ -695,52 +695,52 @@ let hasSideEffects = false in {
     def _s8 :
       RVGPUInst_CVT<0b1110, stype, 0b00000, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_s8", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "s8_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u8 :
       RVGPUInst_CVT<0b1110, stype, 0b00001, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_u8", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "u8_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s16 :
       RVGPUInst_CVT<0b1110, stype, 0b00010, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_s16", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "s16_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u16 :
       RVGPUInst_CVT<0b1110, stype, 0b00011, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_u16", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "u16_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s32 :
       RVGPUInst_CVT<0b1110, stype, 0b00100, (outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_s32", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "s32_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u32 :
       RVGPUInst_CVT<0b1110, stype, 0b00101, (outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_u32", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "u32_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _s64 :
       RVGPUInst_CVT<0b1110, stype, 0b00110, (outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_s64", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "s64_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _u64 :
       RVGPUInst_CVT<0b1110, stype, 0b00111, (outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_u64", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "u64_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _f16 :
       RVGPUInst_CVT<0b1110, stype, 0b10000, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_f16", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "f16_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
     def _bf16 :
       RVGPUInst_CVT<0b1110, stype, 0b10011, (outs RC:$dst),
                 (ins GPR16:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_bf16", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "bf16_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<!if(!eq(ToType, "f32"),
                    // bf16->f32 was introduced early.
                    [hasPTX<71>, hasSM<80>],
@@ -749,7 +749,7 @@ let hasSideEffects = false in {
     def _f32 :
       RVGPUInst_CVT<0b1110, stype, 0b10001, (outs RC:$dst),
                 (ins GPR32:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_f32", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt.", "f32_to", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<!if(!eq(ToType, "bf16"),
                    // f32->bf16 was introduced early.
                    [hasPTX<70>, hasSM<80>],
@@ -757,7 +757,7 @@ let hasSideEffects = false in {
     def _f64 :
       RVGPUInst_CVT<0b1110, stype, 0b10010, (outs RC:$dst),
                 (ins GPR64:$src, CvtMode:$mode),
-                !strconcat("cvt_", ToType, "_f64", "${mode}", "\t$dst, $src"), []>,
+                !strconcat("cvt_", "f64_to_", ToType, "${mode}", "\t$dst, $src"), []>,
       Requires<Preds>;
   }
 
