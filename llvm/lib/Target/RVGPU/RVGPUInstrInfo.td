@@ -823,11 +823,6 @@ class Shift32ImmInst<bits<6> funcid, string opstr, SDNode OpNode>
   let imm12{4-0} = shamt;
 }
 
-// 32位移位指令定义
-def SLLI_32 : Shift32ImmInst<0b000001, "slli.b32", shl>;
-def SRLI_32 : Shift32ImmInst<0b000010, "srli.b32", srl>;
-def SRAI_32 : Shift32ImmInst<0b000011, "srai.b32", sra>;
-
 // 64位移位指令基类
 class Shift64ImmInst<bits<6> funcid, string opstr, SDNode OpNode> 
     : RVGPUInst_RI<0b110111, 
@@ -839,6 +834,11 @@ class Shift64ImmInst<bits<6> funcid, string opstr, SDNode OpNode>
   let imm12{5-0} = shamt;  // 64位移位使用全部6位
 }
 
+// 32位移位指令定义
+def SLLI_32 : Shift32ImmInst<0b000001, "slli.b32", shl>;
+def SRLI_32 : Shift32ImmInst<0b000010, "srli.b32", srl>;
+def SRAI_32 : Shift32ImmInst<0b000011, "srai.b32", sra>;
+
 // 64位移位指令定义
 def SLLI_64 : Shift64ImmInst<0b000100, "slli.b64", shl>;
 def SRLI_64 : Shift64ImmInst<0b000101, "srli.b64", srl>;
@@ -849,6 +849,29 @@ def SRAI_64 : Shift64ImmInst<0b000110, "srai.b64", sra>;
 // 使用 CVT 指令来处理 32位到64位的转换和移位
 def : Pat<(shl (zext i32:$rs1), immZExt6:$shamt), (SLLI_64 (CVT_u64_u32 GPR32:$rs1, CvtNONE), immZExt6:$shamt)>;
 // TODO. 添加ShiftRR类型
+
+//-----------------------------------
+// 算术逻辑运算
+//-----------------------------------
+// 32位 RR 类型算术逻辑运算 class
+class ALU32RRInst<bits<6> opcode, bits<5> func, string opstr, SDNode OpNode>
+  : RVGPUInst_RR<opcode, func, (outs GPR32:$dst), (ins GPR32:$src1, GPR32:$src2), 
+                 !strconcat(opstr, " \t$dst, $src1, $src2"), 
+                 [(set i32:$dst, (OpNode i32:$src1, i32:$src2))]>;
+
+// 64位 RR 类型算术逻辑运算 class
+class ALU64RRInst<bits<6> opcode, bits<5> func, string opstr, SDNode OpNode>
+  : RVGPUInst_RR<opcode, func, (outs GPR64:$dst), (ins GPR64:$src1, GPR64:$src2), 
+                 !strconcat(opstr, "\t$dst, $src1, $src2"), 
+                 [(set i64:$dst, (OpNode i64:$src1, i64:$src2))]>;
+
+// 指令定义
+def ADD_s32 : ALU32RRInst<0b000000, 0b00001, "add.s32\t", add>;
+def ADD_s64 : ALU64RRInst<0b000000, 0b00010, "add.s64\t", add>;
+
+// 额外的模式匹配
+def : Pat<(add i8:$src1, i8:$src2), (ADD_s32 $src1, $src2)>;
+def : Pat<(add i16:$src1, i16:$src2), (ADD_s32 $src1, $src2)>;
 
 //-----------------------------------
 // Selection instructions (selp)
@@ -962,7 +985,7 @@ defm SUB_i1 : ADD_SUB_i1<sub>;
 
 // int16, int32, and int64 signed addition.  Since nvptx is 2's complement, we
 // also use these for unsigned arithmetic.
-defm ADD : I3<0b00000000, "add.s", add>;
+// defm ADD : I3<0b00000000, "add.s", add>;
 defm SUB : I3<0b00000001, "sub.s", sub>;
 
 def SUB16x2 : I16x2<"sub.s", sub>;

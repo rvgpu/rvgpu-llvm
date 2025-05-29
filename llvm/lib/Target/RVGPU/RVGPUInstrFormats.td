@@ -100,8 +100,21 @@ class RVGPUInst_RI <bits<6> op, dag outs, dag ins, string asmstr, list<dag> patt
   bits<12> imm12;
 
   let Inst{31-26} = op;      // 6-bit opcode
-  let Inst{25-14} = imm12;   // 12-bit immediate
+  let Inst{25-14} = imm12;   // 12-bit immediate or function code
   let Inst{13-7} = src;      // 7-bit source register
+  let Inst{6-0} = dst;       // 7-bit destination register
+}
+
+class RVGPUInst_RR <bits<6> op, bits<5> func, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : RVGPUInst<outs, ins, asmstr, pattern> {
+  bits<7> src1;
+  bits<7> src2;
+  bits<7> dst;
+
+  let Inst{31-26} = op;      // 6-bit opcode
+  let Inst{25-21} = func;    // 5-bit function code
+  let Inst{20-14} = src2;    // 7-bit second source register 
+  let Inst{13-7} = src1;     // 7-bit first source register
   let Inst{6-0} = dst;       // 7-bit destination register
 }
 

@@ -138,7 +138,7 @@ class RegisterTypes<list<ValueType> reg_types> {
 }
 
 def Reg16Types : RegisterTypes<[i16, f16, bf16]>;
-def Reg32Types : RegisterTypes<[i32, f32, v2i16, v2f16, v2bf16, v4i8, p2, p3, p5, p6]>;
+def Reg32Types : RegisterTypes<[i8, i16, i32, f32, v2i16, v2f16, v2bf16, v4i8, p2, p3, p5, p6]>;
 
 def GPR_LO16 : RVGPURegClass<Reg16Types.types, 16, (add (sequence "GPR_%u_LO16", 0, 127))> {
   let AllocationPriority = 0;
